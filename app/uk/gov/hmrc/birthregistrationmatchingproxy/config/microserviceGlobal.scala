@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.birthregistrationmatchingproxy
+package uk.gov.hmrc.birthregistrationmatchingproxy.config
 
 import com.typesafe.config.Config
 import play.api.{Application, Configuration, Play}
