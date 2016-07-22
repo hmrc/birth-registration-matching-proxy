@@ -1,3 +1,5 @@
+import _root_.scoverage.ScoverageSbtPlugin
+import _root_.scoverage.ScoverageSbtPlugin.ScoverageKeys
 import sbt.Keys._
 import sbt.Tests.{SubProcess, Group}
 import sbt._
