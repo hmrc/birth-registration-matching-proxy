@@ -10,6 +10,7 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.BirthConnector
 import uk.gov.hmrc.brm.controllers.MatchingController
+import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.test.{WithFakeApplication, UnitSpec}
 import utils.JsonUtils
 
@@ -26,12 +27,6 @@ class MatchingControllerSpec extends UnitSpec with WithFakeApplication with Mock
   def groResponseForReference(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
   def groResponseForName(surname: String) = JsonUtils.getJsonFromFile(s"gro/$surname")
   val groJsonNoRecord = JsonUtils.getJsonFromFile("gro/no-record")
-
-//  val payloadWithName = JsonUtils.getJsonFromFile(s"brm/payload/GROMatchWithName")
-//  val payloadWithReference = JsonUtils.getJsonFromFile(s"brm/payload/GROMatchWithReference")
-//
-//  val payloadNoMatchWithReference = JsonUtils.getJsonFromFile(s"brm/payload/GRONoMatchWithInvalidReference")
-//  val payloadNoMatchWithName = JsonUtils.getJsonFromFile(s"brm/payload/GRONoMatchWithName")
 
   def referenceRequest(ref : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match/$ref")
   def params(firstName : String, lastName : String, dateOfBirth: String) = Map(s"firstName" -> firstName, "lastName" -> lastName, "dateOfBirth" -> dateOfBirth)
@@ -81,9 +76,17 @@ class MatchingControllerSpec extends UnitSpec with WithFakeApplication with Mock
         }
 
         "return InternalServerError when GRO is down" in {
-          when(MockController.connector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.failed(new RuntimeException()))
+          when(MockController.connector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)))
           val request = referenceRequest(reference)
           val result = MockController.reference(reference).apply(request)
+          status(result) shouldBe INTERNAL_SERVER_ERROR
+          contentType(result).get shouldBe "application/json"
+        }
+
+        "return BadRequest when invalid reference number is provided" in {
+          when(MockController.connector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)))
+          val request = referenceRequest("ass1212sqw")
+          val result = MockController.reference("ass1212sqw").apply(request)
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
         }
@@ -117,9 +120,18 @@ class MatchingControllerSpec extends UnitSpec with WithFakeApplication with Mock
         }
 
         "return InternalServerError when GRO is down" in {
-          when(MockController.connector.getDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.failed(new RuntimeException()))
+          when(MockController.connector.getDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)))
           val request = validDetailsRequest
           val result = MockController.details().apply(request)
+          status(result) shouldBe INTERNAL_SERVER_ERROR
+          contentType(result).get shouldBe "application/json"
+        }
+
+
+        "return BadRequest when invalid reference number is provided" in {
+          when(MockController.connector.getDetails(mockEq(params("", "", "")))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)))
+          val request = referenceRequest("ass1212sqw")
+          val result = MockController.reference("ass1212sqw").apply(request)
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
         }
