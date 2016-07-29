@@ -40,11 +40,10 @@ object JsonUtils {
 
     resourceAsString(path) match {
       case Some(x) =>
-        Logger.debug(s"source: $x")
         val json : JsValue = Json.parse(x)
         json
       case _ =>
-        throw new RuntimeException("cannot load json")
+        throw new RuntimeException(s"[JsonUtils][Cannot load json]: $path")
     }
   }
 }

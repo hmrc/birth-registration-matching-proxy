@@ -30,62 +30,36 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 
-trait BirthConnectorConfig extends ServicesConfig {
-  protected val serviceUrl : String
-  def username : String
-  protected val baseUri : String
+trait BirthConnector extends ServicesConfig {
+
+  protected lazy val serviceUrl = baseUrl("birth-registration-matching")
+  protected lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
+  protected lazy val password = getConfString("birth-registration-matching.key", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.key"))
+
   protected val version : String = "v0"
-  lazy val endpoint = s"$serviceUrl/$baseUri"
+  protected val eventUri = s"api/$version/events/birth"
+  protected val authUri = s"oauth/login"
 
-  override def toString = {
-    s"endpoint: $endpoint, http, version: $version"
-  }
-}
+  protected lazy val eventEndpoint = s"$serviceUrl/$eventUri"
+  protected lazy val authEndpoint = s"$serviceUrl/$authUri"
 
-case class GROEnglandAndWalesAuthConfig() extends BirthConnectorConfig {
-  override val serviceUrl = baseUrl("birth-registration-matching")
-  override def username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
-  override val baseUri = s"oauth/login"
-  def http : WSPost = WSHttp
-  val password = getConfString("birth-registration-matching.password", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.password"))
-}
-
-case class GROEnglandAndWalesEventConfig() extends BirthConnectorConfig {
-  override val serviceUrl = baseUrl("birth-registration-matching")
-  override def username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
-  override val baseUri = s"api/$version/events/birth"
-  def http : WSGet = WSHttp
-}
-
-trait BirthConnector {
-
-  def getReference(ref: String)
-                  (implicit hc : HeaderCarrier) : Future[JsValue]
-
-  def getDetails(params : Map[String, String])
-                (implicit hc : HeaderCarrier) : Future[JsValue]
-
-}
-
-object GROEnglandAndWalesConnector extends BirthConnector {
-
-  val eventConfig = GROEnglandAndWalesEventConfig()
-  val authConfig = GROEnglandAndWalesAuthConfig()
+  val httpGet : HttpGet = WSHttp
+  val httpPost : HttpPost = WSHttp
 
   import play.api.Play.current
 
-  def GROEventHeaderCarrier(config : BirthConnectorConfig, token : String) = {
+  private def GROEventHeaderCarrier(token : String) = {
     HeaderCarrier()
       .withExtraHeaders("Authorization" -> s"Bearer $token")
-      .withExtraHeaders("X-Auth-Downstream-Username" -> config.username)
+      .withExtraHeaders("X-Auth-Downstream-Username" -> username)
   }
 
   private def requestAuth(body : String => Future[JsValue])(implicit hc : HeaderCarrier) = {
     val credentials = Map(
-      "username" -> Seq(authConfig.username),
-      "password" -> Seq(authConfig.password)
+      "username" -> Seq(username),
+      "password" -> Seq(password)
     )
-    GROEnglandAndWalesConnector.authConfig.http.doFormPost(authConfig.endpoint, credentials) map {
+    httpPost.POSTForm(authEndpoint, credentials) map {
       response =>
         response.status match {
           case Status.OK =>
@@ -99,8 +73,8 @@ object GROEnglandAndWalesConnector extends BirthConnector {
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) = {
     requestAuth(
       token =>
-        GROEnglandAndWalesConnector.eventConfig.http.GET[HttpResponse](eventConfig.endpoint + s"/$reference")
-          (hc = GROEventHeaderCarrier(eventConfig, token), rds = HttpReads.readRaw) map {
+        httpGet.GET[HttpResponse](eventEndpoint + s"/$reference")
+          (hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
             handleResponse(response)
         }
@@ -110,8 +84,8 @@ object GROEnglandAndWalesConnector extends BirthConnector {
   private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) = {
     requestAuth(
       token => {
-        val endpoint = WS.url(eventConfig.endpoint).withQueryString(params.toList: _*).url
-        GROEnglandAndWalesConnector.eventConfig.http.GET[HttpResponse](endpoint)(hc = GROEventHeaderCarrier(eventConfig, token), rds = HttpReads.readRaw) map {
+        val endpoint = WS.url(eventEndpoint).withQueryString(params.toList: _*).url
+        httpGet.GET[HttpResponse](endpoint)(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
             handleResponse(response)
         }
@@ -128,18 +102,22 @@ object GROEnglandAndWalesConnector extends BirthConnector {
     }
   }
 
-  override def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[JsValue] = {
+  def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[JsValue] = {
+    Logger.debug(s"[GROEnglandAndWalesConnector][getReference]: $reference")
     requestReference(reference) flatMap {
       response =>
         response
     }
   }
 
-  def getDetails(params : Map[String, String])
-                (implicit hc : HeaderCarrier) : Future[JsValue] = {
+  def getChildDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : Future[JsValue] = {
+    Logger.debug(s"[GROEnglandAndWalesConnector][getDetails]: $params")
     requestDetails(params) flatMap {
       response =>
         response
     }
   }
+
 }
+
+object GROEnglandAndWalesConnector extends BirthConnector

@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.controllers
 
 import play.api.Logger
 import play.api.libs.json.Json
-import play.api.mvc.Action
+import play.api.mvc.{Result, Action}
 import uk.gov.hmrc.brm.connectors.{GROEnglandAndWalesConnector, BirthConnector}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -37,9 +37,13 @@ trait MatchingController extends BaseController {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  val connector : BirthConnector
+  def connector : BirthConnector
 
-  def details() = Action.async {
+  private def respond(response : Result) = {
+    response.as("application/json")
+  }
+
+  def details = Action.async {
     implicit request =>
       val (firstName, lastName, dob) = (
         request.getQueryString("firstName").getOrElse(""),
@@ -52,14 +56,14 @@ trait MatchingController extends BaseController {
         "dateOfBirth" -> dob
       )
       Logger.debug(s"params: $params")
-      connector.getDetails(params) map {
+      connector.getChildDetails(params) map {
         response =>
-          Ok(response).as("application/json")
+          respond(Ok(response))
       } recover {
         case e : Upstream4xxResponse =>
-          BadRequest(e.message)
+          respond(BadRequest(e.message))
         case e : Upstream5xxResponse =>
-          InternalServerError(e.message)
+          respond(InternalServerError(e.message))
       }
   }
 
@@ -68,12 +72,12 @@ trait MatchingController extends BaseController {
       Logger.debug(s"reference: $reference")
       connector.getReference(reference) map {
         response =>
-          Ok(response).as("application/json")
+          respond(Ok(response))
       } recover {
         case e : Upstream4xxResponse =>
-          BadRequest(e.message)
+          respond(BadRequest(e.message))
         case e : Upstream5xxResponse =>
-          InternalServerError(e.message)
+          respond(InternalServerError(e.message))
       }
   }
 
