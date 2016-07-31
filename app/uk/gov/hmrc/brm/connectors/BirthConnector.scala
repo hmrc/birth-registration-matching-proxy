@@ -72,19 +72,22 @@ trait BirthConnector extends ServicesConfig {
 
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) = {
     requestAuth(
-      token =>
-        httpGet.GET[HttpResponse](eventEndpoint + s"/$reference")
-          (hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
+      token => {
+        Logger.debug(s"Request Details. Token: $token")
+        httpGet.GET[HttpResponse](s"$eventEndpoint/$reference")(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
             handleResponse(response)
         }
+      }
     )
   }
 
   private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) = {
     requestAuth(
       token => {
+        Logger.debug(s"Request Details. Token: $token")
         val endpoint = WS.url(eventEndpoint).withQueryString(params.toList: _*).url
+        Logger.debug(s"Request details endpoint: $endpoint")
         httpGet.GET[HttpResponse](endpoint)(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
             handleResponse(response)

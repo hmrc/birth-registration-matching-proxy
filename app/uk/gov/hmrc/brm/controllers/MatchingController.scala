@@ -30,14 +30,14 @@ import scala.concurrent.Future
  */
 
 object MatchingController extends MatchingController {
-  override val connector = GROEnglandAndWalesConnector
+  override val groConnector = GROEnglandAndWalesConnector
 }
 
 trait MatchingController extends BaseController {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  def connector : BirthConnector
+  val groConnector : BirthConnector
 
   private def respond(response : Result) = {
     response.as("application/json")
@@ -55,8 +55,8 @@ trait MatchingController extends BaseController {
         "lastName" -> lastName,
         "dateOfBirth" -> dob
       )
-      Logger.debug(s"params: $params")
-      connector.getChildDetails(params) map {
+      Logger.info(s"params: $params")
+      groConnector.getChildDetails(params) map {
         response =>
           respond(Ok(response))
       } recover {
@@ -70,13 +70,14 @@ trait MatchingController extends BaseController {
   def reference(reference : String) = Action.async {
     implicit request =>
       Logger.debug(s"reference: $reference")
-      connector.getReference(reference) map {
+      groConnector.getReference(reference) map {
         response =>
           respond(Ok(response))
       } recover {
         case e : Upstream4xxResponse =>
           respond(BadRequest(e.message))
         case e : Upstream5xxResponse =>
+          Logger.error(s"[MatchingController][GROConnector][getReference] InternalServerError: ${e.message}")
           respond(InternalServerError(e.message))
       }
   }
