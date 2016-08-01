@@ -47,7 +47,6 @@ class MatchingControllerSpec extends UnitSpec
   def groResponseForReference(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
   def groResponseForName(surname: String) = JsonUtils.getJsonFromFile(s"gro/$surname")
   val groJsonNoRecord = JsonUtils.getJsonFromFile("gro/NoMatch")
-  val authRecord = JsonUtils.getJsonFromFile("gro/auth")
 
   def referenceRequest(ref : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match/$ref")
   def params(firstName : String, lastName : String, dateOfBirth: String) = Map(s"firstName" -> firstName, "lastName" -> lastName, "dateOfBirth" -> dateOfBirth)

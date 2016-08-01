@@ -43,8 +43,11 @@ trait BirthConnector extends ServicesConfig {
   protected lazy val eventEndpoint = s"$serviceUrl/$eventUri"
   protected lazy val authEndpoint = s"$serviceUrl/$authUri"
 
-  val httpGet : HttpGet = WSHttp
-  val httpPost : HttpPost = WSHttp
+  protected val httpGet : HttpGet = WSHttp
+  protected val httpPost : HttpPost = WSHttp
+
+  protected val extractJson : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json }
+  protected val extractAccessToken : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json.\("access_token") }
 
   import play.api.Play.current
 
@@ -61,12 +64,18 @@ trait BirthConnector extends ServicesConfig {
     )
     httpPost.POSTForm(authEndpoint, credentials) map {
       response =>
-        response.status match {
-          case Status.OK =>
-            body(response.json.\("access_token").as[String])
-          case e =>
-            throw new Upstream5xxResponse("something went wrong", e, Status.INTERNAL_SERVER_ERROR)
-        }
+        body(handleResponse(response, extractAccessToken).as[String])
+    }
+  }
+
+  private def handleResponse(response: HttpResponse, f : PartialFunction[HttpResponse, JsValue]) = {
+    response.status match {
+      case Status.OK =>
+        f(response)
+      case e @ Status.BAD_REQUEST =>
+        throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", e, Status.BAD_REQUEST)
+      case e @ _ =>
+        throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]", e, Status.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -76,7 +85,7 @@ trait BirthConnector extends ServicesConfig {
         Logger.debug(s"Request Details. Token: $token")
         httpGet.GET[HttpResponse](s"$eventEndpoint/$reference")(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
-            handleResponse(response)
+            handleResponse(response, extractJson)
         }
       }
     )
@@ -87,26 +96,15 @@ trait BirthConnector extends ServicesConfig {
       token => {
         Logger.debug(s"Request Details. Token: $token")
         val endpoint = WS.url(eventEndpoint).withQueryString(params.toList: _*).url
-        Logger.debug(s"Request details endpoint: $endpoint")
         httpGet.GET[HttpResponse](endpoint)(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
           response =>
-            handleResponse(response)
+            handleResponse(response, extractJson)
         }
       }
     )
   }
 
-  private def handleResponse(response : HttpResponse) = {
-    response.status match {
-      case Status.OK =>
-        response.json
-      case e =>
-        throw new Upstream5xxResponse("[GROEnglandAndWalesConnector][Invalid Response]", e, Status.INTERNAL_SERVER_ERROR)
-    }
-  }
-
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[JsValue] = {
-    Logger.debug(s"[GROEnglandAndWalesConnector][getReference]: $reference")
     requestReference(reference) flatMap {
       response =>
         response
@@ -114,7 +112,6 @@ trait BirthConnector extends ServicesConfig {
   }
 
   def getChildDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : Future[JsValue] = {
-    Logger.debug(s"[GROEnglandAndWalesConnector][getDetails]: $params")
     requestDetails(params) flatMap {
       response =>
         response

@@ -43,6 +43,15 @@ trait MatchingController extends BaseController {
     response.as("application/json")
   }
 
+  def handleException(method: String) : PartialFunction[Throwable, Result] = {
+    case e : Upstream4xxResponse =>
+      Logger.warn(s"[MatchingController][GROConnector][$method}}] BadRequest: ${e.message}")
+      respond(BadRequest(e.message))
+    case e : Upstream5xxResponse =>
+      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: ${e.message}")
+      respond(InternalServerError(e.message))
+  }
+
   def details = Action.async {
     implicit request =>
       val (firstName, lastName, dob) = (
@@ -55,31 +64,19 @@ trait MatchingController extends BaseController {
         "lastName" -> lastName,
         "dateOfBirth" -> dob
       )
-      Logger.info(s"params: $params")
+
       groConnector.getChildDetails(params) map {
         response =>
           respond(Ok(response))
-      } recover {
-        case e : Upstream4xxResponse =>
-          respond(BadRequest(e.message))
-        case e : Upstream5xxResponse =>
-          respond(InternalServerError(e.message))
-      }
+      } recover handleException("getChildDetails")
   }
 
   def reference(reference : String) = Action.async {
     implicit request =>
-      Logger.debug(s"reference: $reference")
       groConnector.getReference(reference) map {
         response =>
           respond(Ok(response))
-      } recover {
-        case e : Upstream4xxResponse =>
-          respond(BadRequest(e.message))
-        case e : Upstream5xxResponse =>
-          Logger.error(s"[MatchingController][GROConnector][getReference] InternalServerError: ${e.message}")
-          respond(InternalServerError(e.message))
-      }
+      } recover handleException("getReference")
   }
 
 }
