@@ -66,23 +66,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
   "BirthConnector" when {
 
-    "invalid configuration" should {
-
-//      "throw RuntimeException" in {
-//        running(BRMFakeApplication.fakeApplication(config)) {
-//          intercept[RuntimeException] {
-//            when(mockHttpPost.POSTForm[HttpResponse](Matchers.any(), Matchers.any())(Matchers.any(), Matchers.any()))
-//              .thenReturn(Future.successful(HttpResponse(200, Some(authRecord))))
-//            when(mockHttpGet.GET[HttpResponse](Matchers.any())(Matchers.any(), Matchers.any()))
-//              .thenReturn(Future.successful(HttpResponse(200, Some(groResponse("500035710")))))
-//            val result = await(MockBirthConnector.getReference("500035710"))
-//            result should not be JsNull
-//          }
-//        }
-//      }
-
-    }
-
     "getReference" should {
 
       "200 with json response with match" in {

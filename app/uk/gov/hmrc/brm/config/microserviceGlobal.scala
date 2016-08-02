@@ -20,7 +20,7 @@ import com.typesafe.config.Config
 import play.api.{Application, Configuration, Play}
 import uk.gov.hmrc.play.audit.filters.AuditFilter
 import uk.gov.hmrc.play.auth.controllers.AuthParamsControllerConfig
-import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode}
+import uk.gov.hmrc.play.config.{ServicesConfig, AppName, ControllerConfig, RunMode}
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
 import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
 import uk.gov.hmrc.play.auth.microservice.filters.AuthorisationFilter
@@ -29,6 +29,10 @@ import net.ceedubs.ficus.Ficus._
 
 object ControllerConfiguration extends ControllerConfig {
   lazy val controllerConfigs = Play.current.configuration.underlying.as[Config]("controllers")
+}
+
+object GROConnectorConfiguration extends ServicesConfig {
+
 }
 
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
