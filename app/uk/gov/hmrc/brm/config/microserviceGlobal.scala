@@ -32,7 +32,7 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object GROConnectorConfiguration extends ServicesConfig {
-
+  
 }
 
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
