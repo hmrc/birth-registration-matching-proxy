@@ -20,7 +20,7 @@ import play.api.Logger
 import play.api.http.Status
 import play.api.libs.json.{JsString, JsValue, Json}
 import play.api.libs.ws.WS
-import uk.gov.hmrc.brm.config.WSHttp
+import uk.gov.hmrc.brm.config.{GROConnectorConfiguration, WSHttp}
 import uk.gov.hmrc.play.config.ServicesConfig
 
 import uk.gov.hmrc.play.http.ws.{WSPost, WSGet, WSHttp}
@@ -32,18 +32,12 @@ import scala.concurrent.Future
 
 trait BirthConnector extends ServicesConfig {
 
-
-  // ANUJA REFACTOR THIS INTO THE GROCONNECTORCONFIG IN UK.GOV.HMRC.BRM.CONFIG
-  protected lazy val serviceUrl = baseUrl("birth-registration-matching")
-  protected lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
-  protected lazy val password = getConfString("birth-registration-matching.key", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.key"))
-
   protected val version : String = "v0"
   protected val eventUri = s"api/$version/events/birth"
   protected val authUri = s"oauth/login"
 
-  protected lazy val eventEndpoint = s"$serviceUrl/$eventUri"
-  protected lazy val authEndpoint = s"$serviceUrl/$authUri"
+  protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
+  protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
 
   protected val httpGet : HttpGet = WSHttp
   protected val httpPost : HttpPost = WSHttp
@@ -56,13 +50,13 @@ trait BirthConnector extends ServicesConfig {
   private def GROEventHeaderCarrier(token : String) = {
     HeaderCarrier()
       .withExtraHeaders("Authorization" -> s"Bearer $token")
-      .withExtraHeaders("X-Auth-Downstream-Username" -> username)
+      .withExtraHeaders("X-Auth-Downstream-Username" -> GROConnectorConfiguration.username)
   }
 
   private def requestAuth(body : String => Future[JsValue])(implicit hc : HeaderCarrier) = {
     val credentials = Map(
-      "username" -> Seq(username),
-      "password" -> Seq(password)
+      "username" -> Seq(GROConnectorConfiguration.serviceUrl),
+      "password" -> Seq(GROConnectorConfiguration.password)
     )
     httpPost.POSTForm(authEndpoint, credentials) map {
       response =>

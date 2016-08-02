@@ -32,7 +32,9 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object GROConnectorConfiguration extends ServicesConfig {
-  
+  lazy val serviceUrl = baseUrl("birth-registration-matching")
+  lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
+  lazy val password = getConfString("birth-registration-matching.key", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.key"))
 }
 
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
