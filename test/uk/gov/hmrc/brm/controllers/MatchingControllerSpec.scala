@@ -44,8 +44,7 @@ class MatchingControllerSpec extends UnitSpec
   val reference = "500035710"
   val invalidReference = "812739812739183"
 
-  def groResponseForReference(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
-  def groResponseForName(surname: String) = JsonUtils.getJsonFromFile(s"gro/$surname")
+  def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
   val groJsonNoRecord = JsonUtils.getJsonFromFile("gro/NoMatch")
 
   def referenceRequest(ref : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match/$ref")
@@ -85,7 +84,7 @@ class MatchingControllerSpec extends UnitSpec
         }
 
         "return 200 for a reference than exists in GRO" in {
-          val json = groResponseForReference(reference)
+          val json = groResponse(reference)
           when(MockController.groConnector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.successful(json))
           val request = referenceRequest(reference)
           val result = await(MockController.reference(reference).apply(request))
@@ -130,7 +129,7 @@ class MatchingControllerSpec extends UnitSpec
         }
 
         "return 200 for details than exists in GRO" in {
-            val json = groResponseForName("wilson")
+            val json = groResponse("wilson")
             when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.successful(json))
             val request = validDetailsRequest
             val result = await(MockController.details.apply(request))

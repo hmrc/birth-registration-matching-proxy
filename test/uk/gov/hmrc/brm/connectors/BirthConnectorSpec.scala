@@ -47,18 +47,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
 
-  val config : Map[String, _] = Map(
-
-  )
-
-  object BRMFakeApplication {
-
-    def fakeApplication(config : Map[String, _]) = {
-      FakeApplication(additionalConfiguration = config)
-    }
-
-  }
-
   before {
     reset(mockHttpGet)
     reset(mockHttpPost)
