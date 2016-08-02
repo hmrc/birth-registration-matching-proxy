@@ -45,7 +45,7 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String) : PartialFunction[Throwable, Result] = {
     case e : Upstream4xxResponse =>
-      Logger.warn(s"[MatchingController][GROConnector][$method}}] BadRequest: ${e.message}")
+      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: ${e.message}")
       respond(BadRequest(e.message))
     case e : Upstream5xxResponse =>
       Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: ${e.message}")
