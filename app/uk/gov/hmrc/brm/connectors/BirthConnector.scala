@@ -32,6 +32,8 @@ import scala.concurrent.Future
 
 trait BirthConnector extends ServicesConfig {
 
+
+  // ANUJA REFACTOR THIS INTO THE GROCONNECTORCONFIG IN UK.GOV.HMRC.BRM.CONFIG
   protected lazy val serviceUrl = baseUrl("birth-registration-matching")
   protected lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
   protected lazy val password = getConfString("birth-registration-matching.key", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.key"))
