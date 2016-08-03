@@ -48,6 +48,7 @@ class MatchingControllerSpec extends UnitSpec
   val groJsonNoRecord = JsonUtils.getJsonFromFile("gro/NoMatch")
 
   def referenceRequest(ref : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match/$ref")
+    .withHeaders(("Content-type", "application/json"))
   def params(firstName : String, lastName : String, dateOfBirth: String) = Map(s"firstName" -> firstName, "lastName" -> lastName, "dateOfBirth" -> dateOfBirth)
   def detailsRequest(firstName : String, lastName : String, dateOfBirth : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match?firstName=$firstName&lastName=$lastName&dateOfBirth=$dateOfBirth")
 
@@ -76,12 +77,6 @@ class MatchingControllerSpec extends UnitSpec
       }
 
       "GET /birth-registration-matching-proxy/match/:ref" should {
-
-        "not return NOT_FOUND endpoint" in {
-          val result = route(referenceRequest(reference))
-          result.isDefined shouldBe true
-          status(result.get) should not be NOT_FOUND
-        }
 
         "return 200 for a reference than exists in GRO" in {
           val json = groResponse(reference)
@@ -121,13 +116,7 @@ class MatchingControllerSpec extends UnitSpec
       }
 
       "GET /birth-registration-matching-proxy/match" should {
-
-        "not return NOT_FOUND endpoint" in {
-          val result = route(validDetailsRequest)
-          result.isDefined shouldBe true
-          status(result.get) should not be NOT_FOUND
-        }
-
+        
         "return 200 for details than exists in GRO" in {
             val json = groResponse("wilson")
             when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.successful(json))
