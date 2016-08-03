@@ -58,6 +58,7 @@ trait BirthConnector extends ServicesConfig {
       "username" -> Seq(GROConnectorConfiguration.serviceUrl),
       "password" -> Seq(GROConnectorConfiguration.password)
     )
+    Logger.debug(s"[BirthConnector][requestAuth] credentials: $credentials, endpoint: $authEndpoint")
     httpPost.POSTForm(authEndpoint, credentials) map {
       response =>
         body(handleResponse(response, extractAccessToken).as[String])
