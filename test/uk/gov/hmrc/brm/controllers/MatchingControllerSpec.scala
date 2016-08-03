@@ -116,7 +116,7 @@ class MatchingControllerSpec extends UnitSpec
       }
 
       "GET /birth-registration-matching-proxy/match" should {
-        
+
         "return 200 for details than exists in GRO" in {
             val json = groResponse("wilson")
             when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.successful(json))
