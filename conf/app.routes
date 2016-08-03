@@ -1,3 +1,6 @@
 # microservice specific routes
 
 GET        /hello-world             uk.gov.hmrc.brm.controllers.MicroserviceHelloWorld.hello
+
+GET       /match                   uk.gov.hmrc.brm.controllers.MatchingController.details
+GET       /match/:ref              uk.gov.hmrc.brm.controllers.MatchingController.reference(ref : String)
