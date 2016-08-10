@@ -55,7 +55,7 @@ trait BirthConnector extends ServicesConfig {
 
   private def requestAuth(body : String => Future[JsValue])(implicit hc : HeaderCarrier) = {
     val credentials = Map(
-      "username" -> Seq(GROConnectorConfiguration.serviceUrl),
+      "username" -> Seq(GROConnectorConfiguration.username),
       "password" -> Seq(GROConnectorConfiguration.password)
     )
     Logger.debug(s"[BirthConnector][requestAuth] credentials: $credentials, endpoint: $authEndpoint")
