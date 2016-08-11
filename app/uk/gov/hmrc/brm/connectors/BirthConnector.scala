@@ -32,7 +32,7 @@ import scala.concurrent.Future
 
 trait BirthConnector extends ServicesConfig {
 
-  protected val version : String = "v0"
+  protected val version : String = GROConnectorConfiguration.version
   protected val eventUri = s"api/$version/events/birth"
   protected val authUri = s"oauth/login"
 
@@ -100,6 +100,7 @@ trait BirthConnector extends ServicesConfig {
       }
     )
   }
+
 
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[JsValue] = {
     requestReference(reference) flatMap {
