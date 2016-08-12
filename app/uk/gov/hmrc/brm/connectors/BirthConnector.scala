@@ -45,6 +45,9 @@ trait BirthConnector extends ServicesConfig {
   protected val extractJson : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json }
   protected val extractAccessToken : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json.\("access_token") }
 
+  protected val keystore = GROConnectorConfiguration.TLSPrivateKeystore
+  protected val keystoreKey = GROConnectorConfiguration.TLSPrivateKeystoreKey
+
   import play.api.Play.current
 
   private def GROEventHeaderCarrier(token : String) = {
@@ -77,6 +80,7 @@ trait BirthConnector extends ServicesConfig {
   }
 
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) = {
+    Logger.info(s"keystore: $keystore key: $keystoreKey")
     requestAuth(
       token => {
         Logger.debug(s"Request Details. Token: $token")
