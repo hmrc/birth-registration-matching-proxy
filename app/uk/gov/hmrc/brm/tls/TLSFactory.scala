@@ -59,8 +59,8 @@ trait TLSFactory {
     val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.UTF_8))
     val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.UTF_8)).map(_.toChar)
 
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $decodedKeystore")
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $decodedKeystoreKey")
+    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64")
+    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64")
 
     ks.load(new ByteArrayInputStream(decodedKeystore), decodedKeystoreKey)
     val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
