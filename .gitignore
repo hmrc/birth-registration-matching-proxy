@@ -1,6 +1,7 @@
-.*
-
 !.gitignore
+
+.ensime
+.ensime_cache
 
 .cache
 /.classpath
@@ -14,7 +15,6 @@ eclipse
 .idea
 /.idea_modules
 *.iml
-lib
 lib_managed
 log
 logs

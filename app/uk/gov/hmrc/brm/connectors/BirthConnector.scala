@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import java.io.IOException
+
 import play.api.Logger
-import play.api.http.Status
-import play.api.libs.json.{JsString, JsValue, Json}
-import play.api.libs.ws.WS
-import uk.gov.hmrc.brm.config.{GROConnectorConfiguration, WSHttp}
+import play.api.libs.json._
+import uk.co.bigbeeconsultants.http.header.Headers
+import uk.co.bigbeeconsultants.http.request.RequestBody
+import uk.co.bigbeeconsultants.http.response.{Response, Status}
+import uk.co.bigbeeconsultants.http.{HttpClient, _}
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.play.config.ServicesConfig
-
-import uk.gov.hmrc.play.http.ws.{WSPost, WSGet, WSHttp}
-import uk.gov.hmrc.play.http._
-
-import scala.concurrent.ExecutionContext.Implicits.global
+import uk.gov.hmrc.play.http.{HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 
 import scala.concurrent.Future
 
@@ -39,55 +40,70 @@ trait BirthConnector extends ServicesConfig {
   protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
 
-  protected val httpGet : HttpGet = WSHttp
-  protected val httpPost : HttpPost = WSHttp
+  protected def httpClient : HttpClient
 
-  protected val extractJson : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json }
-  protected val extractAccessToken : PartialFunction[HttpResponse, JsValue] = { case response : HttpResponse => response.json.\("access_token") }
+  private def throwInternalServerError(response: Response) = throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]",  response.status.code, 500)
+  private def throwBadRequest(response : Response) = throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", response.status.code, 400)
 
-  protected val keystore = GROConnectorConfiguration.TLSPrivateKeystore
-  protected val keystoreKey = GROConnectorConfiguration.TLSPrivateKeystoreKey
+  protected def parseJson(response: Response) = {
+    try {
+      val bodyText = response.body.asString
+      Logger.debug(s"[BirthConnector][parseJson] ${response.body.asString}")
+      val json = Json.parse(bodyText)
+      json
+    } catch {
+      case e : Exception =>
+        Logger.warn(s"[BirthConnector][parseJson] unable to parse json")
+        throwInternalServerError(response)
+    }
+  }
 
-  import play.api.Play.current
+  protected val extractJson : PartialFunction[Response, JsValue] = {
+    case response : Response =>
+      parseJson(response)
+  }
+  protected val extractAccessToken : PartialFunction[Response, JsValue] = {
+    case response : Response =>
+      parseJson(response).\("access_token")
+  }
+
+  private def handleResponse(response: Response, f : PartialFunction[Response, JsValue], method: String) = {
+    Logger.debug(s"[BirthConnector][handleResponse][$method] : $response")
+    response.status match {
+      case Status.S200_OK =>
+        Logger.info(s"[BirthConnector][handleResponse][$method][200] Success")
+        f(response)
+      case e @ Status.S400_BadRequest =>
+        Logger.warn(s"[BirthConnector][handleResponse][$method][4xx] BadRequest: $response")
+        throwBadRequest(response)
+      case e @ _ =>
+        Logger.error(s"[BirthConnector][handleResponse][$method][5xx] InternalServerError: $response")
+        throwInternalServerError(response)
+    }
+  }
 
   private def GROEventHeaderCarrier(token : String) = {
-    HeaderCarrier()
-      .withExtraHeaders("Authorization" -> s"Bearer $token")
-      .withExtraHeaders("X-Auth-Downstream-Username" -> GROConnectorConfiguration.username)
-  }
-
-  private def requestAuth(body : String => Future[JsValue])(implicit hc : HeaderCarrier) = {
-    val credentials = Map(
-      "username" -> Seq(GROConnectorConfiguration.username),
-      "password" -> Seq(GROConnectorConfiguration.password)
+    Map(
+      "Authorization" -> s"Bearer $token",
+      "X-Auth-Downstream-Username" -> GROConnectorConfiguration.username
     )
-    Logger.debug(s"[BirthConnector][requestAuth] credentials: $credentials, endpoint: $authEndpoint")
-    httpPost.POSTForm(authEndpoint, credentials) map {
-      response =>
-        body(handleResponse(response, extractAccessToken).as[String])
-    }
   }
 
-  private def handleResponse(response: HttpResponse, f : PartialFunction[HttpResponse, JsValue]) = {
-    response.status match {
-      case Status.OK =>
-        f(response)
-      case e @ Status.BAD_REQUEST =>
-        throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", e, Status.BAD_REQUEST)
-      case e @ _ =>
-        throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]", e, Status.INTERNAL_SERVER_ERROR)
-    }
+  private def requestAuth(body : String => JsValue)(implicit hc : HeaderCarrier) = {
+    val credentials : Map[String, String] = Map(
+      "username" -> GROConnectorConfiguration.username,
+      "password" -> GROConnectorConfiguration.password
+    )
+
+    val response = httpClient.post(authEndpoint, Some(RequestBody.apply(credentials)))
+    body(handleResponse(response, extractAccessToken, "requestAuth").as[String])
   }
 
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) = {
-    Logger.info(s"keystore: $keystore key: $keystoreKey")
     requestAuth(
       token => {
-        Logger.debug(s"Request Details. Token: $token")
-        httpGet.GET[HttpResponse](s"$eventEndpoint/$reference")(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
-          response =>
-            handleResponse(response, extractJson)
-        }
+        val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(token)))
+        handleResponse(response, extractJson, "requestReference")
       }
     )
   }
@@ -95,31 +111,27 @@ trait BirthConnector extends ServicesConfig {
   private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) = {
     requestAuth(
       token => {
-        Logger.debug(s"Request Details. Token: $token")
-        val endpoint = WS.url(eventEndpoint).withQueryString(params.toList: _*).url
-        httpGet.GET[HttpResponse](endpoint)(hc = GROEventHeaderCarrier(token), rds = HttpReads.readRaw) map {
-          response =>
-            handleResponse(response, extractJson)
-        }
+        val response = httpClient.get(s"$eventEndpoint", Headers.apply(GROEventHeaderCarrier(token)))
+        handleResponse(response, extractJson, "requestDetails")
       }
     )
   }
 
-
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[JsValue] = {
-    requestReference(reference) flatMap {
-      response =>
-        response
-    }
+    val json = requestReference(reference)
+    Future.successful(json)
   }
 
   def getChildDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : Future[JsValue] = {
-    requestDetails(params) flatMap {
-      response =>
-        response
-    }
+    val json = requestDetails(params)
+    Future.successful(json)
   }
 
 }
 
-object GROEnglandAndWalesConnector extends BirthConnector
+// $COVERAGE-OFF$
+object GROEnglandAndWalesConnector extends BirthConnector {
+  def config = TLSFactory.getConfig
+  override def httpClient = new HttpClient(config)
+}
+// $COVERAGE-ON$
