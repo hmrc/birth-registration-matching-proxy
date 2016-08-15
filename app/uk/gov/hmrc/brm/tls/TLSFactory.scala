@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.tls
 
 import java.security.KeyStore
 
-import play.api.Play
+import play.api.{Logger, Play}
 import uk.co.bigbeeconsultants.http.Config
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 
