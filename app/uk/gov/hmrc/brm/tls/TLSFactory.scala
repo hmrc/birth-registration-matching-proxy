@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.brm.tls
 
-import java.nio.charset.StandardCharsets
+import java.nio.ByteBuffer
+import java.nio.charset.{Charset, StandardCharsets}
 
 import play.api.Logger
 import uk.co.bigbeeconsultants.http.Config
@@ -56,18 +57,38 @@ trait TLSFactory {
   private def getSocketFactory : Option[SSLSocketFactory] = {
     val ks = KeyStore.getInstance("jks")
 
-    val base64keystore = keystoreBase64.replaceAll("[\n\r]", "")
-    val base64keystoreKey = keystoreKeyBase64.replaceAll("[\n\r]", "")
+//    val base64keystore = keystoreBase64.replaceAll("[\n\r]", "")
+//    val base64keystoreKey = keystoreKeyBase64.replaceAll("[\n\r]", "")
 
-    val decodedKeystore = Base64.getDecoder.decode(base64keystore.getBytes(StandardCharsets.US_ASCII))
-    val decodedKeystoreKey = Base64.getDecoder.decode(base64keystoreKey.getBytes(StandardCharsets.US_ASCII)).map(_.toChar)
+    val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.US_ASCII))
+    val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.US_ASCII))
 
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64 replaced: $base64keystore")
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64 replaced: $base64keystoreKey")
+//    val decodedKeystore = Base64.getDecoder.decode(base64keystore)
+//    val decodedKeystoreKey = Base64.getDecoder.decode(base64keystoreKey)
 
-    ks.load(new ByteArrayInputStream(decodedKeystore), decodedKeystoreKey)
+//    val latin1Charset = Charset.forName("US-ASCII")
+//    val charBuffer = latin1Charset.decode(ByteBuffer.wrap(decodedKeystoreKey))
+    val passwordString = new String(decodedKeystoreKey, StandardCharsets.US_ASCII)
+//    val passwordArray = passwordString.toCharArray
+    val array = Array[Char]()
+    val passwordArray = passwordString.map(x => x).copyToArray(array, 0, passwordString.length)
+
+    Logger.debug(s"\n [Password] decoded: $decodedKeystoreKey string: $passwordString, array: ${passwordArray} directArray: ${"ENzLAZ7Vay9HhGB".toCharArray}")
+
+//    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64 " +
+//      s"replaced: $base64keystore " +
+//      s"isTheSame: ${keystoreBase64.equals(base64keystore)} ${keystoreKeyBase64.equals(base64keystoreKey)}")
+//    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64 replaced: $base64keystoreKey")
+
+//    ks.load(new ByteArrayInputStream(decodedKeystore), keystoreKeyBase64.toCharArray)
+    ks.load(new ByteArrayInputStream(decodedKeystore), array)
+//    ks.load(new ByteArrayInputStream(decodedKeystore), decodedKeystoreKey)
+//    ks.load(new ByteArrayInputStream(decodedKeystore), "ENzLAZ7Vay9HhGB".toCharArray)
     val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
-    kmf.init(ks, decodedKeystoreKey)
+//    kmf.init(ks, keystoreKeyBase64.toCharArray)
+    kmf.init(ks, array)
+//    kmf.init(ks, decodedKeystoreKey)
+//    kmf.init(ks, "ENzLAZ7Vay9HhGB".toCharArray)
 
     val tls = SSLContext.getInstance(tlsMode)
     tls.init(kmf.getKeyManagers, Array(DumbTrustManager), new SecureRandom())
