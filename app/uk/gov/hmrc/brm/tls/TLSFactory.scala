@@ -16,8 +16,7 @@
 
 package uk.gov.hmrc.brm.tls
 
-import java.nio.ByteBuffer
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.StandardCharsets
 
 import play.api.Logger
 import uk.co.bigbeeconsultants.http.Config
