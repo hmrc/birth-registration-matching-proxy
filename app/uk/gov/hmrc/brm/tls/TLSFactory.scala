@@ -16,16 +16,15 @@
 
 package uk.gov.hmrc.brm.tls
 
-import java.security.KeyStore
+import java.nio.charset.StandardCharsets
 
-import play.api.{Logger, Play}
+import play.api.Logger
 import uk.co.bigbeeconsultants.http.Config
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 
 trait TLSFactory {
 
   import java.io.ByteArrayInputStream
-  import java.nio.charset.StandardCharsets
   import java.security.cert.X509Certificate
   import java.security.{KeyStore, SecureRandom}
   import java.util.Base64
@@ -56,11 +55,15 @@ trait TLSFactory {
 
   private def getSocketFactory : Option[SSLSocketFactory] = {
     val ks = KeyStore.getInstance("jks")
-    val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.UTF_8))
-    val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.UTF_8)).map(_.toChar)
 
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64")
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64")
+    val base64keystore = keystoreBase64.replaceAll("[\n\r]", "")
+    val base64keystoreKey = keystoreKeyBase64.replaceAll("[\n\r]", "")
+
+    val decodedKeystore = Base64.getDecoder.decode(base64keystore.getBytes(StandardCharsets.US_ASCII))
+    val decodedKeystoreKey = Base64.getDecoder.decode(base64keystoreKey.getBytes(StandardCharsets.US_ASCII)).map(_.toChar)
+
+    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64 replaced: $base64keystore")
+    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64 replaced: $base64keystoreKey")
 
     ks.load(new ByteArrayInputStream(decodedKeystore), decodedKeystoreKey)
     val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
