@@ -54,20 +54,15 @@ trait TLSFactory {
   }
 
   private def getSocketFactory : Option[SSLSocketFactory] = {
+    val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.US_ASCII))
+
+    Logger.debug(s"[TLSFactory][getSocketFactory] keystore: $keystoreBase64 key: $keystoreKeyBase64")
+
     val ks = KeyStore.getInstance("jks")
+    ks.load(new ByteArrayInputStream(decodedKeystore), keystoreKeyBase64.toCharArray)
 
-    val base64keystore = keystoreBase64.replaceAll("[\n\r]", "")
-    val base64keystoreKey = keystoreKeyBase64.replaceAll("[\n\r]", "")
-
-    val decodedKeystore = Base64.getDecoder.decode(base64keystore.getBytes(StandardCharsets.US_ASCII))
-    val decodedKeystoreKey = Base64.getDecoder.decode(base64keystoreKey.getBytes(StandardCharsets.US_ASCII)).map(_.toChar)
-
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystore]: $keystoreBase64 replaced: $base64keystore")
-    Logger.debug(s"[TLSFactory][getSocketFactory][keystoreKey]: $keystoreKeyBase64 replaced: $base64keystoreKey")
-
-    ks.load(new ByteArrayInputStream(decodedKeystore), decodedKeystoreKey)
     val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
-    kmf.init(ks, decodedKeystoreKey)
+    kmf.init(ks, keystoreKeyBase64.toCharArray)
 
     val tls = SSLContext.getInstance(tlsMode)
     tls.init(kmf.getKeyManagers, Array(DumbTrustManager), new SecureRandom())
