@@ -42,7 +42,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
   val mockHttpClient = mock[HttpClient]
 
   object MockBirthConnector extends BirthConnector {
-    override def httpClient = mockHttpClient
+    override val httpClient = mockHttpClient
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")

@@ -40,7 +40,7 @@ trait BirthConnector extends ServicesConfig {
   protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
 
-  protected def httpClient : HttpClient
+  protected val httpClient : HttpClient
 
   private def throwInternalServerError(response: Response) = throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]",  response.status.code, 500)
   private def throwBadRequest(response : Response) = throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", response.status.code, 400)
@@ -95,13 +95,23 @@ trait BirthConnector extends ServicesConfig {
       "password" -> GROConnectorConfiguration.password
     )
 
-    val response = httpClient.post(authEndpoint, Some(RequestBody.apply(credentials)))
+    Logger.debug(s"[BirthConnector][requestAuth]: $authEndpoint credentials: $credentials")
+    Logger.info(s"[BirthConnector][requestAuth]: $authEndpoint")
+    val response = httpClient.post(
+      url = authEndpoint,
+      body = Some(RequestBody.apply(credentials)),
+      requestHeaders = Headers.apply(
+        Map("Content-Type" -> "application/x-www-form-urlencoded")
+      )
+    )
     body(handleResponse(response, extractAccessToken, "requestAuth").as[String])
   }
 
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) = {
     requestAuth(
       token => {
+        Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(token)}")
+        Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
         val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(token)))
         handleResponse(response, extractJson, "requestReference")
       }
@@ -131,7 +141,7 @@ trait BirthConnector extends ServicesConfig {
 
 // $COVERAGE-OFF$
 object GROEnglandAndWalesConnector extends BirthConnector {
-  def config = TLSFactory.getConfig
-  override def httpClient = new HttpClient(config)
+  val config = TLSFactory.getConfig
+  override val httpClient = new HttpClient(config)
 }
 // $COVERAGE-ON$
