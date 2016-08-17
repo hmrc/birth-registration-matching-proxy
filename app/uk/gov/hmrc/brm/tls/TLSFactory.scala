@@ -57,14 +57,16 @@ trait TLSFactory {
 
   private def getSocketFactory : Option[SSLSocketFactory] = {
     val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.US_ASCII))
+    val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.US_ASCII))
+    val keyString = new String(decodedKeystoreKey, StandardCharsets.US_ASCII)
 
     Logger.debug(s"[TLSFactory][getSocketFactory] keystore: $keystoreBase64 key: $keystoreKeyBase64")
 
     val ks = KeyStore.getInstance("jks")
-    ks.load(new ByteArrayInputStream(decodedKeystore), keystoreKeyBase64.toCharArray)
+    ks.load(new ByteArrayInputStream(decodedKeystore), keyString.toCharArray)
 
     val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
-    kmf.init(ks, keystoreKeyBase64.toCharArray)
+    kmf.init(ks, keyString.toCharArray)
 
     val tls = SSLContext.getInstance(tlsMode)
     tls.init(kmf.getKeyManagers, Array(DumbTrustManager), new SecureRandom())
