@@ -30,6 +30,8 @@ trait TLSFactory {
   import java.util.Base64
   import javax.net.ssl._
 
+  protected val connectionTimeout : Int
+  protected val readTimeout : Int
   protected val keystoreBase64 : String
   protected val keystoreKeyBase64 : String
   protected val tlsMode : String
@@ -73,8 +75,8 @@ trait TLSFactory {
     val sslSocketFactory = if(GROConnectorConfiguration.tlsEnabled) getSocketFactory else None
 
     Config(
-      connectTimeout = 5000,
-      readTimeout = 10000,
+      connectTimeout = connectionTimeout,
+      readTimeout = readTimeout,
       sslSocketFactory = sslSocketFactory,
       hostnameVerifier = hostnameVerifier
     )
@@ -83,6 +85,8 @@ trait TLSFactory {
 }
 
 object TLSFactory extends TLSFactory {
+  override val connectionTimeout = GROConnectorConfiguration.connectionTimeout
+  override val readTimeout = GROConnectorConfiguration.readTimeout
   override val allowHostNameMismatch = GROConnectorConfiguration.hostname
   override val tlsMode = GROConnectorConfiguration.tlsVersion
   override val keystoreBase64 = GROConnectorConfiguration.tlsPrivateKeystore

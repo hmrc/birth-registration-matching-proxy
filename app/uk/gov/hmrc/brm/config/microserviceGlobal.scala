@@ -32,6 +32,15 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object GROConnectorConfiguration extends ServicesConfig {
+
+  override def baseUrl(serviceName: String) = {
+    val protocol = getConfString(s"$serviceName.protocol",defaultProtocol)
+    val host = getConfString(s"$serviceName.host", throw new RuntimeException(s"Could not find config $serviceName.host"))
+    val port = getConfInt(s"$serviceName.port", 0)
+    if (port == 0) s"$protocol://$host"
+    else s"$protocol://$host:$port"
+  }
+
   lazy val serviceUrl = baseUrl("birth-registration-matching")
   lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
   lazy val password = getConfString("birth-registration-matching.key", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.key"))
@@ -42,6 +51,8 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val hostname = getConfBool("birth-registration-matching.allowHostnameMismatch", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.allowHostnameMismatch"))
   lazy val tlsVersion = getConfString("birth-registration-matching.tlsVersion", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.tlsVersion"))
   lazy val tlsEnabled = getConfBool("birth-registration-matching.tlsEnabled", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.tlsEnabled"))
+  lazy val connectionTimeout = getConfInt("birth-registration-matching.connectionTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.connectionTimeout"))
+  lazy val readTimeout = getConfInt("birth-registration-matching.readTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.readTimeout"))
 }
 
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
