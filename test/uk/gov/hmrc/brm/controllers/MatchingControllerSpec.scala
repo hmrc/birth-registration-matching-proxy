@@ -115,11 +115,11 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe "Internal server error"
         }
 
-        "return BadRequest when invalid reference number is provided" in {
+        "return BadGateway when invalid reference number is provided" in {
           when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)))
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference("ass1212sqw").apply(request))
-          status(result) shouldBe BAD_REQUEST
+          status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe "BadRequest returned from GRO"
         }
@@ -131,6 +131,15 @@ class MatchingControllerSpec extends UnitSpec
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe "Invalid json returned from GRO"
+        }
+
+        "return InternalServerError when GRO times out" in {
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", GATEWAY_TIMEOUT, GATEWAY_TIMEOUT)))
+          val request = referenceRequest("ass1212sqw")
+          val result = await(MockController.reference("ass1212sqw").apply(request))
+          status(result) shouldBe GATEWAY_TIMEOUT
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe empty
         }
 
       }
@@ -165,11 +174,11 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe "Connection to GRO is down"
         }
 
-        "return BadRequest when invalid details are provided" in {
+        "return BadGateway when invalid details are provided" in {
           when(MockController.groConnector.getChildDetails(mockEq(params("", "", "")))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)))
           val request = invalidDetailsRequest
           val result = await(MockController.details.apply(request))
-          status(result) shouldBe BAD_REQUEST
+          status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe "BadRequest returned from GRO"
         }

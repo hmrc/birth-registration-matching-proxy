@@ -42,8 +42,8 @@ trait BirthConnector extends ServicesConfig {
 
   protected val httpClient : HttpClient
 
-  private def throwInternalServerError(response: Response) = throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]",  500, 500)
-  private def throwBadRequest(response : Response) = throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", 400, 400)
+  private def throwInternalServerError(response: Response) = throw new Upstream5xxResponse(s"[${super.getClass.getName}][InternalServerError]", response.status.code, 500)
+  private def throwBadRequest(response : Response) = throw new Upstream4xxResponse(s"[${super.getClass.getName}][BadRequest]", response.status.code, 400)
 
   protected def parseJson(response: Response) = {
     try {

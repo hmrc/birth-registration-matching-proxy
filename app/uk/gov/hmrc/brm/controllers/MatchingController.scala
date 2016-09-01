@@ -44,12 +44,15 @@ trait MatchingController extends BaseController {
   }
 
   def handleException(method: String) : PartialFunction[Throwable, Result] = {
+    case Upstream4xxResponse(message, BAD_REQUEST, _, _) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
+      respond(BadGateway("BadRequest returned from GRO"))
+    case Upstream4xxResponse(message, GATEWAY_TIMEOUT, _, _) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] BadRequest: $message")
+      respond(GatewayTimeout)
     case e : JsValidationException =>
       Logger.warn(s"[MatchingController][GROConnector][$method] JsValidationException")
       respond(InternalServerError("Invalid json returned from GRO"))
-    case Upstream4xxResponse(message, BAD_REQUEST, _, _) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
-      respond(BadRequest("BadRequest returned from GRO"))
     case Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _) =>
       Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
