@@ -110,9 +110,9 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", BAD_GATEWAY, BAD_GATEWAY)))
           val request = referenceRequest(reference)
           val result = await(MockController.reference(reference).apply(request))
-          status(result) shouldBe INTERNAL_SERVER_ERROR
+          status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "Internal server error"
+          bodyOf(result) shouldBe "BadGateway returned from GRO"
         }
 
         "return BadGateway when invalid reference number is provided" in {
@@ -134,7 +134,7 @@ class MatchingControllerSpec extends UnitSpec
         }
 
         "return InternalServerError when GRO times out" in {
-          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", GATEWAY_TIMEOUT, GATEWAY_TIMEOUT)))
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", GATEWAY_TIMEOUT, GATEWAY_TIMEOUT)))
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference("ass1212sqw").apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
