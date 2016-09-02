@@ -43,7 +43,10 @@ trait MatchingController extends BaseController {
     response.as("application/json")
   }
 
-  def handleException(method: String) : PartialFunction[Throwable, Result] = {
+  def handleException(method: String, reference : String) : PartialFunction[Throwable, Result] = {
+    case Upstream4xxResponse(message, NOT_FOUND, _, _) =>
+      Logger.info(s"[MatchingController][GROConnector][$method] NotFound: no record found for $reference")
+      respond(NotFound(s"$reference"))
     case Upstream4xxResponse(message, BAD_REQUEST, _, _) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
       respond(BadGateway("BadRequest returned from GRO"))
@@ -80,7 +83,7 @@ trait MatchingController extends BaseController {
       groConnector.getChildDetails(params) map {
         response =>
           respond(Ok(response))
-      } recover handleException("getChildDetails")
+      } recover handleException("getChildDetails", "")
   }
 
   def reference(reference : String) = Action.async {
@@ -88,7 +91,7 @@ trait MatchingController extends BaseController {
       groConnector.getReference(reference) map {
         response =>
           respond(Ok(response))
-      } recover handleException("getReference")
+      } recover handleException("getReference", reference)
   }
 
 }

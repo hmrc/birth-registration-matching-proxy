@@ -97,6 +97,15 @@ class MatchingControllerSpec extends UnitSpec
           jsonBodyOf(result).as[JsArray] shouldBe groJsonNoRecord.as[JsArray]
         }
 
+        "return NotFound/404 when GRO returns NotFound" in {
+          when(MockController.groConnector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", NOT_FOUND, NOT_FOUND)))
+          val request = referenceRequest(reference)
+          val result = await(MockController.reference(reference).apply(request))
+          status(result) shouldBe NOT_FOUND
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe s"$reference"
+        }
+
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
           when(MockController.groConnector.getReference(mockEq(reference))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)))
           val request = referenceRequest(reference)
