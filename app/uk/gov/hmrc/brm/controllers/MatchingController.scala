@@ -20,7 +20,7 @@ import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc.{Result, Action}
 import uk.gov.hmrc.brm.connectors.{GROEnglandAndWalesConnector, BirthConnector}
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
@@ -43,13 +43,28 @@ trait MatchingController extends BaseController {
     response.as("application/json")
   }
 
-  def handleException(method: String) : PartialFunction[Throwable, Result] = {
-    case e : Upstream4xxResponse =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: ${e.message}")
-      respond(BadRequest(e.message))
-    case e : Upstream5xxResponse =>
-      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: ${e.message}")
-      respond(InternalServerError(e.message))
+  def handleException(method: String, reference : String) : PartialFunction[Throwable, Result] = {
+    case Upstream4xxResponse(message, NOT_FOUND, _, _) =>
+      Logger.info(s"[MatchingController][GROConnector][$method] NotFound: no record found for $reference")
+      respond(NotFound(s"$reference"))
+    case Upstream4xxResponse(message, BAD_REQUEST, _, _) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
+      respond(BadGateway("BadRequest returned from GRO"))
+    case Upstream5xxResponse(message, BAD_GATEWAY, _) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method] BadGateway: $message")
+      respond(BadGateway("BadGateway returned from GRO"))
+    case Upstream5xxResponse(message, GATEWAY_TIMEOUT, _) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
+      respond(GatewayTimeout)
+    case Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _) =>
+      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: $message")
+      respond(InternalServerError("Connection to GRO is down"))
+    case e : JsValidationException =>
+      Logger.warn(s"[MatchingController][GROConnector][$method] JsValidationException")
+      respond(InternalServerError("Invalid json returned from GRO"))
+    case _ =>
+      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError")
+      respond(InternalServerError)
   }
 
   def details = Action.async {
@@ -68,7 +83,7 @@ trait MatchingController extends BaseController {
       groConnector.getChildDetails(params) map {
         response =>
           respond(Ok(response))
-      } recover handleException("getChildDetails")
+      } recover handleException("getChildDetails", "")
   }
 
   def reference(reference : String) = Action.async {
@@ -76,7 +91,7 @@ trait MatchingController extends BaseController {
       groConnector.getReference(reference) map {
         response =>
           respond(Ok(response))
-      } recover handleException("getReference")
+      } recover handleException("getReference", reference)
   }
 
 }
