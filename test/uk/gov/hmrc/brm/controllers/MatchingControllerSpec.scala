@@ -142,6 +142,15 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe empty
         }
 
+        "return InternalServerError when GRO returns Forbidden" in {
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", FORBIDDEN, FORBIDDEN)))
+          val request = referenceRequest("ass1212sqw")
+          val result = await(MockController.reference("ass1212sqw").apply(request))
+          status(result) shouldBe INTERNAL_SERVER_ERROR
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe empty
+        }
+
       }
 
       "GET /birth-registration-matching-proxy/match" should {

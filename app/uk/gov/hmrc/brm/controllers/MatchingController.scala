@@ -61,7 +61,7 @@ trait MatchingController extends BaseController {
       respond(InternalServerError("Invalid json returned from GRO"))
     case _ =>
       Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError")
-      respond(InternalServerError("Internal server error"))
+      respond(InternalServerError)
   }
 
   def details = Action.async {
