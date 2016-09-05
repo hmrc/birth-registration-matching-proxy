@@ -74,7 +74,10 @@ trait BirthConnector extends ServicesConfig {
         Logger.info(s"[BirthConnector][handleResponse][$method][200] Success")
         f(response)
       case e @ Status.S400_BadRequest =>
-        Logger.warn(s"[BirthConnector][handleResponse][$method][4xx] BadRequest: $response")
+        Logger.warn(s"[BirthConnector][handleResponse][$method][400] BadRequest: $response")
+        throwBadRequest(response)
+      case e @ Status.S404_NotFound =>
+        Logger.info(s"[BirthConnector][handleResponse][$method][404] Not Found: $response")
         throwBadRequest(response)
       case e @ _ =>
         Logger.error(s"[BirthConnector][handleResponse][$method][5xx] InternalServerError: $response")
