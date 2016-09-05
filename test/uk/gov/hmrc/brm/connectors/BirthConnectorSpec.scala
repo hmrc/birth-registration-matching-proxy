@@ -91,17 +91,19 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         result should not be JsNull
       }
 
-      "200 with json response with no match" in {
+      "404 with NotFound response for no match" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("NoMatch").toString())
+        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S404_NotFound, MediaType.APPLICATION_JSON, groResponse("NoMatch").toString())
 
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any()))
           .thenReturn(eventResponse)
-        val result = await(MockBirthConnector.getReference("500037654675710"))
-        result should not be JsNull
-        result shouldBe a[JsArray]
+        val catchedException = intercept[Upstream4xxResponse] {
+          val result = await(MockBirthConnector.getReference("500037654675710"))
+        }
+
+        catchedException.upstreamResponseCode shouldBe 404
       }
 
       "400 with BadRequest for authentication" in {
@@ -113,6 +115,8 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
           result shouldBe a[JsArray]
         }
       }
+
+
 
       "500 with InternalServerError for authentication" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
