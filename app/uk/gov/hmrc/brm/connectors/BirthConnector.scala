@@ -150,7 +150,7 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-  private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : BirthResponse = {
+  /*private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : BirthResponse = {
     requestAuth(
       token => {
         token match {
@@ -163,7 +163,7 @@ trait BirthConnector extends ServicesConfig {
 
       }
     )
-  }
+  }*/
 
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[BirthResponse] = {
     val json = requestReference(reference)
