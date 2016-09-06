@@ -18,8 +18,8 @@ package uk.gov.hmrc.brm.controllers
 
 import play.api.Logger
 import play.api.libs.json.Json
-import play.api.mvc.{Result, Action}
-import uk.gov.hmrc.brm.connectors.{GROEnglandAndWalesConnector, BirthConnector}
+import play.api.mvc.{Action, Result}
+import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -37,61 +37,45 @@ trait MatchingController extends BaseController {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  val groConnector : BirthConnector
+  val groConnector: BirthConnector
 
-  private def respond(response : Result) = {
-    response.as("application/json")
+  private def respond(response: Result): Future[Result] = {
+    Future.successful(response.as("application/json"))
   }
 
-  def handleException(method: String, reference : String) : PartialFunction[Throwable, Result] = {
-    case Upstream4xxResponse(message, NOT_FOUND, _, _) =>
+  def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
       Logger.info(s"[MatchingController][GROConnector][$method] NotFound: no record found for $reference")
       respond(NotFound(s"$reference"))
-    case Upstream4xxResponse(message, BAD_REQUEST, _, _) =>
+    case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
       respond(BadGateway("BadRequest returned from GRO"))
-    case Upstream5xxResponse(message, BAD_GATEWAY, _) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] BadGateway: $message")
       respond(BadGateway("BadGateway returned from GRO"))
-    case Upstream5xxResponse(message, GATEWAY_TIMEOUT, _) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
       Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
       respond(GatewayTimeout)
-    case Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
       Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
-    case e : JsValidationException =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] JsValidationException")
+    case BirthErrorResponse(_) =>
+      Logger.warn(s"[MatchingController][GROConnector][$method] Exception ")
       respond(InternalServerError("Invalid json returned from GRO"))
-    case _ =>
-      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError")
-      respond(InternalServerError)
+
   }
 
-  def details = Action.async {
+  def reference(reference: String) = Action.async {
     implicit request =>
-      val (firstName, lastName, dob) = (
-        request.getQueryString("firstName").getOrElse(""),
-        request.getQueryString("lastName").getOrElse(""),
-        request.getQueryString("dateOfBirth").getOrElse("")
-        )
-      val params = Map(
-        "firstName" -> firstName,
-        "lastName" -> lastName,
-        "dateOfBirth" -> dob
-      )
 
-      groConnector.getChildDetails(params) map {
-        response =>
-          respond(Ok(response))
-      } recover handleException("getChildDetails", "")
+      val success: PartialFunction[BirthResponse, Future[Result]] = {
+        case BirthSuccessResponse(js) =>
+          respond(Ok(js))
+      }
+
+      val error = handleException("getReference", reference)
+
+      groConnector.getReference(reference).flatMap[Result](handleException("getReference", reference) orElse success)
+
   }
-
-  def reference(reference : String) = Action.async {
-    implicit request =>
-      groConnector.getReference(reference) map {
-        response =>
-          respond(Ok(response))
-      } recover handleException("getReference", reference)
-  }
-
 }
