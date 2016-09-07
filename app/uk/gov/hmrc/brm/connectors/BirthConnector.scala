@@ -139,9 +139,9 @@ trait BirthConnector extends ServicesConfig {
       token => {
         token match {
           case BirthSuccessResponse(x) =>
-            Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(x.toString)}")
+            Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
             Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
-            val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.toString)))
+            val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.as[String])))
             handleResponse(response, extractJson, "requestReference")
           case error @ BirthErrorResponse(e) =>
             error
