@@ -61,7 +61,7 @@ trait MatchingController extends BaseController {
       respond(InternalServerError("Connection to GRO is down"))
     case BirthErrorResponse(_) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] Exception ")
-      respond(InternalServerError("Invalid json returned from GRO"))
+      respond(InternalServerError)
 
   }
 
