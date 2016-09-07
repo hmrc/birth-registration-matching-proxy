@@ -35,8 +35,8 @@ import utils.JsonUtils
 import utils.ResponseHelper._
 
 /**
- * Created by adamconder on 01/08/2016.
- */
+  * Created by adamconder on 01/08/2016.
+  */
 class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoSugar with BeforeAndAfter {
 
   implicit val hc = HeaderCarrier()
@@ -48,6 +48,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
+
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
 
 
@@ -73,7 +74,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        intercept[Upstream5xxResponse]{
+        intercept[Upstream5xxResponse] {
           val result = await(MockBirthConnector.getReference("500035710"))
           result shouldBe JsNull
         }
@@ -116,7 +117,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
-          val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.getReference("500035710"))
         result.isInstanceOf[BirthErrorResponse] shouldBe true
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
         birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
@@ -130,7 +131,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
-          val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.getReference("500035710"))
         result.isInstanceOf[BirthErrorResponse] shouldBe true
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
         birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
@@ -147,11 +148,11 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
 
-          val result = await(MockBirthConnector.getReference("500035710"))
-          val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-          birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
-          val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
-          resonseException.upstreamResponseCode shouldBe BAD_REQUEST
+        val result = await(MockBirthConnector.getReference("500035710"))
+        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
+        birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
+        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
+        resonseException.upstreamResponseCode shouldBe BAD_REQUEST
 
       }
 
@@ -162,8 +163,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-
-          val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.getReference("500035710"))
         result.isInstanceOf[BirthErrorResponse] shouldBe true
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
         birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
@@ -173,118 +173,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
     }
 
-    /*"getChildDetails" should {
-
-      "200 with json response with match" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("wilson").toString())
-
-        val payload = Map(
-          "firstName" -> "Adam",
-          "lastName" -> "Wilson",
-          "dateOfBirth" -> "2006-11-12"
-        )
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        val result = await(MockBirthConnector.getChildDetails(payload))
-        result shouldBe a[JsArray]
-        result shouldBe groResponse("wilson")
-      }
-
-      "200 with json response with no match" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("NoMatch").toString())
-
-        val payload = Map(
-          "firstName" -> "Adam1",
-          "lastName" -> "Wilson1",
-          "dateOfBirth" -> "2006-11-12"
-        )
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        val result = await(MockBirthConnector.getChildDetails(payload))
-
-      }
-
-      "400 with BadRequest for authentication" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
-
-        val payload = Map(
-          "firstName" -> "Adam",
-          "lastName" -> "Wilson",
-          "dateOfBirth" -> "2006-11-12"
-        )
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-
-        intercept[Upstream4xxResponse] {
-          val result = await(MockBirthConnector.getChildDetails(payload))
-          result should not be JsNull
-          result shouldBe a[JsArray]
-        }
-      }
-
-      "500 with InternalServerError for authentication" in {
-
-        val authResponse =  Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-        val payload = Map(
-          "firstName" -> "Adam",
-          "lastName" -> "Wilson",
-          "dateOfBirth" -> "2006-11-12"
-        )
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        intercept[Upstream5xxResponse] {
-          val result = await(MockBirthConnector.getChildDetails(payload))
-          result should not be JsNull
-          result shouldBe a[JsArray]
-        }
-      }
-
-      "400 with BadRequest for child details" in {
-
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
-
-        val payload = Map(
-          "firstName" -> "Adam",
-          "lastName" -> "Wilson",
-          "dateOfBirth" -> "2006-11-12"
-        )
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        intercept[Upstream4xxResponse] {
-          val result = await(MockBirthConnector.getChildDetails(payload))
-          result should not be JsNull
-          result shouldBe a[JsArray]
-        }
-      }
-
-      "500 with InternalServerError for child details" in {
-
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-
-        val payload = Map(
-          "firstName" -> "Adam",
-          "lastName" -> "Wilson",
-          "dateOfBirth" -> "2006-11-12"
-        )
-
-        when(mockHttpClient.post(Matchers.any(),Matchers.any(),Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        intercept[Upstream5xxResponse] {
-          val result = await(MockBirthConnector.getChildDetails(payload))
-          result should not be JsNull
-          result shouldBe a[JsArray]
-        }
-      }
-    }//getchilddetails*/
   }
 
 }

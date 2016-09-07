@@ -150,30 +150,10 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-  /*private def requestDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : BirthResponse = {
-    requestAuth(
-      token => {
-        token match {
-          case BirthSuccessResponse(x) =>
-            val response = httpClient.get(s"$eventEndpoint", Headers.apply(GROEventHeaderCarrier(x.toString)))
-            handleResponse(response, extractJson, "requestDetails")
-          case error @ BirthErrorResponse(e) =>
-            error
-        }
-
-      }
-    )
-  }*/
-
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[BirthResponse] = {
     val json = requestReference(reference)
     Future.successful(json)
   }
-
-  /*def getChildDetails(params : Map[String, String])(implicit hc : HeaderCarrier) : Future[BirthResponse] = {
-    val json = requestDetails(params)
-    Future.successful(json)
-  }*/
 
 }
 

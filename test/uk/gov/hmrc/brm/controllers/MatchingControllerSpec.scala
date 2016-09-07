@@ -152,7 +152,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference("ass1212sqw").apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          //bodyOf(result) shouldBe "Invalid json returned from GRO"
+
         }
 
         "return InternalServerError when GRO times out" in {
@@ -170,52 +170,9 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference("ass1212sqw").apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          //bodyOf(result) shouldBe empty
-        }
+       }
 
       }
-
-      /*"GET /birth-registration-matching-proxy/match" should {
-
-       /* "return 200 for details than exists in GRO" in {
-            val json = groResponse("wilson")
-            when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))
-            (Matchers.any())).thenReturn(successResponse(json))
-            val request = validDetailsRequest
-            val result = await(MockController.details.apply(request))
-            status(result) shouldBe OK
-            contentType(result).get shouldBe "application/json"
-            jsonBodyOf(result).as[JsArray] shouldBe json.as[JsArray]
-        }*/
-
-       /* "return 200 for details that do not exists in GRO" in {
-          when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Conder", "2010-08-27")))(Matchers.any())).thenReturn(successResponse(groJsonNoRecord))
-          val request = noMatchDetailsRequest
-          val result = await(MockController.details.apply(request))
-          status(result) shouldBe OK
-          contentType(result).get shouldBe "application/json"
-          jsonBodyOf(result) shouldBe groJsonNoRecord
-        }*/
-
-        /*"return InternalServerError when GRO is down" in {
-          when(MockController.groConnector.getChildDetails(mockEq(params("Adam", "Wilson", "2010-08-27")))(Matchers.any())).thenReturn(Future.failed(new Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)))
-          val request = validDetailsRequest
-          val result = await(MockController.details.apply(request))
-          status(result) shouldBe INTERNAL_SERVER_ERROR
-          contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "Connection to GRO is down"
-        }*/
-
-       /* "return BadGateway when invalid details are provided" in {
-          when(MockController.groConnector.getChildDetails(mockEq(params("", "", "")))(Matchers.any())).thenReturn(Future.failed(new Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)))
-          val request = invalidDetailsRequest
-          val result = await(MockController.details.apply(request))
-          status(result) shouldBe BAD_GATEWAY
-          contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
-        }*/
-
-      }*/
 
     }
 
