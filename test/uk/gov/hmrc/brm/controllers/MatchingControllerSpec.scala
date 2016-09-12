@@ -77,6 +77,20 @@ class MatchingControllerSpec extends UnitSpec
     reset(mockConnector)
   }
 
+  /**
+   * MatchingController when:
+   *
+   *  initialising should wire up dependencies correctly
+   *  GET should return 200 OK for a reference than exists in GRO
+   *  GET should return 404 NOT_FOUND for a reference that does not exist in GRO
+   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse InternalServerError
+   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse BadGateway
+   *  GET should return BAD_GATEWAY when invalid reference number is provided
+   *  GET should return INTERNAL_SERVER_ERROR when invalid json is returned
+   *  GET should return INTERNAL_SERVER_ERROR when GRO times out
+   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Forbidden
+   */
+
   "MatchingController" when {
 
       "initialising" should {
@@ -86,6 +100,8 @@ class MatchingControllerSpec extends UnitSpec
         }
 
       }
+
+      // TODO ADD UNIT TEST CASES FOR REFERENCE NUMBER WITH SPECIAL CHARACTES / UTF-8
 
       "GET /birth-registration-matching-proxy/match/:ref" should {
 
@@ -99,24 +115,14 @@ class MatchingControllerSpec extends UnitSpec
           jsonBodyOf(result).as[JsObject] shouldBe json.as[JsObject]
         }
 
-        "return 200 for a reference that does not exist in GRO" in {
+        "return 404 for a reference that does not exist in GRO" in {
           when(MockController.groConnector.getReference(mockEq(invalidReference))(Matchers.any())).
-            thenReturn(successResponse(groJsonNoRecord))
+            thenReturn(notFoundResponse)
           val request = referenceRequest(invalidReference)
           val result = await(MockController.reference(invalidReference).apply(request))
-          status(result) shouldBe OK
-          contentType(result).get shouldBe "application/json"
-          jsonBodyOf(result).as[JsArray] shouldBe groJsonNoRecord.as[JsArray]
-        }
-
-        "return NotFound/404 when GRO returns NotFound" in {
-
-          when(MockController.groConnector.getReference(mockEq(reference))(Matchers.any())).thenReturn(notFoundResponse)
-          val request = referenceRequest(reference)
-          val result = await(MockController.reference(reference).apply(request))
           status(result) shouldBe NOT_FOUND
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe s"$reference"
+          bodyOf(result) shouldBe s"$invalidReference"
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
