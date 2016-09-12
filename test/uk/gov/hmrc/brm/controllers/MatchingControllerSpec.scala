@@ -122,7 +122,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference(invalidReference).apply(request))
           status(result) shouldBe NOT_FOUND
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe s"$reference"
+          bodyOf(result) shouldBe s"$invalidReference"
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
