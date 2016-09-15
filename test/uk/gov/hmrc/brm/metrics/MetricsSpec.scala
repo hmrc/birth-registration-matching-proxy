@@ -30,42 +30,39 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
 
     "initialise Metrics instance" in {
       GroMetrics shouldBe a[Metrics]
-      GroMetrics.uid shouldBe "gro"
+      GroMetrics.prefix shouldBe "gro"
     }
 
     "measure response time for authentication request" in {
-      GroMetrics.authenticationResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.uid}-authentication-response-time").getCount shouldBe 1
+      val startTimer = GroMetrics.startTimer()
+      GroMetrics.endTimer(startTimer, "authentication-response-time")
+      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-authentication-response-time").getCount shouldBe 1
     }
 
     "measure response time for match request" in {
-      GroMetrics.matchResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.uid}-match-response-time").getCount shouldBe 1
+      val startTimer = GroMetrics.startTimer()
+      GroMetrics.endTimer(startTimer, "match-response-time")
+      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-match-response-time").getCount shouldBe 1
     }
 
     "increment count for http response code 200" in {
       GroMetrics.httpResponseCodeStatus(200: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-200").getCount shouldBe 1
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-200").getCount shouldBe 1
     }
 
     "increment count for http response code 400" in {
       GroMetrics.httpResponseCodeStatus(400: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-400").getCount shouldBe 1
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-400").getCount shouldBe 1
     }
 
     "increment count for http response code 500" in {
       GroMetrics.httpResponseCodeStatus(500: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-500").getCount shouldBe 1
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-500").getCount shouldBe 1
     }
 
     "increment count for request to proxy" in {
       GroMetrics.requestCount()
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-request-count").getCount shouldBe 1
-    }
-
-    "timeDifference should return correct time between start and end time" in {
-      val difference = GroMetrics.timeDifference(5000, 10000)
-      difference shouldBe 5000
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-request-count").getCount shouldBe 1
     }
 
   }

@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.util.concurrent.TimeUnit
-
 import play.api.Logger
 import play.api.http.Status._
 import play.api.libs.json._
@@ -134,7 +132,7 @@ trait BirthConnector extends ServicesConfig {
     Logger.debug(s"[BirthConnector][requestAuth]: $authEndpoint credentials: $credentials")
     Logger.info(s"[BirthConnector][requestAuth]: $authEndpoint")
 
-    val startTime = System.currentTimeMillis()
+    val startTime = metrics.startTimer()
 
     val response = httpClient.post(
       url = authEndpoint,
@@ -144,9 +142,7 @@ trait BirthConnector extends ServicesConfig {
       )
     )
 
-    val endTime = System.currentTimeMillis()
-
-    GroMetrics.authenticationResponseTimer(GroMetrics.timeDifference(startTime, endTime), TimeUnit.MILLISECONDS)
+    metrics.endTimer(startTime)
 
     body(handleResponse(response, extractAccessToken, "requestAuth"))
   }
@@ -157,14 +153,13 @@ trait BirthConnector extends ServicesConfig {
         token match {
           case BirthSuccessResponse(x) =>
 
-            val startTime = System.currentTimeMillis()
+            val startTime = metrics.startTimer()
 
             Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
             Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
             val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.as[String])))
 
-            val endTime = System.currentTimeMillis()
-            GroMetrics.matchResponseTimer(GroMetrics.timeDifference(startTime, endTime), TimeUnit.MILLISECONDS)
+            metrics.endTimer(startTime)
 
             handleResponse(response, extractJson, "requestReference")
 

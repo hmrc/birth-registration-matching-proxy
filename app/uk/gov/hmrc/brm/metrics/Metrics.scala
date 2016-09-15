@@ -29,42 +29,26 @@ trait Metrics {
 
   Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
 
-  val uid : String
-  val timer = (name: String) => MetricsRegistry.defaultRegistry.timer(name)
-  val counter = (name: String) => MetricsRegistry.defaultRegistry.counter(name)
+  val prefix: String
 
-  def authenticationResponseTimer(diff: Long, unit: TimeUnit): Unit
-  def matchResponseTimer(diff: Long, unit: TimeUnit): Unit
-  def httpResponseCodeStatus(code: Int): Unit
-  def requestCount(): Unit
+  def httpResponseCodeStatus(code: Int): Unit =
+    MetricsRegistry.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
-  Seq(
-    (s"$uid-authentication-response-time", timer),
-    (s"$uid-match-response-time", timer),
-    (s"$uid-http-response-code-200", counter),
-    (s"$uid-http-response-code-400", counter),
-    (s"$uid-http-response-code-500", counter),
-    (s"$uid-request-count", counter)
-  ) foreach { t => t._2(t._1) }
+  def requestCount(): Unit =
+    MetricsRegistry.defaultRegistry.counter(s"$prefix-request-count").inc()
 
-  def timeDifference(start : Long ,end :Long) : Long =
-    end-start
+  def time(diff: Long, unit: TimeUnit, key: String) =
+    MetricsRegistry.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
+
+  def startTimer(): Long = System.currentTimeMillis()
+
+  def endTimer(start: Long, key: String = "timer") = {
+    val end = System.currentTimeMillis() - start
+    time(end, TimeUnit.MILLISECONDS, key)
+  }
 }
 
 object GroMetrics extends Metrics {
 
-  override val uid = "gro"
-
-  override def authenticationResponseTimer(diff: Long, unit: TimeUnit): Unit =
-    MetricsRegistry.defaultRegistry.timer(s"$uid-authentication-response-time").update(diff, unit)
-
-  override def matchResponseTimer(diff: Long, unit: TimeUnit): Unit =
-    MetricsRegistry.defaultRegistry.timer(s"$uid-match-response-time").update(diff, unit)
-
-  override def httpResponseCodeStatus(code: Int): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$uid-http-response-code-$code").inc()
-
-  override def requestCount(): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$uid-request-count").inc()
-
+  override val prefix = "gro"
 }
