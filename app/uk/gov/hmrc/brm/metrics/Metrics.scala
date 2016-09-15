@@ -47,8 +47,6 @@ trait Metrics {
     (s"$uid-request-count", counter)
   ) foreach { t => t._2(t._1) }
 
-
-
   def timeDifference(start : Long ,end :Long) : Long =
     end-start
 }
