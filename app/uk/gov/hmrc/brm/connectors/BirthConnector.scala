@@ -29,6 +29,7 @@ import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 import play.api.http.Status._
+import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 
 import scala.concurrent.Future
 
@@ -46,6 +47,8 @@ trait BirthConnector extends ServicesConfig {
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
 
   protected val httpClient : HttpClient
+
+  protected val metrics : Metrics
 
   private def throwInternalServerError(response: Response) = {
     BirthErrorResponse(
@@ -95,15 +98,19 @@ trait BirthConnector extends ServicesConfig {
     Logger.debug(s"[BirthConnector][handleResponse][$method] : $response")
     response.status match {
       case Status.S200_OK =>
+        metrics.httpResponseCodeStatus(OK)
         Logger.info(s"[BirthConnector][handleResponse][$method][200] Success")
         f(response)
       case e @ Status.S400_BadRequest =>
+        metrics.httpResponseCodeStatus(BAD_REQUEST)
         Logger.warn(s"[BirthConnector][handleResponse][$method][400] BadRequest: $response")
         throwBadRequest(response)
       case e @ Status.S404_NotFound =>
+        metrics.httpResponseCodeStatus(BAD_REQUEST)
         Logger.info(s"[BirthConnector][handleResponse][$method][404] Not Found: $response")
         throwBadRequest(response)
       case e @ _ =>
+        metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
         Logger.error(s"[BirthConnector][handleResponse][$method][5xx] InternalServerError: $response")
         throwInternalServerError(response)
     }
@@ -151,6 +158,9 @@ trait BirthConnector extends ServicesConfig {
   }
 
   def getReference(reference: String)(implicit hc : HeaderCarrier) : Future[BirthResponse] = {
+
+    metrics.requestCount()
+
     val json = requestReference(reference)
     Future.successful(json)
   }
@@ -161,5 +171,6 @@ trait BirthConnector extends ServicesConfig {
 object GROEnglandAndWalesConnector extends BirthConnector {
   val config = TLSFactory.getConfig
   override val httpClient = new HttpClient(config)
+  override val metrics = GroMetrics
 }
 // $COVERAGE-ON$

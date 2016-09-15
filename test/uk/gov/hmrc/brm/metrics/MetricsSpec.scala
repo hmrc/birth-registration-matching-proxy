@@ -29,42 +29,38 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
   "Metrics" should {
 
     "initialise Metrics instance" in {
-      Metrics shouldBe a[Metrics]
-    }
-
-    "measure response time for complete request including authentication and match" in {
-      Metrics.completeResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-      MetricsRegistry.defaultRegistry.getTimers.get("complete-response-time").getCount shouldBe 1
+      GroMetrics shouldBe a[Metrics]
+      GroMetrics.uid shouldBe "gro"
     }
 
     "measure response time for authentication request" in {
-      Metrics.authenticationResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-      MetricsRegistry.defaultRegistry.getTimers.get("authentication-response-time").getCount shouldBe 1
+      GroMetrics.authenticationResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.uid}-authentication-response-time").getCount shouldBe 1
     }
 
     "measure response time for match request" in {
-      Metrics.matchResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-      MetricsRegistry.defaultRegistry.getTimers.get("match-response-time").getCount shouldBe 1
+      GroMetrics.matchResponseTimer(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.uid}-match-response-time").getCount shouldBe 1
     }
 
     "increment count for http response code 200" in {
-      Metrics.httpResponseCodeStatus(200 : Int)
-      MetricsRegistry.defaultRegistry.getCounters.get("http-response-code-200").getCount shouldBe 1
+      GroMetrics.httpResponseCodeStatus(200 : Int)
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-200").getCount shouldBe 1
     }
 
     "increment count for http response code 400" in {
-      Metrics.httpResponseCodeStatus(400 : Int)
-      MetricsRegistry.defaultRegistry.getCounters.get("http-response-code-400").getCount shouldBe 1
+      GroMetrics.httpResponseCodeStatus(400 : Int)
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-400").getCount shouldBe 1
     }
 
     "increment count for http response code 500" in {
-      Metrics.httpResponseCodeStatus(500 : Int)
-      MetricsRegistry.defaultRegistry.getCounters.get("http-response-code-500").getCount shouldBe 1
+      GroMetrics.httpResponseCodeStatus(500 : Int)
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-500").getCount shouldBe 1
     }
 
     "increment count for request to proxy" in {
-      Metrics.requestCount()
-      MetricsRegistry.defaultRegistry.getCounters.get("request-count").getCount shouldBe 1
+      GroMetrics.requestCount()
+      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-request-count").getCount shouldBe 1
     }
 
   }

@@ -21,48 +21,47 @@
 package uk.gov.hmrc.brm.metrics
 
 import java.util.concurrent.TimeUnit
+
 import com.kenshoo.play.metrics.MetricsRegistry
 import play.api.Logger
 
 trait Metrics {
 
+  Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
+
+  val uid : String
   val timer = (name: String) => MetricsRegistry.defaultRegistry.timer(name)
   val counter = (name: String) => MetricsRegistry.defaultRegistry.counter(name)
 
-  def completeResponseTimer(diff: Long, unit: TimeUnit): Unit
   def authenticationResponseTimer(diff: Long, unit: TimeUnit): Unit
   def matchResponseTimer(diff: Long, unit: TimeUnit): Unit
   def httpResponseCodeStatus(code: Int): Unit
   def requestCount(): Unit
-}
-
-object Metrics extends Metrics {
-
-  Logger.info("[Metrics][constructor] Preloading metrics keys")
 
   Seq(
-    ("complete-response-time", timer),
-    ("authentication-response-time", timer),
-    ("match-response-time", timer),
-    ("http-response-code-200", counter),
-    ("http-response-code-400", counter),
-    ("http-response-code-500", counter),
-    ("request-count", counter)
+    (s"$uid-authentication-response-time", timer),
+    (s"$uid-match-response-time", timer),
+    (s"$uid-http-response-code-200", counter),
+    (s"$uid-http-response-code-400", counter),
+    (s"$uid-http-response-code-500", counter),
+    (s"$uid-request-count", counter)
   ) foreach { t => t._2(t._1) }
+}
 
-  override def completeResponseTimer(diff: Long, unit: TimeUnit): Unit =
-    MetricsRegistry.defaultRegistry.timer("complete-response-time").update(diff, unit)
+object GroMetrics extends Metrics {
+
+  override val uid = "gro"
 
   override def authenticationResponseTimer(diff: Long, unit: TimeUnit): Unit =
-    MetricsRegistry.defaultRegistry.timer("authentication-response-time").update(diff, unit)
+    MetricsRegistry.defaultRegistry.timer(s"$uid-authentication-response-time").update(diff, unit)
 
   override def matchResponseTimer(diff: Long, unit: TimeUnit): Unit =
-    MetricsRegistry.defaultRegistry.timer("match-response-time").update(diff, unit)
+    MetricsRegistry.defaultRegistry.timer(s"$uid-match-response-time").update(diff, unit)
 
   override def httpResponseCodeStatus(code: Int): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"http-response-code-$code").inc()
+    MetricsRegistry.defaultRegistry.counter(s"$uid-http-response-code-$code").inc()
 
   override def requestCount(): Unit =
-    MetricsRegistry.defaultRegistry.counter("request-count").inc()
+    MetricsRegistry.defaultRegistry.counter(s"$uid-request-count").inc()
 
 }
