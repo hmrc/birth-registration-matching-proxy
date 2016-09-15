@@ -17,10 +17,9 @@
 package uk.gov.hmrc.brm.controllers
 
 import play.api.Logger
-import play.api.libs.json.Json
 import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
@@ -67,13 +66,10 @@ trait MatchingController extends BaseController {
 
   def reference(reference: String) = Action.async {
     implicit request =>
-
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
           respond(Ok(js))
       }
-
-      val error = handleException("getReference", reference)
 
       groConnector.getReference(reference).flatMap[Result](handleException("getReference", reference) orElse success)
 

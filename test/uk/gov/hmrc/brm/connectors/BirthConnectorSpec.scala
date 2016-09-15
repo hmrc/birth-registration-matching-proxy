@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.URL
 
+import com.sun.javafx.font.Metrics
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
@@ -29,6 +30,7 @@ import uk.co.bigbeeconsultants.http.{Config, HttpClient}
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
+import uk.gov.hmrc.brm.metrics.GroMetrics
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import utils.JsonUtils
@@ -45,6 +47,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
   object MockBirthConnector extends BirthConnector {
     override val httpClient = mockHttpClient
+    override val metrics = GroMetrics
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
