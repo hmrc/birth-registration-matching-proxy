@@ -22,6 +22,7 @@ import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import scala.concurrent.Future
 
@@ -45,7 +46,7 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      Logger.info(s"[MatchingController][GROConnector][$method] NotFound: no record found for $reference")
+      info(this, "handleException",s"NotFound: no record found for $reference")
       respond(NotFound(s"$reference"))
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
@@ -57,7 +58,7 @@ trait MatchingController extends BaseController {
       Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
       respond(GatewayTimeout)
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: $message")
+      error(this, "handleException",s"InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
     case BirthErrorResponse(_) =>
       Logger.warn(s"[MatchingController][GROConnector][$method] Exception ")
@@ -66,14 +67,12 @@ trait MatchingController extends BaseController {
   }
 
   def reference(reference: String) = Action.async {
-    implicit request =>
 
+    implicit request =>
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
           respond(Ok(js))
       }
-
-      val error = handleException("getReference", reference)
 
       groConnector.getReference(reference).flatMap[Result](handleException("getReference", reference) orElse success)
 

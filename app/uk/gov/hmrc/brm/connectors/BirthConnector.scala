@@ -29,6 +29,7 @@ import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 import play.api.http.Status._
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import scala.concurrent.Future
 
@@ -69,7 +70,7 @@ trait BirthConnector extends ServicesConfig {
   protected def parseJson(response: Response) = {
   try {
       val bodyText = response.body.asString
-      Logger.debug(s"[BirthConnector][parseJson] ${response.body.asString}")
+      debug(this.getClass.getName, "parseJson",s"${response.body.asString}")
       val json = Json.parse(bodyText)
       json
     } catch {
@@ -122,8 +123,8 @@ trait BirthConnector extends ServicesConfig {
       "password" -> GROConnectorConfiguration.password
     )
 
-    Logger.debug(s"[BirthConnector][requestAuth]: $authEndpoint credentials: $credentials")
-    Logger.info(s"[BirthConnector][requestAuth]: $authEndpoint")
+    debug(this, "requestAuth",s"$authEndpoint credentials: $credentials")
+    info(this, "requestAuth",s"$authEndpoint")
     val response = httpClient.post(
       url = authEndpoint,
       body = Some(RequestBody.apply(credentials)),
@@ -139,8 +140,8 @@ trait BirthConnector extends ServicesConfig {
       token => {
         token match {
           case BirthSuccessResponse(x) =>
-            Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
-            Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
+            debug(this, "requestReference",s"$eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
+            info(this, "requestReference",s"$eventEndpoint")
             val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.as[String])))
             handleResponse(response, extractJson, "requestReference")
           case error @ BirthErrorResponse(e) =>
