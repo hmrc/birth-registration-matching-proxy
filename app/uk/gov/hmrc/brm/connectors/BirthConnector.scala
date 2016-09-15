@@ -16,20 +16,20 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 import play.api.Logger
+import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
 import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
-import play.api.http.Status._
-import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 
 import scala.concurrent.Future
 
@@ -131,6 +131,9 @@ trait BirthConnector extends ServicesConfig {
 
     Logger.debug(s"[BirthConnector][requestAuth]: $authEndpoint credentials: $credentials")
     Logger.info(s"[BirthConnector][requestAuth]: $authEndpoint")
+
+    val startTime =System.currentTimeMillis()
+
     val response = httpClient.post(
       url = authEndpoint,
       body = Some(RequestBody.apply(credentials)),
@@ -138,6 +141,11 @@ trait BirthConnector extends ServicesConfig {
         Map("Content-Type" -> "application/x-www-form-urlencoded")
       )
     )
+
+    val endTime = System.currentTimeMillis()
+
+    GroMetrics.authenticationResponseTimer(GroMetrics.timeDifference(startTime,endTime) , TimeUnit.MILLISECONDS)
+    
     body(handleResponse(response, extractAccessToken, "requestAuth"))
   }
 

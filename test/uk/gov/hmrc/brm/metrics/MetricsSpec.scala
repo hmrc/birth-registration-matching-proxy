@@ -44,23 +44,28 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     }
 
     "increment count for http response code 200" in {
-      GroMetrics.httpResponseCodeStatus(200 : Int)
+      GroMetrics.httpResponseCodeStatus(200: Int)
       MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-200").getCount shouldBe 1
     }
 
     "increment count for http response code 400" in {
-      GroMetrics.httpResponseCodeStatus(400 : Int)
+      GroMetrics.httpResponseCodeStatus(400: Int)
       MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-400").getCount shouldBe 1
     }
 
     "increment count for http response code 500" in {
-      GroMetrics.httpResponseCodeStatus(500 : Int)
+      GroMetrics.httpResponseCodeStatus(500: Int)
       MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-http-response-code-500").getCount shouldBe 1
     }
 
     "increment count for request to proxy" in {
       GroMetrics.requestCount()
       MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.uid}-request-count").getCount shouldBe 1
+    }
+
+    "timeDifference should return correct time between start and end time" in {
+      val difference = GroMetrics.timeDifference(5000, 10000)
+      difference shouldBe 5000
     }
 
   }

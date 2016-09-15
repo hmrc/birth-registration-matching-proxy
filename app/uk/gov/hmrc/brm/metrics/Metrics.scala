@@ -46,6 +46,11 @@ trait Metrics {
     (s"$uid-http-response-code-500", counter),
     (s"$uid-request-count", counter)
   ) foreach { t => t._2(t._1) }
+
+
+
+  def timeDifference(start : Long ,end :Long) : Long =
+    end-start
 }
 
 object GroMetrics extends Metrics {
