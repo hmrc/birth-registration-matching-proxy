@@ -42,6 +42,7 @@ trait BirthConnector extends ServicesConfig {
   protected val version : String = GROConnectorConfiguration.version
   protected val eventUri = s"api/$version/events/birth"
   protected val authUri = s"oauth/login"
+  protected val CLASS_NAME : String = this.getClass.getCanonicalName
 
   protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
@@ -96,16 +97,16 @@ trait BirthConnector extends ServicesConfig {
     Logger.debug(s"[BirthConnector][handleResponse][$method] : $response")
     response.status match {
       case Status.S200_OK =>
-        Logger.info(s"[BirthConnector][handleResponse][$method][200] Success")
+        info(CLASS_NAME,"handleResponse", s"[$method][200] Success")
         f(response)
       case e @ Status.S400_BadRequest =>
-        Logger.warn(s"[BirthConnector][handleResponse][$method][400] BadRequest: $response")
+        warn(CLASS_NAME,"handleResponse", s"[$method][400] BadRequest: $response")
         throwBadRequest(response)
       case e @ Status.S404_NotFound =>
-        Logger.info(s"[BirthConnector][handleResponse][$method][404] Not Found: $response")
+        info(CLASS_NAME,"handleResponse", s"[$method][404] Not Found: $response")
         throwBadRequest(response)
       case e @ _ =>
-        Logger.error(s"[BirthConnector][handleResponse][$method][5xx] InternalServerError: $response")
+        error(CLASS_NAME,"handleResponse", s"[$method][5xx] InternalServerError: $response")
         throwInternalServerError(response)
     }
   }
