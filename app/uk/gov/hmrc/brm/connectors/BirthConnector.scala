@@ -142,7 +142,7 @@ trait BirthConnector extends ServicesConfig {
       )
     )
 
-    metrics.endTimer(startTime)
+    metrics.endTimer(startTime, "authentication-timer")
 
     body(handleResponse(response, extractAccessToken, "requestAuth"))
   }
@@ -159,7 +159,7 @@ trait BirthConnector extends ServicesConfig {
             Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
             val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.as[String])))
 
-            metrics.endTimer(startTime)
+            metrics.endTimer(startTime, "reference-match-timer")
 
             handleResponse(response, extractJson, "requestReference")
 
