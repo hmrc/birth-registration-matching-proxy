@@ -23,6 +23,7 @@ import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.KeyHolder
 
 import scala.concurrent.Future
 
@@ -35,6 +36,8 @@ object MatchingController extends MatchingController {
 }
 
 trait MatchingController extends BaseController {
+
+  val CLASS_NAME : String = this.getClass.getCanonicalName
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -69,8 +72,12 @@ trait MatchingController extends BaseController {
   def reference(reference: String) = Action.async {
 
     implicit request =>
+      var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+      KeyHolder.setKey(brmKey)
+
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
+          debug(CLASS_NAME, "reference",s"success.")
           respond(Ok(js))
       }
 

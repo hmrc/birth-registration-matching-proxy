@@ -122,7 +122,6 @@ trait BirthConnector extends ServicesConfig {
       "username" -> GROConnectorConfiguration.username,
       "password" -> GROConnectorConfiguration.password
     )
-
     debug(this, "requestAuth",s"$authEndpoint credentials: $credentials")
     info(this, "requestAuth",s"$authEndpoint")
     val response = httpClient.post(
@@ -136,6 +135,7 @@ trait BirthConnector extends ServicesConfig {
   }
 
   private def requestReference(reference: String)(implicit hc : HeaderCarrier) : BirthResponse = {
+
     requestAuth(
       token => {
         token match {

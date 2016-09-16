@@ -23,22 +23,30 @@ import play.api.Logger
   */
 object BrmLogger {
 
-
+  var BRM_KEY : String = "BRM-Key"
 
   def info(className:String, methodName: String, message: String ): Unit = {
-    Logger.info(s"[${className}][${methodName}] : [${message}]")
+    if (Logger.isInfoEnabled ) {
+      Logger.info(s"[${BRM_KEY}:${KeyHolder.geKey()}],[${className}][${methodName}] : [${message}]")
+    }
   }
 
   def warn(className:String, methodName: String, message: String ): Unit ={
-    Logger.warn(s"[${className}][${methodName}] : [${message}]")
+    if (Logger.isWarnEnabled ) {
+      Logger.warn(s"[${BRM_KEY}:${KeyHolder.geKey()}],[${className}][${methodName}] : [${message}]")
+    }
   }
 
   def error(className:String, methodName: String, message: String ): Unit ={
-    Logger.error(s"[${className}][${methodName}] : [${message}]")
+    if (Logger.isErrorEnabled ) {
+      Logger.error(s"[${BRM_KEY}:${KeyHolder.geKey()}],[${className}][${methodName}] : [${message}]")
+    }
   }
 
   def debug(className:String, methodName: String, message: String ): Unit ={
-    Logger.error(s"[${className}][${methodName}] : [${message}]")
+    if (Logger.isDebugEnabled ) {
+      Logger.debug(s"[${BRM_KEY}:${KeyHolder.geKey()}],[${className}][${methodName}] : [${message}]")
+    }
   }
 
   def info(objectName:Object, methodName: String, message: String ): Unit = {
