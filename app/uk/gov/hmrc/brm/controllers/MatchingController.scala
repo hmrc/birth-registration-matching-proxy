@@ -17,10 +17,9 @@
 package uk.gov.hmrc.brm.controllers
 
 import play.api.Logger
-import play.api.libs.json.Json
 import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.play.http.{JsValidationException, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
@@ -74,6 +73,7 @@ trait MatchingController extends BaseController {
     implicit request =>
       var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
       KeyHolder.setKey(brmKey)
+
 
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
