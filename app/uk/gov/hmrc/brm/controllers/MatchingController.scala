@@ -48,22 +48,22 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      info(this, "handleException",s"NotFound: no record found for $reference")
+      info(CLASS_NAME, "handleException",s"NotFound: no record found for $reference")
       respond(NotFound(s"$reference"))
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
+      warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
       respond(BadGateway("BadRequest returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadGateway: $message")
+      warn(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
       respond(BadGateway("BadGateway returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
+      warn(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
       respond(GatewayTimeout)
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      error(this, "handleException",s"InternalServerError: $message")
+      error(CLASS_NAME, "handleException",s"InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
     case BirthErrorResponse(_) =>
-      warn(this, "handleException",s"InternalServerError: Exception")
+      warn(CLASS_NAME, "handleException",s"InternalServerError: Exception")
       respond(InternalServerError)
 
   }
@@ -71,9 +71,9 @@ trait MatchingController extends BaseController {
   def reference(reference: String) = Action.async {
 
     implicit request =>
+
       var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
       KeyHolder.setKey(brmKey)
-
 
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
