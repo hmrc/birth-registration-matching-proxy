@@ -16,12 +16,12 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.Logger
-import play.api.libs.json.Json
-import play.api.mvc.{Result, Action}
-import uk.gov.hmrc.brm.connectors.{GROEnglandAndWalesConnector, BirthConnector}
+import play.api.mvc.{Action, Result}
+import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.KeyHolder
 
 import scala.concurrent.Future
 
@@ -35,48 +35,52 @@ object MatchingController extends MatchingController {
 
 trait MatchingController extends BaseController {
 
+  val CLASS_NAME : String = this.getClass.getCanonicalName
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  val groConnector : BirthConnector
+  val groConnector: BirthConnector
 
-  private def respond(response : Result) = {
-    response.as("application/json")
+  private def respond(response: Result): Future[Result] = {
+    Future.successful(response.as("application/json"))
   }
 
-  def handleException(method: String) : PartialFunction[Throwable, Result] = {
-    case e : Upstream4xxResponse =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: ${e.message}")
-      respond(BadRequest(e.message))
-    case e : Upstream5xxResponse =>
-      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: ${e.message}")
-      respond(InternalServerError(e.message))
+  def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
+      info(CLASS_NAME, "handleException",s"NotFound: no record found for $reference")
+      respond(NotFound(s"$reference"))
+    case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
+      warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
+      respond(BadGateway("BadRequest returned from GRO"))
+    case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
+      warn(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
+      respond(BadGateway("BadGateway returned from GRO"))
+    case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
+      warn(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
+      respond(GatewayTimeout)
+    case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
+      error(CLASS_NAME, "handleException",s"InternalServerError: $message")
+      respond(InternalServerError("Connection to GRO is down"))
+    case BirthErrorResponse(_) =>
+      warn(CLASS_NAME, "handleException",s"InternalServerError: Exception")
+      respond(InternalServerError)
+
   }
 
-  def details = Action.async {
+  def reference(reference: String) = Action.async {
+
     implicit request =>
-      val (firstName, lastName, dob) = (
-        request.getQueryString("firstName").getOrElse(""),
-        request.getQueryString("lastName").getOrElse(""),
-        request.getQueryString("dateOfBirth").getOrElse("")
-        )
-      val params = Map(
-        "firstName" -> firstName,
-        "lastName" -> lastName,
-        "dateOfBirth" -> dob
-      )
 
-      groConnector.getChildDetails(params) map {
-        response =>
-          respond(Ok(response))
-      } recover handleException("getChildDetails")
+      var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+      KeyHolder.setKey(brmKey)
+
+      val success: PartialFunction[BirthResponse, Future[Result]] = {
+        case BirthSuccessResponse(js) =>
+          debug(CLASS_NAME, "reference",s"success.")
+          respond(Ok(js))
+      }
+
+      groConnector.getReference(reference).flatMap[Result](handleException("getReference", reference) orElse success)
+
   }
-
-  def reference(reference : String) = Action.async {
-    implicit request =>
-      groConnector.getReference(reference) map {
-        response =>
-          respond(Ok(response))
-      } recover handleException("getReference")
-  }
-
 }

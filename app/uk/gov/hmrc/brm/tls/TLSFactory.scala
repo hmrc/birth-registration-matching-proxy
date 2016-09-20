@@ -18,9 +18,10 @@ package uk.gov.hmrc.brm.tls
 
 import java.nio.charset.StandardCharsets
 
-import play.api.Logger
+
 import uk.co.bigbeeconsultants.http.Config
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 trait TLSFactory {
 
@@ -36,6 +37,7 @@ trait TLSFactory {
   protected val keystoreKeyBase64 : String
   protected val tlsMode : String
   protected val allowHostNameMismatch : Boolean
+  val CLASS_NAME : String = this.getClass.getCanonicalName
 
   object DumbTrustManager extends X509TrustManager {
     def getAcceptedIssuers: Array[X509Certificate] = null
@@ -60,7 +62,7 @@ trait TLSFactory {
     val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.US_ASCII))
     val keyString = new String(decodedKeystoreKey, StandardCharsets.US_ASCII)
 
-    Logger.debug(s"[TLSFactory][getSocketFactory] keystore: $keystoreBase64 key: $keystoreKeyBase64")
+    debug(CLASS_NAME, "getSocketFactory", s"keystore: $keystoreBase64 key: $keystoreKeyBase64")
 
     val ks = KeyStore.getInstance("jks")
     ks.load(new ByteArrayInputStream(decodedKeystore), keyString.toCharArray)
