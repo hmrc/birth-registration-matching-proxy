@@ -17,6 +17,7 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time.{Days, LocalDate, Months, Years}
+import play.api.Logger
 import uk.gov.hmrc.play.config.ServicesConfig
 
 
@@ -40,8 +41,8 @@ trait CertificateStatus extends ServicesConfig {
   lazy val certificateExpiryDate = getConfString(certificateExpiryDate_Key,
     throw new RuntimeException("[Configuration][NotFound] certificateExpiryDate"))
 
-  def getExpiryDate(expiryDate: Option[String] = Some(certificateExpiryDate)): LocalDate = expiryDate match {
-    case None => new LocalDate(expiryDate)
+  def getExpiryDate(expiryDate: Option[String] = None): LocalDate = expiryDate match {
+    case None => new LocalDate(certificateExpiryDate)
     case Some(x) => new LocalDate(x)
   }
 
@@ -52,18 +53,29 @@ trait CertificateStatus extends ServicesConfig {
     (days, months, years)
   }
 
-  def statusMessage(dayDifference: Int, monthDifference: Int, yearDifference: Int): String = (dayDifference, monthDifference, yearDifference) match {
-    case (0, 0, 0) => "expires today"
-    case (d, 0, 0) if d <= 31 => "expires this month"
-    case (d, m, 0) if (m <= 12 && m > 0) => s"expires in $m months, $d days"
-    case (d, m, y) if (y > 0) => s"expires in $y years, $m months, $d days"
-    case _ => "couldn't determine status message from given dates"
+  private def logCertificate(dayDifference: Int, monthDifference: Int, yearDifference: Int): Unit = (dayDifference, monthDifference, yearDifference) match {
+    case (0, 0, 0) => Logger.error("[GROProxy][Certificate][EXPIRES_TODAY]")
+    case (d, 0, 0) => Logger.error("[GROProxy][Certificate][EXPIRES_THIS_MONTH]")
+    case (d, m, 0) if m <= 12 && m > 0 =>
+      if (m <= 6) {
+        Logger.warn(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m]")
+      } else {
+        Logger.info(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m]")
+      }
+    case (d, m, y) =>
+      if (d < 0) {
+        Logger.error(s"[GROProxy][Certificate][CERTIFICATE_EXPIRED][Days: $d][Months: $m] [Years: $y]")
+      } else {
+        Logger.info(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m] [Years: $y]")
+      }
   }
 
-  def isValidDate(): Boolean = {
-    val dateDifference = difference(getExpiryDate(), new LocalDate())
-    dateDifference._1 > 0
+  def isValidDate(date: LocalDate = new LocalDate): Boolean = {
+    val (day, month, year) = difference(getExpiryDate(), date)
+    logCertificate(day, month, year)
+    day >= 0
   }
+
 }
 
 object CertificateStatus extends CertificateStatus

@@ -33,6 +33,14 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
     override lazy val certificateExpiryDate: String = "2040-02-19"
   }
 
+  val mockCertificateStatus20160219 = new CertificateStatus {
+    override lazy val certificateExpiryDate: String = "2016-02-19"
+  }
+
+//  val mockCertificateStatusExpiresThisMonth = new CertificateStatus {
+//    override lazy val certificateExpiryDate: String = LocalDate.now().toString()
+//  }
+
   val mockCertificateStatusInvalidConfKey = new CertificateStatus {
 
     override val privateKeystore_Key = "birth-registration-matching.privateKeystoreINVALID"
@@ -135,34 +143,6 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
     }
   }
 
-  "statusMessage" should {
-
-    "return `expires today` when logMessage is called with no difference in dates" in {
-      val logMessage = CertificateStatus.statusMessage(0, 0, 0)
-      logMessage shouldBe "expires today"
-    }
-
-    "return `expires this month` when logMessage is called with (18, 0, 0)" in {
-      val logMessage = CertificateStatus.statusMessage(18, 0, 0)
-      logMessage shouldBe s"expires this month"
-    }
-
-    "return `expires in 3 months, 0 days` when logMessage is called with (0, 3, 0)" in {
-      val logMessage = CertificateStatus.statusMessage(0, 3, 0)
-      logMessage shouldBe s"expires in 3 months, 0 days"
-    }
-
-    "return `expires in 2 years, 3 months, 0 days` when logMessage is called with (0, 3, 0)" in {
-      val logMessage = CertificateStatus.statusMessage(0, 3, 2)
-      logMessage shouldBe s"expires in 2 years, 3 months, 0 days"
-    }
-
-    "return `not matched` when logMessage is called with invalid date values" in {
-      val logMessage = CertificateStatus.statusMessage(500, 0, 0)
-      logMessage shouldBe "couldn't determine status message from given dates"
-    }
-  }
-
   "isValidDate" should {
 
     "return false when a date is invalid" in {
@@ -173,6 +153,36 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
     "return true when a date is valid" in {
       val dateStatus = mockCertificateStatusValidExpiryDate.isValidDate()
       dateStatus shouldBe true
+    }
+
+    "return true when current date is same as certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("2016-02-19"))
+      dateStatus shouldBe true
+    }
+
+    "return true when current date within same month as certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("2016-02-02"))
+      dateStatus shouldBe true
+    }
+
+    "return true when current date one month behind certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("2016-02-19").minusMonths(1: Int))
+      dateStatus shouldBe true
+    }
+
+    "return true when current date six months behind certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("2016-02-19").minusMonths(6: Int))
+      dateStatus shouldBe true
+    }
+
+    "return true when current date 10 months behind certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("2016-02-19").minusMonths(10: Int))
+      dateStatus shouldBe true
+    }
+
+    "return false when current date 10 months in front of certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.isValidDate(new LocalDate("432016-02-19").plusMonths(10: Int))
+      dateStatus shouldBe false
     }
 
   }
