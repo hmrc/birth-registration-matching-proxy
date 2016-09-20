@@ -26,6 +26,7 @@ import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.tls.TLSFactory
+import uk.gov.hmrc.brm.utils.CertificateStatus
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.{HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 
@@ -90,6 +91,9 @@ trait BirthConnector extends ServicesConfig {
   }
 
   private def requestAuth(body : String => JsValue)(implicit hc : HeaderCarrier) = {
+
+    CertificateStatus.logCertificateStatus()
+
     val credentials : Map[String, String] = Map(
       "username" -> GROConnectorConfiguration.username,
       "password" -> GROConnectorConfiguration.password
