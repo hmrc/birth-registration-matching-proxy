@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.Logger
 import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.KeyHolder
 
 import scala.concurrent.Future
 
@@ -34,6 +35,8 @@ object MatchingController extends MatchingController {
 
 trait MatchingController extends BaseController {
 
+  val CLASS_NAME : String = this.getClass.getCanonicalName
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
   val groConnector: BirthConnector
@@ -44,30 +47,36 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      Logger.info(s"[MatchingController][GROConnector][$method] NotFound: no record found for $reference")
+      info(CLASS_NAME, "handleException",s"NotFound: no record found for $reference")
       respond(NotFound(s"$reference"))
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadRequest: $message")
+      warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
       respond(BadGateway("BadRequest returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] BadGateway: $message")
+      warn(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
       respond(BadGateway("BadGateway returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
+      warn(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
       respond(GatewayTimeout)
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      Logger.error(s"[MatchingController][GROConnector][$method] InternalServerError: $message")
+      error(CLASS_NAME, "handleException",s"InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
     case BirthErrorResponse(_) =>
-      Logger.warn(s"[MatchingController][GROConnector][$method] Exception ")
+      warn(CLASS_NAME, "handleException",s"InternalServerError: Exception")
       respond(InternalServerError)
 
   }
 
   def reference(reference: String) = Action.async {
+
     implicit request =>
+
+      var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+      KeyHolder.setKey(brmKey)
+
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
+          debug(CLASS_NAME, "reference",s"success.")
           respond(Ok(js))
       }
 

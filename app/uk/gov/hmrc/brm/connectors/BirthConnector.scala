@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import play.api.Logger
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
@@ -26,6 +25,7 @@ import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
+import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 
@@ -42,6 +42,7 @@ trait BirthConnector extends ServicesConfig {
   protected val version: String = GROConnectorConfiguration.version
   protected val eventUri = s"api/$version/events/birth"
   protected val authUri = s"oauth/login"
+  protected val CLASS_NAME : String = this.getClass.getCanonicalName
 
   protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
@@ -72,12 +73,12 @@ trait BirthConnector extends ServicesConfig {
   protected def parseJson(response: Response) = {
     try {
       val bodyText = response.body.asString
-      Logger.debug(s"[BirthConnector][parseJson] ${response.body.asString}")
+      debug(CLASS_NAME, "parseJson",s"${response.body.asString}")
       val json = Json.parse(bodyText)
       json
     } catch {
       case e: Exception =>
-        Logger.warn(s"[BirthConnector][parseJson] unable to parse json")
+        warn(CLASS_NAME, "parseJson",s"unable to parse json")
         throw new Upstream5xxResponse("unable to parse json", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
     }
   }
@@ -95,26 +96,27 @@ trait BirthConnector extends ServicesConfig {
   }
 
   private def handleResponse(response: Response, f: PartialFunction[Response, BirthResponse], method: String): BirthResponse = {
-    Logger.debug(s"[BirthConnector][handleResponse][$method] : $response")
+    debug(CLASS_NAME, "handleResponse",s"[$method] : $response")
     response.status match {
       case Status.S200_OK =>
         metrics.httpResponseCodeStatus(OK)
-        Logger.info(s"[BirthConnector][handleResponse][$method][200] Success")
+        info(CLASS_NAME, "handleResponse",s"[$method][200] Success")
         f(response)
       case e@Status.S400_BadRequest =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        Logger.warn(s"[BirthConnector][handleResponse][$method][400] BadRequest: $response")
+        warn(CLASS_NAME, "handleResponse",s"[$method][400] BadRequest: $response")
         throwBadRequest(response)
       case e@Status.S404_NotFound =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        Logger.info(s"[BirthConnector][handleResponse][$method][404] Not Found: $response")
+        info(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
         throwBadRequest(response)
       case e@_ =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
-        Logger.error(s"[BirthConnector][handleResponse][$method][5xx] InternalServerError: $response")
+        error(CLASS_NAME, "handleResponse",s"[$method][5xx] InternalServerError: $response")
         throwInternalServerError(response)
     }
   }
+
 
   private def GROEventHeaderCarrier(token: String) = {
     Map(
@@ -129,10 +131,11 @@ trait BirthConnector extends ServicesConfig {
       "password" -> GROConnectorConfiguration.password
     )
 
-    Logger.debug(s"[BirthConnector][requestAuth]: $authEndpoint credentials: $credentials")
-    Logger.info(s"[BirthConnector][requestAuth]: $authEndpoint")
+    debug(this, "requestAuth",s"$authEndpoint credentials: $credentials")
+    info(this, "requestAuth",s"$authEndpoint")
 
     val startTime = metrics.startTimer()
+
 
     val response = httpClient.post(
       url = authEndpoint,
@@ -142,7 +145,7 @@ trait BirthConnector extends ServicesConfig {
       )
     )
 
-    metrics.endTimer(startTime)
+    metrics.endTimer(startTime, "authentication-timer")
 
     body(handleResponse(response, extractAccessToken, "requestAuth"))
   }
@@ -155,11 +158,11 @@ trait BirthConnector extends ServicesConfig {
 
             val startTime = metrics.startTimer()
 
-            Logger.debug(s"[BirthConnector][requestReference]: $eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
-            Logger.info(s"[BirthConnector][requestReference]: $eventEndpoint")
+            debug(CLASS_NAME, "requestReference",s"$eventEndpoint headers: ${GROEventHeaderCarrier(x.as[String])}")
+            info(CLASS_NAME, "requestReference",s": $eventEndpoint")
             val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(GROEventHeaderCarrier(x.as[String])))
 
-            metrics.endTimer(startTime)
+            metrics.endTimer(startTime, "reference-match-timer")
 
             handleResponse(response, extractJson, "requestReference")
 
