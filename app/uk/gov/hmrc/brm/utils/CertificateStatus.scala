@@ -62,12 +62,7 @@ trait CertificateStatus extends ServicesConfig {
 
   def isValidDate(): Boolean = {
     val dateDifference = difference(getExpiryDate(), new LocalDate())
-    if(dateDifference._1 > 0) {
-      true
-    }
-    else {
-      false
-    }
+    dateDifference._1 > 0
   }
 }
 
