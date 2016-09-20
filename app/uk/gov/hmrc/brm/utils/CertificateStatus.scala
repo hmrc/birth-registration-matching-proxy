@@ -41,12 +41,9 @@ trait CertificateStatus extends ServicesConfig {
   lazy val certificateExpiryDate = getConfString(certificateExpiryDate_Key,
     throw new RuntimeException("[Configuration][NotFound] certificateExpiryDate"))
 
-  def getExpiryDate(expiryDate: Option[String] = None): LocalDate = expiryDate match {
-    case None => new LocalDate(certificateExpiryDate)
-    case Some(x) => new LocalDate(x)
-  }
+  private def getExpiryDate = new LocalDate(certificateExpiryDate)
 
-  def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Int, Int, Int) = {
+  private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Int, Int, Int) = {
     val days = Days.daysBetween(comparisonDate, expiryDate).getDays
     val months = Months.monthsBetween(comparisonDate, expiryDate).getMonths
     val years = Years.yearsBetween(comparisonDate, expiryDate).getYears
@@ -64,14 +61,14 @@ trait CertificateStatus extends ServicesConfig {
       }
     case (d, m, y) =>
       if (d < 0) {
-        Logger.error(s"[GROProxy][Certificate][CERTIFICATE_EXPIRED][Days: $d][Months: $m] [Years: $y]")
+        Logger.error(s"[GROProxy][Certificate][CERTIFICATE_EXPIRED][Days: $d]")
       } else {
         Logger.info(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m] [Years: $y]")
       }
   }
 
-  def isValidDate(date: LocalDate = new LocalDate): Boolean = {
-    val (day, month, year) = difference(getExpiryDate(), date)
+  def logCertificateStatus(date: LocalDate = new LocalDate): Boolean = {
+    val (day, month, year) = difference(getExpiryDate, date)
     logCertificate(day, month, year)
     day >= 0
   }
