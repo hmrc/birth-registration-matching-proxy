@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.Logger
 import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.brm.connectors
 
-//import play.api.Logger
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
