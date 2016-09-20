@@ -40,8 +40,8 @@ trait CertificateStatus extends ServicesConfig {
   lazy val certificateExpiryDate = getConfString(certificateExpiryDate_Key,
     throw new RuntimeException("[Configuration][NotFound] certificateExpiryDate"))
 
-  def getExpiryDate(expiryDate: Option[String] = None): LocalDate = expiryDate match {
-    case None => new LocalDate(certificateExpiryDate)
+  def getExpiryDate(expiryDate: Option[String] = Some(certificateExpiryDate)): LocalDate = expiryDate match {
+    case None => new LocalDate(expiryDate)
     case Some(x) => new LocalDate(x)
   }
 
