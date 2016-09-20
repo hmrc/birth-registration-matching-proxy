@@ -17,14 +17,15 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time.{Days, LocalDate, Months, Years}
-import play.api.Logger
 import uk.gov.hmrc.play.config.ServicesConfig
-
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 /**
   * Created by chrisianson on 16/08/16.
   */
 trait CertificateStatus extends ServicesConfig {
+
+  protected val CLASS_NAME : String = this.getClass.getCanonicalName
 
   val privateKeystore_Key = "birth-registration-matching.privateKeystore"
 
@@ -51,19 +52,19 @@ trait CertificateStatus extends ServicesConfig {
   }
 
   private def logCertificate(dayDifference: Int, monthDifference: Int, yearDifference: Int): Unit = (dayDifference, monthDifference, yearDifference) match {
-    case (0, 0, 0) => Logger.error("[GROProxy][Certificate][EXPIRES_TODAY]")
-    case (d, 0, 0) => Logger.error("[GROProxy][Certificate][EXPIRES_THIS_MONTH]")
+    case (0, 0, 0) => error(CLASS_NAME, "logCertificate", "EXPIRES_TODAY")
+    case (d, 0, 0) => error(CLASS_NAME, "logCertificate", "EXPIRES_THIS_MONTH")
     case (d, m, 0) if m <= 12 && m > 0 =>
       if (m <= 6) {
-        Logger.warn(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m]")
+        warn(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m]")
       } else {
-        Logger.info(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m]")
+        info(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m]")
       }
     case (d, m, y) =>
       if (d < 0) {
-        Logger.error(s"[GROProxy][Certificate][CERTIFICATE_EXPIRED][Days: $d]")
+        error(CLASS_NAME, "logCertificate", s"[CERTIFICATE_EXPIRED][Days: $d]")
       } else {
-        Logger.info(s"[GROProxy][Certificate][EXPIRES_IN][Days: $d][Months: $m] [Years: $y]")
+        info(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m] [Years: $y]")
       }
   }
 

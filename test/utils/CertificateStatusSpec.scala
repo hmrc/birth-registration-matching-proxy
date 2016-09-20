@@ -126,7 +126,7 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
     }
 
     "return false when current date 10 months in front of certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("432016-02-19").plusMonths(10: Int))
+      val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("2016-02-19").plusMonths(10: Int))
       dateStatus shouldBe false
     }
 
