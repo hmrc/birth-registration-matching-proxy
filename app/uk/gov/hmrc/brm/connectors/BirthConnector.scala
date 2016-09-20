@@ -126,7 +126,7 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-  def requestAuth(body: BirthResponse => BirthResponse)(implicit hc: HeaderCarrier) = {
+  private def requestAuth(body: BirthResponse => BirthResponse)(implicit hc: HeaderCarrier) = {
 
     CertificateStatus.logCertificateStatus()
 
@@ -153,7 +153,7 @@ trait BirthConnector extends ServicesConfig {
     body(handleResponse(response, extractAccessToken, "requestAuth"))
   }
 
-  def requestReference(reference: String)(implicit hc: HeaderCarrier): BirthResponse = {
+  private def requestReference(reference: String)(implicit hc: HeaderCarrier): BirthResponse = {
     requestAuth(
       token => {
         token match {
