@@ -63,8 +63,6 @@ class MatchingControllerSpec extends UnitSpec
     Future.successful(BirthSuccessResponse(json))
   }
 
-
-
   var jsValidationExceptionResponse: BirthResponse = BirthErrorResponse(
     new JsValidationException("", "", getClass, Seq())
   )

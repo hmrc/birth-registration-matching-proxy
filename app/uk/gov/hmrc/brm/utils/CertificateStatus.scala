@@ -17,9 +17,9 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time._
-import org.joda.time.format.{PeriodFormatter, PeriodFormatterBuilder}
-import uk.gov.hmrc.play.config.ServicesConfig
+import org.joda.time.format.PeriodFormatterBuilder
 import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.play.config.ServicesConfig
 
 /**
   * Created by chrisianson on 16/08/16.
@@ -99,7 +99,7 @@ trait CertificateStatus extends ServicesConfig {
       )(d)
   }
 
-  def logCertificateStatus(date: LocalDate = new LocalDate): Boolean = {
+  def certificateStatus(date: LocalDate = new LocalDate): Boolean = {
     val (day, message) = difference(getExpiryDate, date)
     logCertificate(day, message)
     day >= 0
