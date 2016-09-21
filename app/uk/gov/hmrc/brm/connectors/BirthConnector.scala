@@ -128,29 +128,37 @@ trait BirthConnector extends ServicesConfig {
 
   private def requestAuth(body: BirthResponse => BirthResponse)(implicit hc: HeaderCarrier) = {
 
-    CertificateStatus.logCertificateStatus()
-
-    val credentials: Map[String, String] = Map(
-      "username" -> GROConnectorConfiguration.username,
-      "password" -> GROConnectorConfiguration.password
-    )
-
-    debug(this, "requestAuth",s"$authEndpoint credentials: $credentials")
-    info(this, "requestAuth",s"$authEndpoint")
-
-    val startTime = metrics.startTimer()
-
-    val response = httpClient.post(
-      url = authEndpoint,
-      body = Some(RequestBody.apply(credentials)),
-      requestHeaders = Headers.apply(
-        Map("Content-Type" -> "application/x-www-form-urlencoded")
+    if(!CertificateStatus.certificateStatus()) {
+      BirthErrorResponse(
+        Upstream5xxResponse(
+          s"[${super.getClass.getName}][InternalServerError][TLS Certificate expired]",
+          INTERNAL_SERVER_ERROR,
+          INTERNAL_SERVER_ERROR)
       )
-    )
+    } else {
 
-    metrics.endTimer(startTime, "authentication-timer")
+      val credentials: Map[String, String] = Map(
+        "username" -> GROConnectorConfiguration.username,
+        "password" -> GROConnectorConfiguration.password
+      )
 
-    body(handleResponse(response, extractAccessToken, "requestAuth"))
+      debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
+      info(this, "requestAuth", s"$authEndpoint")
+
+      val startTime = metrics.startTimer()
+
+      val response = httpClient.post(
+        url = authEndpoint,
+        body = Some(RequestBody.apply(credentials)),
+        requestHeaders = Headers.apply(
+          Map("Content-Type" -> "application/x-www-form-urlencoded")
+        )
+      )
+
+      metrics.endTimer(startTime, "authentication-timer")
+
+      body(handleResponse(response, extractAccessToken, "requestAuth"))
+    }
   }
 
   private def requestReference(reference: String)(implicit hc: HeaderCarrier): BirthResponse = {

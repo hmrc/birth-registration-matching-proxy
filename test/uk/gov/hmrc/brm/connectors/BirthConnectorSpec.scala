@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import java.net.URL
 
 import com.sun.javafx.font.Metrics
+import org.joda.time.{DateTime, DateTimeUtils, LocalDate}
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
@@ -31,6 +32,7 @@ import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.metrics.GroMetrics
+import uk.gov.hmrc.brm.utils.CertificateStatus
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import utils.JsonUtils
@@ -44,6 +46,8 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
   implicit val hc = HeaderCarrier()
 
   val mockHttpClient = mock[HttpClient]
+
+  val mockCertificateStatus = mock[CertificateStatus]
 
   object MockBirthConnector extends BirthConnector {
     override val httpClient = mockHttpClient
@@ -113,7 +117,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
         val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
         resonseException.upstreamResponseCode shouldBe NOT_FOUND
-
       }
 
       "400 with BadRequest for authentication" in {
@@ -127,8 +130,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
         resonseException.upstreamResponseCode shouldBe BAD_REQUEST
       }
-
-
 
       "500 with InternalServerError for authentication" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
@@ -172,6 +173,21 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
         val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
         resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR
+      }
+
+      "500 with InternalSeverError when certificate has expired" in {
+        // Force LocalDate to something other than now
+        val date = new DateTime(2050: Int, 9: Int, 15: Int, 5: Int, 10: Int, 10: Int)
+        DateTimeUtils.setCurrentMillisFixed(date.getMillis)
+
+        val result = await(MockBirthConnector.getReference("500035710"))
+        result.isInstanceOf[BirthErrorResponse] shouldBe true
+        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
+        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
+        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
+        resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR
+
+        DateTimeUtils.setCurrentMillisSystem()
       }
 
     }
