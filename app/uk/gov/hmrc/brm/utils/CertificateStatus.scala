@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.joda.time.{Days, LocalDate, Months, Years}
+import org.joda.time._
+import org.joda.time.format.{PeriodFormatter, PeriodFormatterBuilder}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
@@ -25,7 +26,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
   */
 trait CertificateStatus extends ServicesConfig {
 
-  protected val CLASS_NAME : String = this.getClass.getCanonicalName
+  protected val CLASS_NAME: String = this.getClass.getCanonicalName
 
   val privateKeystore_Key = "birth-registration-matching.privateKeystore"
 
@@ -42,35 +43,65 @@ trait CertificateStatus extends ServicesConfig {
   lazy val certificateExpiryDate = getConfString(certificateExpiryDate_Key,
     throw new RuntimeException("[Configuration][NotFound] certificateExpiryDate"))
 
+  lazy val formatDate =
+    new PeriodFormatterBuilder()
+      .appendYears()
+      .appendSuffix(" year", " years")
+      .appendSeparator(", ")
+      .appendMonths()
+      .appendSuffix(" month", " months")
+      .appendSeparator(", ")
+      .appendWeeks()
+      .appendSuffix(" week", " weeks")
+      .appendSeparator(", ")
+      .appendDays()
+      .appendSuffix(" day", " days")
+      .toFormatter()
+
   private def getExpiryDate = new LocalDate(certificateExpiryDate)
 
-  private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Int, Int, Int) = {
+  private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Int, String) = {
     val days = Days.daysBetween(comparisonDate, expiryDate).getDays
-    val months = Months.monthsBetween(comparisonDate, expiryDate).getMonths
-    val years = Years.yearsBetween(comparisonDate, expiryDate).getYears
-    (days, months, years)
+    (days, formatDate.print(new Period(comparisonDate, expiryDate)))
   }
 
-  private def logCertificate(dayDifference: Int, monthDifference: Int, yearDifference: Int): Unit = (dayDifference, monthDifference, yearDifference) match {
-    case (0, 0, 0) => error(CLASS_NAME, "logCertificate", "EXPIRES_TODAY")
-    case (d, 0, 0) => error(CLASS_NAME, "logCertificate", "EXPIRES_THIS_MONTH")
-    case (d, m, 0) if m <= 12 && m > 0 =>
-      if (m <= 6) {
-        warn(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m]")
-      } else {
-        info(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m]")
-      }
-    case (d, m, y) =>
-      if (d < 0) {
-        error(CLASS_NAME, "logCertificate", s"[CERTIFICATE_EXPIRED][Days: $d]")
-      } else {
-        info(CLASS_NAME, "logCertificate", s"[EXPIRES_IN][Days: $d][Months: $m] [Years: $y]")
-      }
+  private val expiresToday : PartialFunction[Int, Unit] = {
+    case (0) =>
+      error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY ($certificateExpiryDate)")
+  }
+
+  private def expiresWithin60Days(message: String) : PartialFunction[Int, Unit] = {
+    case (d) if d > 0 && d <= 60 =>
+      error(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
+  }
+
+  private def expiresWithin90Days(message: String) : PartialFunction[Int, Unit] = {
+    case (d) if d > 60 && d <= 90 =>
+      warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
+  }
+
+  private def expiresAfter90Days(message: String) : PartialFunction[Int, Unit] = {
+    case (d) if d > 90 =>
+      info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $message ($certificateExpiryDate)")
+  }
+
+  private def expired(message: String) : PartialFunction[Int, Unit] = {
+    case (_) =>
+      error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
+  }
+
+  private def logCertificate(d: Int, message: String): Unit = {
+    (expiresToday orElse
+      expiresWithin60Days(message) orElse
+      expiresWithin90Days(message) orElse
+      expiresAfter90Days(message) orElse
+      expired(message)
+      )(d)
   }
 
   def logCertificateStatus(date: LocalDate = new LocalDate): Boolean = {
-    val (day, month, year) = difference(getExpiryDate, date)
-    logCertificate(day, month, year)
+    val (day, message) = difference(getExpiryDate, date)
+    logCertificate(day, message)
     day >= 0
   }
 

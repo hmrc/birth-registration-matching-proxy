@@ -100,6 +100,11 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
       dateStatus shouldBe true
     }
 
+    "return true when current date within 7 days but greater than certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("2016-02-19").minusDays(4: Int))
+      dateStatus shouldBe true
+    }
+
     "return true when current date is same as certificate expiry date" in {
       val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("2016-02-19"))
       dateStatus shouldBe true
@@ -107,6 +112,11 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
 
     "return true when current date within same month but greater than certificate expiry date" in {
       val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("2016-02-02"))
+      dateStatus shouldBe true
+    }
+
+    "return true when current date 70 days behind certificate expiry date" in {
+      val dateStatus = mockCertificateStatus20160219.logCertificateStatus(new LocalDate("2016-02-19").minusDays(70: Int))
       dateStatus shouldBe true
     }
 
