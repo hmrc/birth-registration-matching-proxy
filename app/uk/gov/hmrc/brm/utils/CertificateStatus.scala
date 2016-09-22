@@ -72,7 +72,7 @@ trait CertificateStatus extends ServicesConfig {
 
   private def expiresWithin60Days(message: String) : PartialFunction[Int, Unit] = {
     case (d) if d > 0 && d <= 60 =>
-      error(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
+      error(CLASS_NAME, "logCertificate", s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $message ($certificateExpiryDate)")
   }
 
   private def expiresWithin90Days(message: String) : PartialFunction[Int, Unit] = {
