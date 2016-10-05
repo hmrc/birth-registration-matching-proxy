@@ -1,3 +1,19 @@
+/*
+ * Copyright 2016 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package utils
 
 import org.joda.time.{DateTimeUtils, DateTime}
@@ -19,7 +35,7 @@ class AccessTokenRepositorySpec extends UnitSpec {
         val dateTime = DateTime.now()
         AccessTokenRepository.apply(token = "some_valid_token", expiry = dateTime)
         AccessTokenRepository.hasToken shouldBe true
-        AccessTokenRepository.token shouldBe Success(_)
+        AccessTokenRepository.token.isSuccess shouldBe true
       }
 
     }
@@ -33,8 +49,8 @@ class AccessTokenRepositorySpec extends UnitSpec {
         val expiryDate = dateTime.plusMinutes(5)
 
         AccessTokenRepository.apply(token = "some_new_valid_token", expiry = expiryDate)
-        AccessTokenRepository.token shouldBe "some_new_valid_token"
-        AccessTokenRepository.token shouldBe Success(_)
+        AccessTokenRepository.token.get shouldBe "some_new_valid_token"
+        AccessTokenRepository.token.isSuccess shouldBe true
       }
 
     }
@@ -44,7 +60,7 @@ class AccessTokenRepositorySpec extends UnitSpec {
       "have an access_token" in {
         val dateTime = DateTime.now()
         AccessTokenRepository.apply(token = "some_valid_token", expiry = dateTime)
-        AccessTokenRepository.token shouldBe "some_valid_token"
+        AccessTokenRepository.token.get shouldBe "some_valid_token"
       }
 
       "return success with token when access token with expiry time" in {
@@ -52,7 +68,8 @@ class AccessTokenRepositorySpec extends UnitSpec {
         val expiryDate = dateTime.plusMinutes(5)
         AccessTokenRepository.apply(token = "some_valid_token", expiry = expiryDate)
         DateTimeUtils.setCurrentMillisFixed(dateTime.plusMinutes(4).getMillis)
-        AccessTokenRepository.token shouldBe Success(_)
+        AccessTokenRepository.token.get shouldBe "some_valid_token"
+        AccessTokenRepository.token.isSuccess shouldBe true
         DateTimeUtils.setCurrentMillisSystem()
       }
 
@@ -64,7 +81,7 @@ class AccessTokenRepositorySpec extends UnitSpec {
         val expiryDate = dateTime.plusMinutes(5)
         AccessTokenRepository.apply(token = "some_valid_token", expiry = expiryDate)
         DateTimeUtils.setCurrentMillisFixed(dateTime.plusMinutes(6).getMillis)
-        AccessTokenRepository.token shouldBe Failure(_)
+        AccessTokenRepository.token.isFailure shouldBe true
         DateTimeUtils.setCurrentMillisSystem()
       }
     }
