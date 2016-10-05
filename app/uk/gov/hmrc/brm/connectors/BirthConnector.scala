@@ -92,8 +92,13 @@ trait BirthConnector extends ServicesConfig {
 
   protected val extractAccessToken: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-      val json = parseJson(response).\("access_token")
-      BirthSuccessResponse(json)
+      val token = parseJson(response).\("access_token")
+
+      // expiry time
+      // set time
+      // store token here as well
+
+      BirthSuccessResponse(token)
   }
 
   private def handleResponse(response: Response, f: PartialFunction[Response, BirthResponse], method: String): BirthResponse = {
@@ -136,6 +141,8 @@ trait BirthConnector extends ServicesConfig {
           INTERNAL_SERVER_ERROR)
       )
     } else {
+
+      // check expiry of the auth token repo
 
       val credentials: Map[String, String] = Map(
         "username" -> GROConnectorConfiguration.username,
