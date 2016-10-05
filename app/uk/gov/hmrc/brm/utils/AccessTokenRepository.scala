@@ -19,6 +19,10 @@ object AccessTokenRepository {
     _expiry = Some(expiry)
   }
 
+  def newExpiry(seconds : Int) = {
+    DateTime.now.plusSeconds(seconds)
+  }
+
   private def hasExpired : Boolean = {
     val currentTime = DateTime.now()
     currentTime.isBeforeNow
