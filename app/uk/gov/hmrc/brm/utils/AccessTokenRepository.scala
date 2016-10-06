@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.joda.time.DateTime
+import org.joda.time.{Seconds, DateTime}
 
 import scala.util.{Failure, Success, Try}
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -43,7 +43,7 @@ class AccessTokenRepository {
   }
 
   def hasExpired : Boolean = {
-    val currentTime = DateTime.now().minusSeconds(30)
+    def currentTime = DateTime.now().minusSeconds(30)
     val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
     debug(this, "token hasExpired", s"$expired")
     expired
@@ -52,7 +52,11 @@ class AccessTokenRepository {
   def hasToken = _token.fold(false)(x => x.trim.nonEmpty)
 
   def token : Try[String] = {
-    if (hasToken && !hasExpired) Success(_token.get)
+    if (hasToken && !hasExpired) {
+      def seconds = Seconds.secondsBetween(DateTime.now, _expiry.get).getSeconds
+      debug(this, "token", s"token expires in: $seconds seconds")
+      Success(_token.get)
+    }
     else Failure(expiredTokenException)
   }
 

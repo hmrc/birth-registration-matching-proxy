@@ -19,14 +19,14 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
-import uk.co.bigbeeconsultants.http.request.{Request, RequestBody}
+import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 
