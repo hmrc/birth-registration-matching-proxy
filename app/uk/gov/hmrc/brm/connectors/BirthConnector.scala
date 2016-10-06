@@ -159,7 +159,7 @@ trait BirthConnector extends ServicesConfig {
           info(this, "requestAuth", s"token has expired")
           debug(this, "requestAuth", s"${noToken.getMessage}")
           //get new auth token
-          val response = getAuthResponse()
+          val response = getAuthResponse
 
           handleResponse(response, extractAccessToken, "requestAuth")
       }
@@ -167,7 +167,7 @@ trait BirthConnector extends ServicesConfig {
   }
 
 
-  private def getAuthResponse() : Response = {
+  private def getAuthResponse : Response = {
     val credentials: Map[String, String] = Map(
       "username" -> GROConnectorConfiguration.username,
       "password" -> GROConnectorConfiguration.password
@@ -175,6 +175,7 @@ trait BirthConnector extends ServicesConfig {
 
     debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
     info(this, "requestAuth", s"$authEndpoint")
+    metrics.requestCount("authentication")
 
     val startTime = metrics.startTimer()
     // request new access token
@@ -196,6 +197,7 @@ trait BirthConnector extends ServicesConfig {
         val startTime = metrics.startTimer()
 
         val headerCarrier = GROEventHeaderCarrier(token)
+        metrics.requestCount("reference-match")
 
         debug(CLASS_NAME, "requestReference", s"$eventEndpoint headers: $headerCarrier")
         info(CLASS_NAME, "requestReference", s": $eventEndpoint")
