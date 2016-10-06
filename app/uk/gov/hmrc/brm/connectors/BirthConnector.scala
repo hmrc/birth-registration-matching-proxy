@@ -145,6 +145,8 @@ trait BirthConnector extends ServicesConfig {
       debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
       info(this, "requestAuth", s"$authEndpoint")
 
+      metrics.requestCount("authentication")
+
       val startTime = metrics.startTimer()
 
       val response = httpClient.post(
@@ -166,6 +168,8 @@ trait BirthConnector extends ServicesConfig {
       token => {
         token match {
           case BirthSuccessResponse(x) =>
+
+            metrics.requestCount("reference-match")
 
             val startTime = metrics.startTimer()
 
