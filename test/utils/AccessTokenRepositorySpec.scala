@@ -16,7 +16,7 @@
 
 package utils
 
-import org.joda.time.{DateTime, DateTimeUtils, Minutes}
+import org.joda.time.{DateTime, DateTimeUtils, Minutes, Seconds}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import uk.gov.hmrc.brm.utils.AccessTokenRepository
@@ -69,9 +69,11 @@ class AccessTokenRepositorySpec extends UnitSpec with BeforeAndAfter {
       }
 
       "return a new expiry time 5 minutes from now" in {
+        val dateTime = new DateTime()
+        DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
         val seconds = 300
         val expiry = accessTokenRepository.newExpiry(seconds)
-        Minutes.minutesBetween(DateTime.now, expiry).getMinutes shouldBe 5
+        Seconds.secondsBetween(dateTime, expiry).getSeconds shouldBe 300
       }
 
     }

@@ -158,29 +158,36 @@ trait BirthConnector extends ServicesConfig {
 
           info(this, "requestAuth", s"token has expired")
           debug(this, "requestAuth", s"${noToken.getMessage}")
+          //get new auth token
+          val response = getAuthResponse()
 
-          val credentials: Map[String, String] = Map(
-            "username" -> GROConnectorConfiguration.username,
-            "password" -> GROConnectorConfiguration.password
-          )
-
-          debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
-          info(this, "requestAuth", s"$authEndpoint")
-
-          val startTime = metrics.startTimer()
-          // request new access token
-          val response = httpClient.post(
-            url = authEndpoint,
-            body = Some(RequestBody.apply(credentials)),
-            requestHeaders = Headers.apply(
-              Map("Content-Type" -> "application/x-www-form-urlencoded")
-            )
-          )
-
-          metrics.endTimer(startTime, "authentication-timer")
           handleResponse(response, extractAccessToken, "requestAuth")
       }
     }
+  }
+
+
+  private def getAuthResponse() : Response = {
+    val credentials: Map[String, String] = Map(
+      "username" -> GROConnectorConfiguration.username,
+      "password" -> GROConnectorConfiguration.password
+    )
+
+    debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
+    info(this, "requestAuth", s"$authEndpoint")
+
+    val startTime = metrics.startTimer()
+    // request new access token
+    val response = httpClient.post(
+      url = authEndpoint,
+      body = Some(RequestBody.apply(credentials)),
+      requestHeaders = Headers.apply(
+        Map("Content-Type" -> "application/x-www-form-urlencoded")
+      )
+    )
+
+    metrics.endTimer(startTime, "authentication-timer")
+    response
   }
 
   private def requestReference(reference: String)(implicit hc: HeaderCarrier): BirthResponse = {
