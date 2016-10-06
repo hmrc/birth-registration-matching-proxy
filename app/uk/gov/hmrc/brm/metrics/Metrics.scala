@@ -34,8 +34,8 @@ trait Metrics {
   def httpResponseCodeStatus(code: Int): Unit =
     MetricsRegistry.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
-  def requestCount(): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$prefix-request-count").inc()
+  def requestCount(key: String = "request"): Unit =
+    MetricsRegistry.defaultRegistry.counter(s"$prefix-$key-count").inc()
 
   def time(diff: Long, unit: TimeUnit, key: String) =
     MetricsRegistry.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
