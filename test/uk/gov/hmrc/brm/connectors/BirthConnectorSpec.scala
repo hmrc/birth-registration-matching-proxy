@@ -32,7 +32,7 @@ import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.metrics.GroMetrics
-import uk.gov.hmrc.brm.utils.CertificateStatus
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import utils.JsonUtils
@@ -52,11 +52,13 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
   object MockBirthConnector extends BirthConnector {
     override val httpClient = mockHttpClient
     override val metrics = GroMetrics
+    override val authRepository = new AccessTokenRepository
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
 
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
+
 
 
   val headers = Map(
@@ -81,13 +83,15 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        intercept[Upstream5xxResponse] {
-          val result = await(MockBirthConnector.getReference("500035710"))
-          result shouldBe JsNull
-        }
-      }
 
+        val result = await(MockBirthConnector.getReference("500035710"))
+        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
+        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
+
+      }
     }
+
+
 
     "getReference" should {
 
@@ -120,6 +124,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
       }
 
       "400 with BadRequest for authentication" in {
+        MockBirthConnector.authRepository.saveToken("", DateTime.now.minusSeconds(10))
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
@@ -189,6 +194,17 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
         DateTimeUtils.setCurrentMillisSystem()
       }
+
+
+      "500 with InternalServerError when authentication returns empty or no access tokem" in {
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, "")
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+
+        val result = await(MockBirthConnector.getReference("500035710"))
+        result.isInstanceOf[BirthErrorResponse] shouldBe true
+      }
+
+
 
     }
 
