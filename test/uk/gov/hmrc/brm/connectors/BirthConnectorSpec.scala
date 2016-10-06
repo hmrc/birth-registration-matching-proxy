@@ -59,6 +59,10 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
 
+  before {
+    MockBirthConnector.authRepository.saveToken("",DateTime.now())
+  }
+
 
   val headers = Map(
     "Authorization" -> s"Bearer something",
@@ -123,7 +127,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
       }
 
       "400 with BadRequest for authentication" in {
-        MockBirthConnector.authRepository.saveToken("", DateTime.now.minusSeconds(10))
+
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
