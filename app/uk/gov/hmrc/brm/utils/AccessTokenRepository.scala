@@ -24,7 +24,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 /**
  * Created by adamconder on 05/10/2016.
  */
-object AccessTokenRepository {
+class AccessTokenRepository {
 
   private var _token : Option[String] = None
   private var _expiry : Option[DateTime] = None
@@ -42,7 +42,7 @@ object AccessTokenRepository {
     DateTime.now.plusSeconds(seconds)
   }
 
-  private def hasExpired : Boolean = {
+  def hasExpired : Boolean = {
     val currentTime = DateTime.now().minusSeconds(30)
     val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
     debug(this, "token hasExpired", s"$expired")

@@ -51,8 +51,8 @@ trait BirthConnector extends ServicesConfig {
   protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
 
   protected val httpClient: HttpClient
-
   protected val metrics: Metrics
+  protected val authRepository : AccessTokenRepository
 
   private def throwInternalServerError(response: Response, message: String = "_") = {
     BirthErrorResponse(
@@ -81,28 +81,18 @@ trait BirthConnector extends ServicesConfig {
     } catch {
       case e: Exception =>
         warn(CLASS_NAME, "parseJson",s"unable to parse json")
-//        BirthErrorResponse(new Upstream5xxResponse("unable to parse json", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR))
         throwInternalServerError(response, "unable to parse json")
     }
   }
 
   protected val extractJson: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-//      val json = parseJson(response)
-//      BirthSuccessResponse(json)
 
     parseJson(response)
   }
 
   protected val extractAccessToken: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-//      val json = parseJson(response)
-//      debug(CLASS_NAME, "parseJson", s"$json")
-//      val token = json.\("access_token")
-//      val expiry = json.\("expires_in")
-//
-//      AccessTokenRepository.saveToken(token.toString(), AccessTokenRepository.newExpiry(expiry))
-//      BirthSuccessResponse(token)
 
       parseJson(response) match {
         case BirthSuccessResponse(body) =>
@@ -111,18 +101,12 @@ trait BirthConnector extends ServicesConfig {
           val seconds = body.\("expires_in").as[Int]
 
           // save the new token
-          AccessTokenRepository.saveToken(token, AccessTokenRepository.newExpiry(seconds))
+          authRepository.saveToken(token, authRepository.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
         case e @ BirthErrorResponse(error) =>
           e
-        case _ =>
-          BirthErrorResponse(
-            Upstream5xxResponse(
-              s"[${super.getClass.getName}][InternalServerError][Receiving response that was not access_token]",
-              INTERNAL_SERVER_ERROR,
-              INTERNAL_SERVER_ERROR)
-          )
+
       }
   }
 
@@ -166,7 +150,7 @@ trait BirthConnector extends ServicesConfig {
       )
     } else {
       debug(this, "requestAuth", "checking access_token")
-      AccessTokenRepository.token match {
+      authRepository.token match {
         case Success(token) =>
           debug(this, "requestAuth", s"cached token: $token")
             BirthAccessTokenResponse(token)
@@ -214,14 +198,7 @@ trait BirthConnector extends ServicesConfig {
         handleResponse(response, extractJson, "requestReference")
       case error@BirthErrorResponse(e) =>
         error
-      case _ =>
-        BirthErrorResponse(
-          Upstream5xxResponse(
-            s"[${super.getClass.getName}][InternalServerError][Received response that was not access_token]",
-            INTERNAL_SERVER_ERROR,
-            INTERNAL_SERVER_ERROR)
-        )
-    }
+
   }
 
   def getReference(reference: String)(implicit hc: HeaderCarrier): Future[BirthResponse] = {
@@ -237,5 +214,6 @@ object GROEnglandAndWalesConnector extends BirthConnector {
   val config = TLSFactory.getConfig
   override val httpClient = new HttpClient(config)
   override val metrics = GroMetrics
+  override val authRepository = new AccessTokenRepository
 }
 // $COVERAGE-ON$
