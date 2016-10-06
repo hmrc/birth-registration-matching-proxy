@@ -198,17 +198,10 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
       "500 with InternalServerError when authentication returns empty or no access tokem" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, "")
-       // val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-       // when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.getReference("500035710"))
         result.isInstanceOf[BirthErrorResponse] shouldBe true
-        /*val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
-        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
-        resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR*/
       }
 
 
