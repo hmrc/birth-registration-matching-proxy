@@ -19,29 +19,34 @@ package uk.gov.hmrc.brm.utils
 import org.joda.time.DateTime
 
 import scala.util.{Failure, Success, Try}
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 /**
  * Created by adamconder on 05/10/2016.
  */
 object AccessTokenRepository {
 
-  private val expiredTokenException  = new RuntimeException("access_token expired")
-
   private var _token : Option[String] = None
   private var _expiry : Option[DateTime] = None
 
-  def apply(token: String, expiry : DateTime) = {
+  private val expiredTokenException  = new RuntimeException(s"access_token expired")
+
+  def saveToken(token: String, expiry : DateTime) = {
+    debug(this, "saveToken", s"token: $token, expiry: $expiry")
     _token = Some(token)
     _expiry = Some(expiry)
   }
 
   def newExpiry(seconds : Int) = {
+    debug(this, "newExpiry", s"seconds: $seconds")
     DateTime.now.plusSeconds(seconds)
   }
 
   private def hasExpired : Boolean = {
     val currentTime = DateTime.now().minusSeconds(30)
-    _expiry.fold(true)(t => t.isBefore(currentTime))
+    val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
+    debug(this, "token hasExpired", s"$expired")
+    expired
   }
 
   def hasToken = _token.fold(false)(x => x.trim.nonEmpty)
