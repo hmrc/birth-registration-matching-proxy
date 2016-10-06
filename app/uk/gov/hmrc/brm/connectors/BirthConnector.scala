@@ -191,13 +191,14 @@ trait BirthConnector extends ServicesConfig {
         val headerCarrier = GROEventHeaderCarrier(token)
 
         debug(CLASS_NAME, "requestReference", s"$eventEndpoint headers: $headerCarrier")
-        info(CLASS_NAME, "requestReference",s": $eventEndpoint")
+        info(CLASS_NAME, "requestReference", s": $eventEndpoint")
         val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
 
         metrics.endTimer(startTime, "reference-match-timer")
         handleResponse(response, extractJson, "requestReference")
       case error@BirthErrorResponse(e) =>
         error
+    }
 
   }
 
