@@ -74,8 +74,8 @@ trait MatchingController extends BaseController {
 
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
-          val length = js.asOpt[JsArray].fold(0)(arr => arr.value.size)
-          info(CLASS_NAME, "getReference", s"$length record(s) found")
+
+          info(CLASS_NAME, "getReference", s"record(s) found")
           debug(CLASS_NAME, "reference", s"success.")
           respond(Ok(js))
       }
