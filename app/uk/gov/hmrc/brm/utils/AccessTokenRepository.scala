@@ -29,23 +29,26 @@ class AccessTokenRepository {
   private var _token : Option[String] = None
   private var _expiry : Option[DateTime] = None
 
+  private val CLASS_NAME = this.getClass.getCanonicalName
+
   private val expiredTokenException  = new RuntimeException(s"access_token expired")
 
   def saveToken(token: String, expiry : DateTime) = {
-    debug(this, "saveToken", s"token: $token, expiry: $expiry")
+    debug(CLASS_NAME, "saveToken", s"access_token: $token, expiry: $expiry")
+    info(CLASS_NAME, "saveToken", s"saving new access_token, expiry: $expiry")
     _token = Some(token)
     _expiry = Some(expiry)
   }
 
   def newExpiry(seconds : Int) = {
-    debug(this, "newExpiry", s"seconds: $seconds")
+    info(CLASS_NAME, "newExpiry", s"access_token new expiry time in seconds: $seconds")
     DateTime.now.plusSeconds(seconds)
   }
 
   def hasExpired : Boolean = {
     def currentTime = DateTime.now().minusSeconds(30)
     val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
-    debug(this, "token hasExpired", s"$expired")
+    info(CLASS_NAME, "access_token hasExpired", s"access_token has expired $expired")
     expired
   }
 
@@ -54,10 +57,12 @@ class AccessTokenRepository {
   def token : Try[String] = {
     if (hasToken && !hasExpired) {
       def seconds = Seconds.secondsBetween(DateTime.now, _expiry.get).getSeconds
-      debug(this, "token", s"token expires in: $seconds seconds")
+      info(CLASS_NAME, "token", s"access_token expires in: $seconds seconds")
       Success(_token.get)
+    } else {
+      error(CLASS_NAME, "token", "access_token has expired")
+      Failure(expiredTokenException)
     }
-    else Failure(expiredTokenException)
   }
 
 }

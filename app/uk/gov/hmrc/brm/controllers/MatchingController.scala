@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.brm.controllers
 
+import play.api.libs.json.JsArray
 import play.api.mvc.{Action, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
@@ -47,36 +48,35 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      info(CLASS_NAME, "handleException",s"NotFound: no record found for $reference")
+      info(CLASS_NAME, "handleException", s"NotFound: no record found")
       respond(NotFound(s"$reference"))
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
       warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
       respond(BadGateway("BadRequest returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
-      warn(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
+      error(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
       respond(BadGateway("BadGateway returned from GRO"))
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
-      warn(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
+      error(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
       respond(GatewayTimeout)
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
       error(CLASS_NAME, "handleException",s"InternalServerError: $message")
       respond(InternalServerError("Connection to GRO is down"))
     case BirthErrorResponse(_) =>
-      warn(CLASS_NAME, "handleException",s"InternalServerError: Exception")
+      error(CLASS_NAME, "handleException",s"InternalServerError: Exception")
       respond(InternalServerError)
-
   }
 
   def reference(reference: String) = Action.async {
-
     implicit request =>
-
-      var brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+      val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
       KeyHolder.setKey(brmKey)
 
       val success: PartialFunction[BirthResponse, Future[Result]] = {
         case BirthSuccessResponse(js) =>
-          debug(CLASS_NAME, "reference",s"success.")
+
+          info(CLASS_NAME, "getReference", s"record(s) found")
+          debug(CLASS_NAME, "reference", s"success.")
           respond(Ok(js))
       }
 

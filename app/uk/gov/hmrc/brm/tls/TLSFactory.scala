@@ -58,25 +58,41 @@ trait TLSFactory {
   }
 
   private def getSocketFactory : Option[SSLSocketFactory] = {
+    info(CLASS_NAME, "getSocketFactory", "created SSLSocketFactory")
+
     val decodedKeystore = Base64.getDecoder.decode(keystoreBase64.getBytes(StandardCharsets.US_ASCII))
     val decodedKeystoreKey = Base64.getDecoder.decode(keystoreKeyBase64.getBytes(StandardCharsets.US_ASCII))
     val keyString = new String(decodedKeystoreKey, StandardCharsets.US_ASCII)
 
     debug(CLASS_NAME, "getSocketFactory", s"keystore: $keystoreBase64 key: $keystoreKeyBase64")
 
-    val ks = KeyStore.getInstance("jks")
-    ks.load(new ByteArrayInputStream(decodedKeystore), keyString.toCharArray)
+    try {
+      val ks = KeyStore.getInstance("jks")
+      ks.load(new ByteArrayInputStream(decodedKeystore), keyString.toCharArray)
 
-    val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
-    kmf.init(ks, keyString.toCharArray)
+      val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
+      kmf.init(ks, keyString.toCharArray)
 
-    val tls = SSLContext.getInstance(tlsMode)
-    tls.init(kmf.getKeyManagers, Array(DumbTrustManager), new SecureRandom())
-    Some(tls.getSocketFactory)
+      val tls = SSLContext.getInstance(tlsMode)
+      tls.init(kmf.getKeyManagers, Array(DumbTrustManager), new SecureRandom())
+      info(CLASS_NAME, "getSocketFactory", "TLS Connection Established")
+      Some(tls.getSocketFactory)
+    } catch {
+      case e : Exception =>
+        error(CLASS_NAME, "getSocketFactory", s"exception when creating SSLSocketFactory: ${e.getMessage}")
+        throw e
+    }
+
   }
 
   def getConfig = {
-    val sslSocketFactory = if(GROConnectorConfiguration.tlsEnabled) getSocketFactory else None
+    val sslSocketFactory = if(GROConnectorConfiguration.tlsEnabled) {
+      info(CLASS_NAME, "getConfig", "TLS Enabled")
+      getSocketFactory
+    } else {
+      error(CLASS_NAME, "getConfig", "TLS Disabled")
+      None
+    }
 
     Config(
       connectTimeout = connectionTimeout,

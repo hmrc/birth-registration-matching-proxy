@@ -27,8 +27,8 @@ import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
-import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
+import uk.gov.hmrc.play.config.ServicesConfig
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -76,24 +76,25 @@ trait BirthConnector extends ServicesConfig {
     try {
       val bodyText = response.body.asString
       debug(CLASS_NAME, "parseJson",s"${response.body.asString}")
+
       val json = Json.parse(bodyText)
       BirthSuccessResponse(json)
     } catch {
       case e: Exception =>
-        warn(CLASS_NAME, "parseJson",s"unable to parse json")
+        warn(CLASS_NAME, "parseJson", "unable to parse json")
         throwInternalServerError(response, "unable to parse json")
     }
   }
 
   protected val extractJson: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-
-    parseJson(response)
+      info(CLASS_NAME, "extractJson", "parsing json from reference endpoint")
+      parseJson(response)
   }
 
   protected val extractAccessToken: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-
+      info(CLASS_NAME, "extractAccessToken", "parsing response from authentication")
       parseJson(response) match {
         case BirthSuccessResponse(body) =>
 
@@ -104,14 +105,16 @@ trait BirthConnector extends ServicesConfig {
           authRepository.saveToken(token, authRepository.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
-        case e @ BirthErrorResponse(error) =>
+        case e @ BirthErrorResponse(err) => {
+          error(CLASS_NAME, "extractAccessToken", s"BirthErrorResponse received: ${err.getMessage}")
           e
-
+        }
       }
   }
 
   private def handleResponse(response: Response, f: PartialFunction[Response, BirthResponse], method: String): BirthResponse = {
     debug(CLASS_NAME, "handleResponse",s"[$method] : $response")
+    info(CLASS_NAME, "handleResponse", s"[$method] response received")
     response.status match {
       case Status.S200_OK =>
         metrics.httpResponseCodeStatus(OK)
@@ -123,7 +126,7 @@ trait BirthConnector extends ServicesConfig {
         throwBadRequest(response)
       case e@Status.S404_NotFound =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        info(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
+        warn(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
         throwBadRequest(response)
       case e@_ =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
@@ -142,6 +145,7 @@ trait BirthConnector extends ServicesConfig {
   private def requestAuth()(implicit hc: HeaderCarrier) : BirthResponse = {
     if(!CertificateStatus.certificateStatus()) {
       // return an BirthErrorResponse as TLS certificate has expired
+      error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
       BirthErrorResponse(
         Upstream5xxResponse(
           s"[${super.getClass.getName}][InternalServerError][TLS Certificate expired]",
@@ -149,15 +153,14 @@ trait BirthConnector extends ServicesConfig {
           INTERNAL_SERVER_ERROR)
       )
     } else {
-      debug(this, "requestAuth", "checking access_token")
+      info(CLASS_NAME, "requestAuth", "checking access_token")
       authRepository.token match {
         case Success(token) =>
-          debug(this, "requestAuth", s"cached token: $token")
-            BirthAccessTokenResponse(token)
+          info(CLASS_NAME, "requestAuth", s"access_token has not expired")
+          debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
+          BirthAccessTokenResponse(token)
         case Failure(noToken) =>
-
-          info(this, "requestAuth", s"token has expired")
-          debug(this, "requestAuth", s"${noToken.getMessage}")
+          info(CLASS_NAME, "requestAuth", s"access_token has expired ${noToken.getMessage}")
           //get new auth token
           val response = getAuthResponse
 
@@ -173,8 +176,8 @@ trait BirthConnector extends ServicesConfig {
       "password" -> GROConnectorConfiguration.password
     )
 
-    debug(this, "requestAuth", s"$authEndpoint credentials: $credentials")
-    info(this, "requestAuth", s"$authEndpoint")
+    debug(CLASS_NAME, "requestAuth", s"$authEndpoint credentials: $credentials")
+    info(CLASS_NAME, "requestAuth", s"requesting authentication token $authEndpoint")
     metrics.requestCount("authentication")
 
     val startTime = metrics.startTimer()
@@ -199,14 +202,15 @@ trait BirthConnector extends ServicesConfig {
         val headerCarrier = GROEventHeaderCarrier(token)
         metrics.requestCount("reference-match")
 
-        debug(CLASS_NAME, "requestReference", s"$eventEndpoint headers: $headerCarrier")
-        info(CLASS_NAME, "requestReference", s": $eventEndpoint")
+        debug(CLASS_NAME, "requestReference", s"$eventEndpoint/$reference headers: $headerCarrier")
+        info(CLASS_NAME, "requestReference", s"requesting child's details $eventEndpoint")
         val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
 
         metrics.endTimer(startTime, "reference-match-timer")
         handleResponse(response, extractJson, "requestReference")
-      case error@BirthErrorResponse(e) =>
-        error
+      case birthError @ BirthErrorResponse(e) =>
+        error(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth()")
+        birthError
     }
 
   }
