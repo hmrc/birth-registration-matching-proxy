@@ -60,7 +60,7 @@ class AccessTokenRepository {
       info(CLASS_NAME, "token", s"access_token expires in: $seconds seconds")
       Success(_token.get)
     } else {
-      error(CLASS_NAME, "token", "access_token has expired")
+      info(CLASS_NAME, "token", "access_token has expired")
       Failure(expiredTokenException)
     }
   }
