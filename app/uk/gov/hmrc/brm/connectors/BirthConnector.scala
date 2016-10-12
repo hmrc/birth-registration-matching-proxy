@@ -27,8 +27,8 @@ import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
-import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
+import uk.gov.hmrc.play.config.ServicesConfig
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -81,7 +81,7 @@ trait BirthConnector extends ServicesConfig {
       BirthSuccessResponse(json)
     } catch {
       case e: Exception =>
-        error(CLASS_NAME, "parseJson", "unable to parse json")
+        warn(CLASS_NAME, "parseJson", "unable to parse json")
         throwInternalServerError(response, "unable to parse json")
     }
   }
@@ -126,7 +126,7 @@ trait BirthConnector extends ServicesConfig {
         throwBadRequest(response)
       case e@Status.S404_NotFound =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        info(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
+        warn(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
         throwBadRequest(response)
       case e@_ =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)

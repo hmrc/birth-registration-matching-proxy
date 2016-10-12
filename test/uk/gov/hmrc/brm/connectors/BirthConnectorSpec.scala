@@ -204,7 +204,16 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         result.isInstanceOf[BirthErrorResponse] shouldBe true
       }
 
-
+      "return BirthErrorResponse when authentication returns exception" in {
+        val json =
+          """
+            |"reference": "something"
+          """.stripMargin
+        val eventResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, json)
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+        val result = await(MockBirthConnector.getReference("500035710"))
+        result.isInstanceOf[BirthErrorResponse] shouldBe true
+      }
 
     }
 
