@@ -209,7 +209,7 @@ trait BirthConnector extends ServicesConfig {
         metrics.endTimer(startTime, "reference-match-timer")
         handleResponse(response, extractJson, "requestReference")
       case birthError @ BirthErrorResponse(e) =>
-        error(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth()")
+        warn(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth()")
         birthError
     }
 
