@@ -43,7 +43,9 @@ trait MatchingController extends BaseController {
   val groConnector: BirthConnector
 
   private def respond(response: Result): Future[Result] = {
-    Future.successful(response.as("application/json"))
+    Future.successful(
+      response.as("application/json; charset=utf-8")
+    )
   }
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
