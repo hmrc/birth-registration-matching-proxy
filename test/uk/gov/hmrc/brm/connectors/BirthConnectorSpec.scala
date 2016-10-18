@@ -31,7 +31,8 @@ import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.BRMFakeApplication
-import uk.gov.hmrc.brm.metrics.GroMetrics
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
@@ -52,6 +53,8 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     override val httpClient = mockHttpClient
     override val metrics = GroMetrics
     override val authRepository = new AccessTokenRepository
+    override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+    override val delayAttempts = GROConnectorConfiguration.delayAttempts
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
@@ -70,9 +73,15 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
   "BirthConnector" when {
 
     "initialising" should {
-      "wire up dependencies" in {
-        MockBirthConnector.httpClient shouldBe a[HttpClient]
+
+      "having correct configurations" in {
+        GROEnglandAndWalesConnector.delayAttempts shouldBe 3
+        GROEnglandAndWalesConnector.delayTime shouldBe 100
+        GROEnglandAndWalesConnector.authRepository shouldBe a[AccessTokenRepository]
+        GROEnglandAndWalesConnector.metrics shouldBe a[Metrics]
+        GROEnglandAndWalesConnector.httpClient shouldBe a[HttpClient]
       }
+
     }
 
     "parsing json" should {

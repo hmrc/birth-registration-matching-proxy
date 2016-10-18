@@ -58,7 +58,8 @@ trait BirthConnector extends ServicesConfig {
   protected val metrics: Metrics
   protected val authRepository : AccessTokenRepository
 
-  protected val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+  protected val delayTime : Int
+  protected val delayAttempts : Int
 
   private def throwInternalServerError(response: Response, message: String = "_") = {
     BirthErrorResponse(
@@ -165,8 +166,8 @@ trait BirthConnector extends ServicesConfig {
           info(CLASS_NAME, "requestAuth", s"access_token has not expired")
           debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
           BirthAccessTokenResponse(token)
-        case Failure(noToken) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has expired ${noToken.getMessage}")
+        case Failure(expired) =>
+          info(CLASS_NAME, "requestAuth", s"access_token has expired ${expired.getMessage}")
           //get new auth token
 
           try {
@@ -174,12 +175,13 @@ trait BirthConnector extends ServicesConfig {
             handleResponse(response, extractAccessToken, "requestAuth")
           } catch {
             case e : SocketTimeoutException =>
-              if (count < GROConnectorConfiguration.delayAttempts) {
+              if (count < delayAttempts) {
                 val tick = System.currentTimeMillis() + delayTime
 
                 do {
                   debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
                 } while (System.currentTimeMillis() < tick)
+
                 info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
                 requestAuth(count + 1)
               } else {
@@ -238,8 +240,7 @@ trait BirthConnector extends ServicesConfig {
           handleResponse(response, extractJson, "requestReference")
         } catch {
           case e : SocketTimeoutException =>
-            if (count < GROConnectorConfiguration.delayAttempts) {
-
+            if (count < delayAttempts) {
               val tick = System.currentTimeMillis() + delayTime
 
               do {
@@ -271,11 +272,11 @@ trait BirthConnector extends ServicesConfig {
 
 }
 
-// $COVERAGE-OFF$
 object GROEnglandAndWalesConnector extends BirthConnector {
   val config = TLSFactory.getConfig
   override val httpClient = new HttpClient(config)
   override val metrics = GroMetrics
   override val authRepository = new AccessTokenRepository
+  override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+  override val delayAttempts = GROConnectorConfiguration.delayAttempts
 }
-// $COVERAGE-ON$
