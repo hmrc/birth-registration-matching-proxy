@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
+import org.joda.time.DateTime
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
@@ -173,10 +174,13 @@ trait BirthConnector extends ServicesConfig {
             handleResponse(response, extractAccessToken, "requestAuth")
           } catch {
             case e : SocketTimeoutException =>
-              if (count < 3) {
+              if (count < GROConnectorConfiguration.delayAttempts) {
+                val tick = System.currentTimeMillis() + delayTime
+
+                do {
+                  debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
+                } while (System.currentTimeMillis() < tick)
                 info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
-                // failed to request authentication try again?
-                Thread.sleep(delayTime)
                 requestAuth(count + 1)
               } else {
                 warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
@@ -234,10 +238,15 @@ trait BirthConnector extends ServicesConfig {
           handleResponse(response, extractJson, "requestReference")
         } catch {
           case e : SocketTimeoutException =>
-            if (count < 3) {
+            if (count < GROConnectorConfiguration.delayAttempts) {
+
+              val tick = System.currentTimeMillis() + delayTime
+
+              do {
+                debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
+              } while (System.currentTimeMillis() < tick)
+
               info(CLASS_NAME, "requestReference", s"SocketTimeoutException on attempt: $count error: ${e.getMessage}")
-              // failed to request authentication try again?
-              Thread.sleep(delayTime)
               requestReference(reference, count + 1)
             } else {
               warn(CLASS_NAME, "requestReference", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
