@@ -115,11 +115,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
           .thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.getReference("500037654675710"))
-//        result.isInstanceOf[BirthErrorResponse] shouldBe true
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
-//        resonseException.upstreamResponseCode shouldBe NOT_FOUND
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -135,11 +130,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
         val result = await(MockBirthConnector.getReference("500035710"))
-//        result.isInstanceOf[BirthErrorResponse] shouldBe true
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
-//        resonseException.upstreamResponseCode shouldBe BAD_REQUEST
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -154,11 +144,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
         val result = await(MockBirthConnector.getReference("500035710"))
-//        result.isInstanceOf[BirthErrorResponse] shouldBe true
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
-//        resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -177,10 +162,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
 
         val result = await(MockBirthConnector.getReference("500035710"))
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream4xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream4xxResponse]
-//        resonseException.upstreamResponseCode shouldBe BAD_REQUEST
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -198,11 +179,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.getReference("500035710"))
-//        result.isInstanceOf[BirthErrorResponse] shouldBe true
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
-//        resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR
 
         result shouldBe a[BirthErrorResponse]
         result match {
@@ -219,11 +195,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         DateTimeUtils.setCurrentMillisFixed(date.getMillis)
 
         val result = await(MockBirthConnector.getReference("500035710"))
-//        result.isInstanceOf[BirthErrorResponse] shouldBe true
-//        val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-//        birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
-//        val resonseException = birthErrorResponse.cause.asInstanceOf[Upstream5xxResponse]
-//        resonseException.upstreamResponseCode shouldBe INTERNAL_SERVER_ERROR
 
         result shouldBe a[BirthErrorResponse]
         result match {
@@ -264,7 +235,7 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
         result match {
           case BirthErrorResponse(cause) =>
             cause shouldBe a[Exception]
-          case r @ BirthSuccessResponse(json) =>
+          case r @ BirthSuccessResponse(body) =>
             r should not be a[BirthSuccessResponse]
         }
       }
