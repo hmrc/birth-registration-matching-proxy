@@ -53,6 +53,7 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val tlsEnabled = getConfBool("birth-registration-matching.tlsEnabled", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.tlsEnabled"))
   lazy val connectionTimeout = getConfInt("birth-registration-matching.connectionTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.connectionTimeout"))
   lazy val readTimeout = getConfInt("birth-registration-matching.readTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.readTimeout"))
+  lazy val delayAttemptInMilliseconds = getConfInt("birth-registration-matching.delayAttemptInMilliseconds", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttemptInMilliseconds"))
 }
 
 object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {

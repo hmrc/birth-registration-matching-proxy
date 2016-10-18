@@ -18,7 +18,6 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import play.api.Logger
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
@@ -30,8 +29,8 @@ import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
-import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.play.config.ServicesConfig
+import uk.gov.hmrc.play.http._
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
@@ -57,6 +56,8 @@ trait BirthConnector extends ServicesConfig {
   protected val httpClient: HttpClient
   protected val metrics: Metrics
   protected val authRepository : AccessTokenRepository
+
+  protected val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
 
   private def throwInternalServerError(response: Response, message: String = "_") = {
     BirthErrorResponse(
@@ -175,6 +176,7 @@ trait BirthConnector extends ServicesConfig {
               if (count < 3) {
                 info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
                 // failed to request authentication try again?
+                Thread.sleep(delayTime)
                 requestAuth(count + 1)
               } else {
                 warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
@@ -235,6 +237,7 @@ trait BirthConnector extends ServicesConfig {
             if (count < 3) {
               info(CLASS_NAME, "requestReference", s"SocketTimeoutException on attempt: $count error: ${e.getMessage}")
               // failed to request authentication try again?
+              Thread.sleep(delayTime)
               requestReference(reference, count + 1)
             } else {
               warn(CLASS_NAME, "requestReference", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")

@@ -26,21 +26,21 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
 import play.api.libs.json.JsNull
-import play.api.test.Helpers._
 import uk.co.bigbeeconsultants.http.HttpClient
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
+import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.brm.metrics.GroMetrics
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
 
 /**
   * Created by adamconder on 01/08/2016.
   */
-class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoSugar with BeforeAndAfter {
+class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSugar with BeforeAndAfter {
 
   implicit val hc = HeaderCarrier()
 
@@ -83,7 +83,6 @@ class BirthConnectorSpec extends UnitSpec with WithFakeApplication with MockitoS
 
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
 
         val result = await(MockBirthConnector.getReference("500035710"))
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
