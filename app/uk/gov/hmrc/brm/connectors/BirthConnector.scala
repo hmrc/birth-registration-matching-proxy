@@ -16,6 +16,9 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import java.net.SocketTimeoutException
+
+import org.joda.time.DateTime
 import play.api.http.Status._
 import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
@@ -27,9 +30,10 @@ import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
-import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.play.config.ServicesConfig
+import uk.gov.hmrc.play.http._
 
+import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -53,6 +57,9 @@ trait BirthConnector extends ServicesConfig {
   protected val httpClient: HttpClient
   protected val metrics: Metrics
   protected val authRepository : AccessTokenRepository
+
+  protected val delayTime : Int
+  protected val delayAttempts : Int
 
   private def throwInternalServerError(response: Response, message: String = "_") = {
     BirthErrorResponse(
@@ -105,10 +112,9 @@ trait BirthConnector extends ServicesConfig {
           authRepository.saveToken(token, authRepository.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
-        case e @ BirthErrorResponse(err) => {
+        case e @ BirthErrorResponse(err) =>
           error(CLASS_NAME, "extractAccessToken", s"BirthErrorResponse received: ${err.getMessage}")
           e
-        }
       }
   }
 
@@ -142,7 +148,8 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-  private def requestAuth()(implicit hc: HeaderCarrier) : BirthResponse = {
+  @tailrec
+  private def requestAuth(count : Int = 1)(implicit hc: HeaderCarrier) : BirthResponse = {
     if(!CertificateStatus.certificateStatus()) {
       // return an BirthErrorResponse as TLS certificate has expired
       error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
@@ -159,12 +166,32 @@ trait BirthConnector extends ServicesConfig {
           info(CLASS_NAME, "requestAuth", s"access_token has not expired")
           debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
           BirthAccessTokenResponse(token)
-        case Failure(noToken) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has expired ${noToken.getMessage}")
+        case Failure(expired) =>
+          info(CLASS_NAME, "requestAuth", s"access_token has expired ${expired.getMessage}")
           //get new auth token
-          val response = getAuthResponse
 
-          handleResponse(response, extractAccessToken, "requestAuth")
+          try {
+            val response = getAuthResponse
+            handleResponse(response, extractAccessToken, "requestAuth")
+          } catch {
+            case e : SocketTimeoutException =>
+              if (count < delayAttempts) {
+                val tick = System.currentTimeMillis() + delayTime
+
+                do {
+                  debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
+                } while (System.currentTimeMillis() < tick)
+
+                info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
+                requestAuth(count + 1)
+              } else {
+                warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
+                BirthErrorResponse(e)
+              }
+            case e : Exception =>
+              warn(CLASS_NAME, "requestAuth", s"Exception: ${e.getMessage}")
+              BirthErrorResponse(e)
+          }
       }
     }
   }
@@ -194,7 +221,8 @@ trait BirthConnector extends ServicesConfig {
     response
   }
 
-  private def requestReference(reference: String)(implicit hc: HeaderCarrier): BirthResponse = {
+  @tailrec
+  private def requestReference(reference: String, count : Int = 1)(implicit hc: HeaderCarrier): BirthResponse = {
     requestAuth() match {
       case BirthAccessTokenResponse(token) =>
         val startTime = metrics.startTimer()
@@ -204,10 +232,31 @@ trait BirthConnector extends ServicesConfig {
 
         debug(CLASS_NAME, "requestReference", s"$eventEndpoint/$reference headers: $headerCarrier")
         info(CLASS_NAME, "requestReference", s"requesting child's details $eventEndpoint")
-        val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
 
-        metrics.endTimer(startTime, "reference-match-timer")
-        handleResponse(response, extractJson, "requestReference")
+        try {
+          val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
+
+          metrics.endTimer(startTime, "reference-match-timer")
+          handleResponse(response, extractJson, "requestReference")
+        } catch {
+          case e : SocketTimeoutException =>
+            if (count < delayAttempts) {
+              val tick = System.currentTimeMillis() + delayTime
+
+              do {
+                debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
+              } while (System.currentTimeMillis() < tick)
+
+              info(CLASS_NAME, "requestReference", s"SocketTimeoutException on attempt: $count error: ${e.getMessage}")
+              requestReference(reference, count + 1)
+            } else {
+              warn(CLASS_NAME, "requestReference", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
+              BirthErrorResponse(e)
+            }
+          case e : Exception =>
+            warn(CLASS_NAME, "requestReference", s"Exception: ${e.getMessage}")
+            BirthErrorResponse(e)
+        }
       case birthError @ BirthErrorResponse(e) =>
         warn(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth()")
         birthError
@@ -223,11 +272,11 @@ trait BirthConnector extends ServicesConfig {
 
 }
 
-// $COVERAGE-OFF$
 object GROEnglandAndWalesConnector extends BirthConnector {
   val config = TLSFactory.getConfig
   override val httpClient = new HttpClient(config)
   override val metrics = GroMetrics
   override val authRepository = new AccessTokenRepository
+  override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+  override val delayAttempts = GROConnectorConfiguration.delayAttempts
 }
-// $COVERAGE-ON$
