@@ -26,10 +26,6 @@ import uk.gov.hmrc.brm.utils.KeyHolder
 
 import scala.concurrent.Future
 
-/**
- * Created by adamconder on 28/07/2016.
- */
-
 object MatchingController extends MatchingController {
   override val groConnector = GROEnglandAndWalesConnector
 }

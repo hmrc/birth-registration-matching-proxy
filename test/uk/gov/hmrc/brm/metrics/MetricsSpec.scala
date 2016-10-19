@@ -21,9 +21,6 @@ import java.util.concurrent.TimeUnit
 import com.kenshoo.play.metrics.MetricsRegistry
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
-/**
-  * Created by chrisianson on 15/09/16.
-  */
 class MetricsSpec extends UnitSpec with WithFakeApplication {
 
   "Metrics" should {

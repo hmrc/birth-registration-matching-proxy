@@ -20,9 +20,6 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.{BirthErrorResponse, BirthResponse}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 
-/**
-  * Created by user on 06/09/16.
-  */
 object ResponseHelper {
 
 

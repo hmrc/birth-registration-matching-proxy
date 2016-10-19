@@ -23,13 +23,6 @@ import org.specs2.mock.mockito.ArgumentCapture
 import uk.gov.hmrc.brm.utils.{BrmLogger, KeyHolder}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
-/**
-  * Created by user on 19/09/16.
-  *
-  *
-  */
-
-
 class BrmLoggerSpec extends UnitSpec with MockitoSugar with BeforeAndAfter with WithFakeApplication {
 
   val mockLogger = mock[org.slf4j.Logger]

@@ -24,9 +24,6 @@ import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.util.{Failure, Success}
 
-/**
- * Created by adamconder on 05/10/2016.
- */
 class AccessTokenRepositorySpec extends UnitSpec with BeforeAndAfter {
 
   var accessTokenRepository = new AccessTokenRepository

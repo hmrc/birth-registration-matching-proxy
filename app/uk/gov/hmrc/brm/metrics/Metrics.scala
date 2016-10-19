@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-/**
-  * Created by chrisianson on 15/09/16.
-  */
-
 package uk.gov.hmrc.brm.metrics
 
 import java.util.concurrent.TimeUnit

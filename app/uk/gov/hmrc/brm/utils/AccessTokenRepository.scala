@@ -21,9 +21,6 @@ import org.joda.time.{Seconds, DateTime}
 import scala.util.{Failure, Success, Try}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
-/**
- * Created by adamconder on 05/10/2016.
- */
 class AccessTokenRepository {
 
   private var _token : Option[String] = None

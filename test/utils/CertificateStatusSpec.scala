@@ -20,9 +20,6 @@ import org.joda.time.LocalDate
 import uk.gov.hmrc.brm.utils.CertificateStatus
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
-/**
-  * Created by chrisianson on 15/08/16.
-  */
 class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
 
   val mockCertificateStatusInvalidExpiryDate = new CertificateStatus {

@@ -21,9 +21,6 @@ import org.joda.time.format.PeriodFormatterBuilder
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 
-/**
-  * Created by chrisianson on 16/08/16.
-  */
 trait CertificateStatus extends ServicesConfig {
 
   protected val CLASS_NAME: String = this.getClass.getCanonicalName
