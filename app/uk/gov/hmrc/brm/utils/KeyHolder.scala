@@ -21,9 +21,6 @@ import org.joda.time.format.DateTimeFormat
 import play.api.libs.json.JsValue
 import play.api.mvc.Request
 
-/**
-  * Created by user on 15/09/16.
-  */
 object KeyHolder {
 
   private var keyForRequest : String = null

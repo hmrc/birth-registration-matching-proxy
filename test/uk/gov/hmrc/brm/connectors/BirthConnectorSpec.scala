@@ -38,9 +38,6 @@ import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
 
-/**
-  * Created by adamconder on 01/08/2016.
-  */
 class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSugar with BeforeAndAfter {
 
   implicit val hc = HeaderCarrier()

@@ -33,9 +33,6 @@ import utils.ResponseHelper._
 
 import scala.concurrent.Future
 
-/**
- * Created by adamconder on 27/07/2016.
- */
 class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
   with MockitoSugar
