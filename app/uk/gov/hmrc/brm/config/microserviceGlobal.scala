@@ -19,11 +19,9 @@ package uk.gov.hmrc.brm.config
 import com.typesafe.config.Config
 import play.api.{Application, Configuration, Play}
 import uk.gov.hmrc.play.audit.filters.AuditFilter
-import uk.gov.hmrc.play.auth.controllers.AuthParamsControllerConfig
 import uk.gov.hmrc.play.config.{ServicesConfig, AppName, ControllerConfig, RunMode}
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
 import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
-import uk.gov.hmrc.play.auth.microservice.filters.AuthorisationFilter
 import net.ceedubs.ficus.Ficus._
 
 
@@ -32,14 +30,6 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object GROConnectorConfiguration extends ServicesConfig {
-
-  override def baseUrl(serviceName: String) = {
-    val protocol = getConfString(s"$serviceName.protocol",defaultProtocol)
-    val host = getConfString(s"$serviceName.host", throw new RuntimeException(s"Could not find config $serviceName.host"))
-    val port = getConfInt(s"$serviceName.port", 0)
-    if (port == 0) s"$protocol://$host"
-    else s"$protocol://$host:$port"
-  }
 
   lazy val serviceUrl = baseUrl("birth-registration-matching")
   lazy val username = getConfString("birth-registration-matching.username", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.username"))
@@ -57,10 +47,6 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val delayAttempts = getConfInt("birth-registration-matching.delayAttempts", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttempts"))
 }
 
-object AuthParamsControllerConfiguration extends AuthParamsControllerConfig {
-  lazy val controllerConfigs = ControllerConfiguration.controllerConfigs
-}
-
 object MicroserviceAuditFilter extends AuditFilter with AppName {
   override val auditConnector = MicroserviceAuditConnector
   override def controllerNeedsAuditing(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsAuditing
@@ -68,12 +54,6 @@ object MicroserviceAuditFilter extends AuditFilter with AppName {
 
 object MicroserviceLoggingFilter extends LoggingFilter {
   override def controllerNeedsLogging(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsLogging
-}
-
-object MicroserviceAuthFilter extends AuthorisationFilter {
-  override lazy val authParamsConfig = AuthParamsControllerConfiguration
-  override lazy val authConnector = MicroserviceAuthConnector
-  override def controllerNeedsAuth(controllerName: String): Boolean = ControllerConfiguration.paramsForController(controllerName).needsAuth
 }
 
 object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode {
@@ -85,5 +65,5 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode {
 
   override val microserviceAuditFilter = MicroserviceAuditFilter
 
-  override val authFilter = Some(MicroserviceAuthFilter)
+  override val authFilter = None
 }
