@@ -28,8 +28,6 @@ private object AppDependencies {
   private val mockito = "1.9.5"
 
   val compile = Seq(
-
-    ws,
     "uk.gov.hmrc" %% "microservice-bootstrap" % microserviceBootstrapVersion,
     "uk.gov.hmrc" %% "play-health" % playHealthVersion,
     "uk.gov.hmrc" %% "play-url-binders" % playUrlBindersVersion,
