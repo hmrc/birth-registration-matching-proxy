@@ -16,12 +16,13 @@
 
 package uk.gov.hmrc.brm.controllers
 
+import akka.stream.Materializer
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfter, OneInstancePerTest}
 import org.scalatest.mock.MockitoSugar
-import play.api.Logger
+import play.api.{Logger, Play}
 import play.api.libs.json._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -38,6 +39,8 @@ class MatchingControllerSpec extends UnitSpec
   with MockitoSugar
   with BeforeAndAfter
   with OneInstancePerTest {
+
+  implicit lazy val materializer = Play.current.injector.instanceOf[Materializer]
 
   val reference = "500035710"
   val invalidReference = "812739812739183"

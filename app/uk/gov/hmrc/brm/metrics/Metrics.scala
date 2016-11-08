@@ -18,23 +18,23 @@ package uk.gov.hmrc.brm.metrics
 
 import java.util.concurrent.TimeUnit
 
-import com.kenshoo.play.metrics.MetricsRegistry
+import uk.gov.hmrc.play.graphite.MicroserviceMetrics
 import play.api.Logger
 
-trait Metrics {
+trait Metrics extends MicroserviceMetrics {
 
   Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
 
   val prefix: String
 
   def httpResponseCodeStatus(code: Int): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
+    metrics.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
   def requestCount(key: String = "request"): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$prefix-$key-count").inc()
+    metrics.defaultRegistry.counter(s"$prefix-$key-count").inc()
 
   def time(diff: Long, unit: TimeUnit, key: String) =
-    MetricsRegistry.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
+    metrics.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
 
   def startTimer(): Long = System.currentTimeMillis()
 

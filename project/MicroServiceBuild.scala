@@ -15,17 +15,18 @@ object MicroServiceBuild extends Build with MicroService {
 }
 
 private object AppDependencies {
-  import play.PlayImport._
+  import play.sbt.PlayImport._
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "4.4.0"
-  private val playHealthVersion = "1.1.0"
-  private val playJsonLoggerVersion = "2.1.1"
-  private val playUrlBindersVersion = "1.1.0"
-  private val playConfigVersion = "2.1.0"
-  private val domainVersion = "3.7.0"
-  private val hmrcTestVersion = "1.8.0"
+  private val microserviceBootstrapVersion = "5.5.0"
+  private val playHealthVersion = "2.0.0"
+  private val playJsonLoggerVersion = "3.0.0"
+  private val playUrlBindersVersion = "2.0.0"
+  private val playConfigVersion = "3.0.0"
+  private val domainVersion = "4.0.0"
+  private val hmrcTestVersion = "2.1.0"
   private val mockito = "1.9.5"
+  private val specs2 = "2.3.13"
 
   val compile = Seq(
 
@@ -50,7 +51,9 @@ private object AppDependencies {
         "org.scalatest" %% "scalatest" % "2.2.6" % scope,
         "org.pegdown" % "pegdown" % "1.5.0" % scope,
         "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "org.mockito" % "mockito-all" % mockito
+        "org.mockito" % "mockito-all" % mockito,
+        "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1",
+        "org.specs2" % "specs2_2.10" % specs2
       )
     }.test
   }
@@ -64,7 +67,9 @@ private object AppDependencies {
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
         "org.scalatest" %% "scalatest" % "2.2.6" % scope,
         "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope
+        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
+        "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1",
+        "org.specs2" % "specs2_2.10" % specs2
       )
     }.test
   }

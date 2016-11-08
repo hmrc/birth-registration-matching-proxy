@@ -17,19 +17,22 @@
 package uk.gov.hmrc.brm
 
 import org.scalatest.Suite
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.FakeApplication
 import uk.gov.hmrc.play.test.WithFakeApplication
 
 trait BRMFakeApplication extends WithFakeApplication {
   this: Suite =>
 
-  var config: Map[String, _] = Map(
-    "csrf.sign.tokens" -> false,
+  val config: Map[String, _] = Map(
     "Test.microservice.services.auth.host" -> "localhost",
     "Test.microservice.services.auth.port" -> "8500",
     "microservice.services.birth-registration-matching.delayAttemptInMilliseconds" -> 100,
     "microservice.services.birth-registration-matching.delayAttempts" -> 3
   )
 
-  override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
+  override lazy val fakeApplication = GuiceApplicationBuilder(
+    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
+  ).configure(config)
+    .build()
 }

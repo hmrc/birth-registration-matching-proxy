@@ -25,12 +25,13 @@ import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
+import org.scalatestplus.play.OneAppPerSuite
 import play.api.libs.json.JsNull
+import play.api.test.Helpers._
 import uk.co.bigbeeconsultants.http.HttpClient
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
-import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
@@ -38,7 +39,7 @@ import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
 
-class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSugar with BeforeAndAfter {
+class BirthConnectorSpec extends UnitSpec with OneAppPerSuite with MockitoSugar with BeforeAndAfter {
 
   implicit val hc = HeaderCarrier()
 
@@ -52,6 +53,14 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     override val authRepository = new AccessTokenRepository
     override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
     override val delayAttempts = GROConnectorConfiguration.delayAttempts
+  }
+
+  object MockBirthConnectorTestConfig extends BirthConnector {
+    override val httpClient = mockHttpClient
+    override val metrics = GroMetrics
+    override val authRepository = new AccessTokenRepository
+    override val delayTime = 100
+    override val delayAttempts = 3
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
@@ -72,11 +81,13 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     "initialising" should {
 
       "having correct configurations" in {
-        GROEnglandAndWalesConnector.delayAttempts shouldBe 3
-        GROEnglandAndWalesConnector.delayTime shouldBe 100
-        GROEnglandAndWalesConnector.authRepository shouldBe a[AccessTokenRepository]
-        GROEnglandAndWalesConnector.metrics shouldBe a[Metrics]
-        GROEnglandAndWalesConnector.httpClient shouldBe a[HttpClient]
+        running(app) {
+          MockBirthConnectorTestConfig.delayAttempts shouldBe 3
+          MockBirthConnectorTestConfig.delayTime shouldBe 100
+          MockBirthConnectorTestConfig.authRepository shouldBe a[AccessTokenRepository]
+          MockBirthConnectorTestConfig.metrics shouldBe a[Metrics]
+          MockBirthConnectorTestConfig.httpClient shouldBe a[HttpClient]
+        }
       }
 
     }
