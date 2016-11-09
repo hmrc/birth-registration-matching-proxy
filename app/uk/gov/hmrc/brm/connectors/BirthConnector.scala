@@ -270,6 +270,12 @@ trait BirthConnector extends ServicesConfig {
     Future.successful(json)
   }
 
+  def getDetails(firstName: String, lastName: String, dateOfBirth: String)(implicit hc: HeaderCarrier) : Future[BirthResponse] = {
+    metrics.requestCount("details-request")
+    val json = BirthSuccessResponse(Json.parse("""{}"""))
+    Future.successful(json)
+  }
+
 }
 
 object GROEnglandAndWalesConnector extends BirthConnector {

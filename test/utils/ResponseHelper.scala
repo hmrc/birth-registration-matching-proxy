@@ -22,7 +22,6 @@ import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 
 object ResponseHelper {
 
-
   val notFoundResponse: BirthResponse = BirthErrorResponse(
     Upstream4xxResponse("", NOT_FOUND, NOT_FOUND)
   )
