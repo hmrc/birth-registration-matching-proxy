@@ -45,6 +45,5 @@ trait Metrics {
 }
 
 object GroMetrics extends Metrics {
-
   override val prefix = "gro"
 }

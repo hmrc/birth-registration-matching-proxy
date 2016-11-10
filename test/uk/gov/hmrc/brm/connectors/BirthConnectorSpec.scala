@@ -25,7 +25,7 @@ import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
-import play.api.libs.json.JsNull
+import play.api.libs.json.{JsArray, JsNull}
 import uk.co.bigbeeconsultants.http.HttpClient
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
@@ -49,9 +49,13 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
   object MockBirthConnector extends BirthConnector {
     override val httpClient = mockHttpClient
     override val metrics = GroMetrics
-    override val authRepository = new AccessTokenRepository
+    override val authenticator = Authenticator.apply()
     override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
     override val delayAttempts = GROConnectorConfiguration.delayAttempts
+    override val version = GROConnectorConfiguration.version
+    override val eventUri = s"api/$version/events/birth"
+    override val serviceUrl = GROConnectorConfiguration.serviceUrl
+    override val username = GROConnectorConfiguration.username
   }
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
@@ -74,7 +78,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
       "having correct configurations" in {
         GROEnglandAndWalesConnector.delayAttempts shouldBe 3
         GROEnglandAndWalesConnector.delayTime shouldBe 100
-        GROEnglandAndWalesConnector.authRepository shouldBe a[AccessTokenRepository]
+        GROEnglandAndWalesConnector.authenticator shouldBe a[Authenticator]
         GROEnglandAndWalesConnector.metrics shouldBe a[Metrics]
         GROEnglandAndWalesConnector.httpClient shouldBe a[HttpClient]
       }
@@ -97,40 +101,10 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
       }
     }
 
-    "getReference" should {
-
-      "200 with json response with match" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("500035710").toString())
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        val result = await(MockBirthConnector.getReference("500035710"))
-        result should not be JsNull
-      }
-
-      "404 with NotFound response for no match" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S404_NotFound, MediaType.APPLICATION_JSON, groResponse("valid_empty").toString())
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any()))
-          .thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any()))
-          .thenReturn(eventResponse)
-
-        val result = await(MockBirthConnector.getReference("500037654675710"))
-        result shouldBe a[BirthErrorResponse]
-        result match {
-          case BirthErrorResponse(cause) =>
-            cause shouldBe a[Upstream4xxResponse]
-          case r @ BirthSuccessResponse(json) =>
-            r should not be a[BirthSuccessResponse]
-        }
-      }
+    "authentication" should {
 
       "400 with BadRequest for authentication" in {
-        MockBirthConnector.authRepository.saveToken("", DateTime.now.minusSeconds(10))
+        MockBirthConnector.authenticator.tokenCache.saveToken("", DateTime.now.minusSeconds(10))
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
@@ -149,42 +123,6 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
         val result = await(MockBirthConnector.getReference("500035710"))
-        result shouldBe a[BirthErrorResponse]
-        result match {
-          case BirthErrorResponse(cause) =>
-            cause shouldBe a[Upstream5xxResponse]
-          case r @ BirthSuccessResponse(json) =>
-            r should not be a[BirthSuccessResponse]
-        }
-      }
-
-      "400 with BadRequest for reference" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-
-        val result = await(MockBirthConnector.getReference("500035710"))
-        result shouldBe a[BirthErrorResponse]
-        result match {
-          case BirthErrorResponse(cause) =>
-            cause shouldBe a[Upstream4xxResponse]
-          case r @ BirthSuccessResponse(json) =>
-            r should not be a[BirthSuccessResponse]
-        }
-      }
-
-      "500 with InternalServerError for reference" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-
-        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-
-        val result = await(MockBirthConnector.getReference("500035710"))
-
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -213,7 +151,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
       }
 
       "500 with InternalServerError when authentication returns empty or no access tokem" in {
-        MockBirthConnector.authRepository.saveToken("", DateTime.now.minusSeconds(10))
+        MockBirthConnector.authenticator.tokenCache.saveToken("", DateTime.now.minusSeconds(10))
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
@@ -228,7 +166,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
       }
 
       "return BirthErrorResponse when authentication returns exception" in {
-        MockBirthConnector.authRepository.saveToken("", DateTime.now.minusSeconds(10))
+        MockBirthConnector.authenticator.tokenCache.saveToken("", DateTime.now.minusSeconds(10))
         val json =
           """
             |"reference": "something"
@@ -273,6 +211,76 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         }
       }
 
+    }
+
+    "getReference" should {
+
+      "200 with json response with match" in {
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("500035710").toString())
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getReference("500035710"))
+        result should not be JsNull
+      }
+
+      "404 with NotFound response for no match" in {
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S404_NotFound, MediaType.APPLICATION_JSON, groResponse("NoMatch").toString())
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any()))
+          .thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any()))
+          .thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getReference("500037654675710"))
+        result shouldBe a[BirthErrorResponse]
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream4xxResponse]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
+      "400 with BadRequest for reference" in {
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+
+        val result = await(MockBirthConnector.getReference("500035710"))
+        result shouldBe a[BirthErrorResponse]
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream4xxResponse]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
+      "500 with InternalServerError for reference" in {
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getReference("500035710"))
+
+        result shouldBe a[BirthErrorResponse]
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream5xxResponse]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
       "return BirthErrorResponse when all attempts fail for event lookup (SocketTimeoutException)" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
@@ -300,6 +308,166 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         result match {
           case BirthErrorResponse(cause) =>
             cause shouldBe a[IOException]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
+    }
+
+    "getDetails" should {
+
+      "200 with json response with match" in {
+        val firstName = "adam"
+        val lastName = "smith"
+        val dateOfBirth = "2016-10-10"
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName&dateofbirth=$dateOfBirth")
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          authRecord.toString())
+
+        val eventResponse = Response.apply(
+          Request.get(url,
+          headers = Headers.apply(headers)),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          groResponse("2006-11-12_smith_adam").toString())
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        result should not be JsNull
+        result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
+      }
+
+      "200 with [] empty response for no records found" in {
+        val firstName = "adam"
+        val lastName = "smith"
+        val dateOfBirth = "2016-10-10"
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName&dateofbirth=$dateOfBirth")
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          authRecord.toString())
+
+        val eventResponse = Response.apply(
+          Request.get(url,
+            headers = Headers.apply(headers)
+          ),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          groResponse("NoMatch").toString())
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any()))
+          .thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any()))
+          .thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        result should not be JsNull
+        result shouldBe BirthSuccessResponse(groResponse("NoMatch"))
+      }
+
+      "400 with BadRequest for missing forenames parameter" in {
+        val firstName = ""
+        val lastName = "smith"
+        val dateOfBirth = "2016-10-10"
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?lastname=$lastName&dateofbirth=$dateOfBirth")
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          authRecord.toString())
+
+        val eventResponse = Response.apply(
+          Request.get(url,
+            headers = Headers.apply(headers)
+          ),
+          Status.S400_BadRequest,
+          MediaType.apply("text/plain; charset=UTF-8"),
+          "forenames or forename1 is required")
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream4xxResponse]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
+      "400 with BadRequest for missing lastname parameter" in {
+        val firstName = "adam"
+        val lastName = ""
+        val dateOfBirth = "2016-10-10"
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&dateofbirth=$dateOfBirth")
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          authRecord.toString())
+
+        val eventResponse = Response.apply(
+          Request.get(url,
+            headers = Headers.apply(headers)
+          ),
+          Status.S400_BadRequest,
+          MediaType.apply("text/plain; charset=UTF-8"),
+          "Must provide lastname parameter")
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream4xxResponse]
+          case r @ BirthSuccessResponse(json) =>
+            r should not be a[BirthSuccessResponse]
+        }
+      }
+
+      "400 with BadRequest for missing dateofbirth parameter" in {
+        val firstName = "adam"
+        val lastName = "smith"
+        val dateOfBirth = ""
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName")
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
+          Status.S200_OK,
+          MediaType.APPLICATION_JSON,
+          authRecord.toString())
+
+        val eventResponse = Response.apply(
+          Request.get(url,
+            headers = Headers.apply(headers)
+          ),
+          Status.S400_BadRequest,
+          MediaType.apply("text/plain; charset=UTF-8"),
+          "Must provide date of birth parameter")
+
+        when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+
+        result match {
+          case BirthErrorResponse(cause) =>
+            cause shouldBe a[Upstream4xxResponse]
           case r @ BirthSuccessResponse(json) =>
             r should not be a[BirthSuccessResponse]
         }

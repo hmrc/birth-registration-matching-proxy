@@ -53,7 +53,7 @@ trait CertificateStatus extends ServicesConfig {
       .appendSeparator(", ")
       .appendDays()
       .appendSuffix(" day", " days")
-      .toFormatter()
+      .toFormatter
 
   private def getExpiryDate = new LocalDate(certificateExpiryDate)
 
