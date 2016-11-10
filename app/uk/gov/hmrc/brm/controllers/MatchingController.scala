@@ -16,6 +16,10 @@
 
 package uk.gov.hmrc.brm.controllers
 
+import java.time.LocalDate
+
+import org.joda.time.format.DateTimeFormat
+import play.api.libs.json.{JsObject, JsArray, Json}
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -24,6 +28,7 @@ import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 
 object MatchingController extends MatchingController {
@@ -46,22 +51,34 @@ trait MatchingController extends BaseController {
 
   def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      info(CLASS_NAME, "handleException", s"NotFound: no record found")
-      respond(NotFound(s"$reference"))
+      info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found")
+      respond(NotFound(ErrorResponses.NOT_FOUND))
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
-      warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
-      respond(BadGateway("BadRequest returned from GRO"))
+      warn(CLASS_NAME, "handleException", s"[$method] BadRequest: $message")
+      respond(BadGateway(ErrorResponses.BAD_REQUEST))
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
-      error(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
-      respond(BadGateway("BadGateway returned from GRO"))
+      error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
+      respond(BadGateway(ErrorResponses.BAD_REQUEST))
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
-      error(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
-      respond(GatewayTimeout)
+      error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
+      respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      error(CLASS_NAME, "handleException",s"InternalServerError: $message")
-      respond(InternalServerError("Connection to GRO is down"))
-    case BirthErrorResponse(_) =>
-      error(CLASS_NAME, "handleException",s"InternalServerError: Exception")
+      val formatter = DateTimeFormat.forPattern("yyyy-MM-dd")
+      val date = if (reference.contains("-")) {
+        Try(formatter.parseLocalDate(reference))
+      } else {
+        Success(reference)
+      }
+      date match {
+        case Success(x) =>
+          error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
+          respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
+        case Failure(e) =>
+          info(CLASS_NAME, "handleException",s"[$method] BadRequest: date of birth invalid format (gro returned 500)")
+          respond(BadGateway(ErrorResponses.BAD_REQUEST))
+      }
+    case BirthErrorResponse(e) =>
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
       respond(InternalServerError)
   }
 
@@ -70,10 +87,10 @@ trait MatchingController extends BaseController {
     KeyHolder.setKey(brmKey)
   }
 
-  def success: PartialFunction[BirthResponse, Future[Result]] = {
+  def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthSuccessResponse(js) =>
-      info(CLASS_NAME, "getReference", s"record(s) found")
-      debug(CLASS_NAME, "reference", s"success.")
+      val count = if(js.isInstanceOf[JsArray]) js.as[JsArray].value.length else js.asOpt[JsObject].fold(0)(x => 1)
+      info(CLASS_NAME, s"$method", s"success: $count record(s) found")
       respond(Ok(js))
   }
 
@@ -82,15 +99,17 @@ trait MatchingController extends BaseController {
       setKey(request)
       groConnector.getReference(reference).flatMap[Result](
         handleException("getReference", reference)
-        orElse success
+        orElse success("getReference")
       )
   }
 
   def details(firstName: String, lastName: String, dateOfBirth: String) = Action.async {
     implicit request =>
       setKey(request)
-
-      Future.successful(Ok(""))
+      groConnector.getDetails(firstName, lastName, dateOfBirth).flatMap[Result](
+        handleException("getDetails", dateOfBirth)
+        orElse success("getDetails")
+      )
   }
 
 }

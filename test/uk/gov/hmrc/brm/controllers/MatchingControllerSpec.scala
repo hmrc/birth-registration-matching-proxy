@@ -22,7 +22,9 @@ import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfter, OneInstancePerTest}
 import org.scalatest.mock.MockitoSugar
 import play.api.Logger
+import play.api.libs.iteratee.Iteratee
 import play.api.libs.json._
+import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.{BirthConnector, BirthErrorResponse, BirthResponse, BirthSuccessResponse}
@@ -33,6 +35,8 @@ import utils.ResponseHelper._
 
 import scala.concurrent.Future
 import org.joda.time.LocalDate
+
+import scala.util.parsing.json.JSON
 
 class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
@@ -117,7 +121,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference(invalidReference).apply(request))
           status(result) shouldBe NOT_FOUND
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe s"$invalidReference"
+          bodyOf(result) shouldBe ErrorResponses.NOT_FOUND
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
@@ -126,7 +130,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference(reference).apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "Connection to GRO is down"
+          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse BadGateway" in {
@@ -135,7 +139,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference(reference).apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadGateway returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return BadGateway when invalid reference number is provided" in {
@@ -144,7 +148,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference("ass1212sqw").apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return InternalServerError when invalid json is returned" in {
@@ -161,7 +165,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference("ass1212sqw").apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe empty
+          bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
         }
 
         "return InternalServerError when GRO returns Forbidden" in {
@@ -195,7 +199,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
-          jsonBodyOf(result).toString shouldBe "[]"
+          jsonBodyOf(result) shouldBe json
         }
 
         "return 200 [] for details that does not match" in {
@@ -204,6 +208,7 @@ class MatchingControllerSpec extends UnitSpec
           val dateOfBirth = "2016-10-10"
 
           val json = groResponse("NoMatch")
+
           when(MockController.groConnector.getDetails(mockEq(firstName), mockEq(lastName), mockEq(dateOfBirth))(Matchers.any())).
             thenReturn(successResponse(json))
 
@@ -211,7 +216,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe s"[]"
+          jsonBodyOf(result) shouldBe groResponse("NoMatch")
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
@@ -224,10 +229,10 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "Connection to GRO is down"
+          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
         }
 
-        "return InternalServerError when GRO returns Upstream5xxResponse BadGateway" in {
+        "return BadGateway when GRO returns Upstream5xxResponse BadGateway" in {
           val firstName = "adam"
           val lastName = "conder"
           val dateOfBirth = "2016-10-10"
@@ -237,7 +242,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadGateway returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return BadGateway when firstName is not provided" in {
@@ -250,7 +255,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return BadGateway when lastName is not provided" in {
@@ -263,7 +268,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return BadGateway when dateOfBirth is not provided" in {
@@ -276,10 +281,11 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         /**
+         * NOTE: This should be a 502 BadGateway returned to signify the data is incorrect
          * GRO comment:
          * Currently the response status is 500 Internal Server Error; this is not the intention and will be fixed in a future release to show the proper 400 Bad Request instead.
          */
@@ -293,7 +299,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe "BadRequest returned from GRO"
+          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
         }
 
         "return InternalServerError when invalid json is returned" in {
@@ -319,7 +325,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth).apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe empty
+          bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
         }
 
         "return InternalServerError when GRO returns Forbidden" in {
@@ -334,54 +340,6 @@ class MatchingControllerSpec extends UnitSpec
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe empty
         }
-
-        //"return BadRequest when mandatory query parameters are empty" in {
-//          val request = detailsRequest("", "", "")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when firstName query parameters are empty" in {
-//          val request = detailsRequest("", "conder", "2016-10-10")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when lastName query parameters are empty" in {
-//          val request = detailsRequest("adam", "", "2016-10-10")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when dateOfBirth query parameters are empty" in {
-//          val request = detailsRequest("adam", "conder", "")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when dateOfBirth query parameters is invalid format yyyy-MM-dd" in {
-//          val request = detailsRequest("adam", "conder", "10-10-2016")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when dateOfBirth query parameters is invalid - invalid year" in {
-//          val request = detailsRequest("adam", "conder", "10-10-20160")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when dateOfBirth query parameters is invalid - invalid month" in {
-//          val request = detailsRequest("adam", "conder", "10-13-2016")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
-//
-//        "return BadRequest when dateOfBirth query parameters is invalid - invalid day" in {
-//          val request = detailsRequest("adam", "conder", "33-10-2016")
-//          val result = route(request)
-//          status(result.get) shouldBe BAD_REQUEST
-//        }
 
       }
 
