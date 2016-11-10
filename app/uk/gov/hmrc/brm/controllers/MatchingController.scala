@@ -63,20 +63,8 @@ trait MatchingController extends BaseController {
       error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
       respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      val formatter = DateTimeFormat.forPattern("yyyy-MM-dd")
-      val date = if (reference.contains("-")) {
-        Try(formatter.parseLocalDate(reference))
-      } else {
-        Success(reference)
-      }
-      date match {
-        case Success(x) =>
-          error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
-          respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
-        case Failure(e) =>
-          info(CLASS_NAME, "handleException",s"[$method] BadRequest: date of birth invalid format (gro returned 500)")
-          respond(BadGateway(ErrorResponses.BAD_REQUEST))
-      }
+        error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
+        respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
     case BirthErrorResponse(e) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
       respond(InternalServerError)

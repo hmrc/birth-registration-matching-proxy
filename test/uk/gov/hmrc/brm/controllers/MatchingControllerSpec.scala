@@ -189,10 +189,10 @@ class MatchingControllerSpec extends UnitSpec
 
         "return records for details that match" in {
           val firstName = "adam"
-          val lastName = "conder"
-          val dateOfBirth = "2016-10-10"
+          val lastName = "smith"
+          val dateOfBirth = "2006-11-12"
 
-          val json = groResponse("adam_conder_2016-10-10")
+          val json = groResponse("2006-11-12_smith_adam")
           when(MockController.groConnector.getDetails(mockEq(firstName), mockEq(lastName), mockEq(dateOfBirth))(Matchers.any())).thenReturn(successResponse(json))
 
           val request = detailsRequest(firstName = firstName, lastName = lastName, dateOfBirth = dateOfBirth)
