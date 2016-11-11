@@ -237,30 +237,6 @@ class Authenticator(username : String,
           info(CLASS_NAME, "token", s"access_token has expired $expired")
           //get new auth token
           requestNewToken()
-
-        //        try {
-        //          val response = authenticate()
-        //            handleResponse(response, extractAccessToken, "requestAuth")
-        //        } catch {
-        //          case e : SocketTimeoutException =>
-        //            if (count < delayAttempts) {
-        //              val tick = System.currentTimeMillis() + delayTime
-        //
-        //              do {
-        //                debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-        //              } while (System.currentTimeMillis() < tick)
-        //
-        //              info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
-        //              requestAuth(count + 1)
-        //            } else {
-        //              warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-        //              BirthErrorResponse(e)
-        //            }
-        //          case e : Exception =>
-        //            warn(CLASS_NAME, "requestAuth", s"Exception: ${e.getMessage}")
-        //            BirthErrorResponse(e)
-        //        }
-
       }
     }
 

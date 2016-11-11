@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.controllers
 import java.time.LocalDate
 
 import org.joda.time.format.DateTimeFormat
+import play.api.Logger
 import play.api.libs.json.{JsObject, JsArray, Json}
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
@@ -85,6 +86,9 @@ trait MatchingController extends BaseController {
   def reference(reference: String) = Action.async {
     implicit request =>
       setKey(request)
+
+      Logger.debug(s"connector: ${groConnector.get(reference)}")
+
       groConnector.get(reference).flatMap[Result](
         handleException("getReference", reference)
         orElse success("getReference")
