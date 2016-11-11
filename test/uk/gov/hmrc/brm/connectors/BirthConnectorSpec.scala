@@ -94,7 +94,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
         birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
 
@@ -108,7 +108,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -122,7 +122,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -137,7 +137,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val date = new DateTime(2050: Int, 9: Int, 15: Int, 5: Int, 10: Int, 10: Int)
         DateTimeUtils.setCurrentMillisFixed(date.getMillis)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         result shouldBe a[BirthErrorResponse]
         result match {
@@ -155,7 +155,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, "")
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -173,7 +173,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
           """.stripMargin
         val eventResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, json)
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -185,7 +185,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
 
       "return BirthErrorResponse when all attempts fail for authentication (SocketTimeoutException)" in {
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new SocketTimeoutException(""))
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         verify(mockHttpClient, times(3)).post(Matchers.any(), Matchers.any(), Matchers.any())
         result shouldBe a[BirthErrorResponse]
@@ -199,7 +199,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
 
       "return BirthErrorResponse when Exception is thrown for authentication" in {
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IOException(""))
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         verify(mockHttpClient, times(1)).post(Matchers.any(), Matchers.any(), Matchers.any())
         result shouldBe a[BirthErrorResponse]
@@ -213,7 +213,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
 
     }
 
-    "getReference" should {
+    "get" should {
 
       "200 with json response with match" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
@@ -222,7 +222,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result should not be JsNull
       }
 
@@ -235,7 +235,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.get(Matchers.any(), Matchers.any()))
           .thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getReference("500037654675710"))
+        val result = await(MockBirthConnector.get("500037654675710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -253,7 +253,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result match {
           case BirthErrorResponse(cause) =>
@@ -270,7 +270,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         result shouldBe a[BirthErrorResponse]
         result match {
@@ -285,7 +285,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenThrow(new SocketTimeoutException(""))
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         verify(mockHttpClient, times(3)).get(Matchers.any(), Matchers.any())
         result shouldBe a[BirthErrorResponse]
@@ -301,7 +301,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenThrow(new IOException(""))
-        val result = await(MockBirthConnector.getReference("500035710"))
+        val result = await(MockBirthConnector.get("500035710"))
 
         verify(mockHttpClient, times(1)).get(Matchers.any(), Matchers.any())
         result shouldBe a[BirthErrorResponse]
@@ -339,7 +339,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result should not be JsNull
         result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
       }
@@ -369,7 +369,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.get(Matchers.any(), Matchers.any()))
           .thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result should not be JsNull
         result shouldBe BirthSuccessResponse(groResponse("NoMatch"))
       }
@@ -397,7 +397,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
 
         result match {
           case BirthErrorResponse(cause) =>
@@ -430,7 +430,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
 
         result match {
           case BirthErrorResponse(cause) =>
@@ -463,7 +463,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(mockHttpClient.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
 
         result match {
           case BirthErrorResponse(cause) =>

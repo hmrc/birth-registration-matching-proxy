@@ -85,7 +85,7 @@ trait MatchingController extends BaseController {
   def reference(reference: String) = Action.async {
     implicit request =>
       setKey(request)
-      groConnector.getReference(reference).flatMap[Result](
+      groConnector.get(reference).flatMap[Result](
         handleException("getReference", reference)
         orElse success("getReference")
       )
@@ -94,7 +94,7 @@ trait MatchingController extends BaseController {
   def details(firstName: String, lastName: String, dateOfBirth: String) = Action.async {
     implicit request =>
       setKey(request)
-      groConnector.getDetails(firstName, lastName, dateOfBirth).flatMap[Result](
+      groConnector.get(firstName, lastName, dateOfBirth).flatMap[Result](
         handleException("getDetails", dateOfBirth)
         orElse success("getDetails")
       )

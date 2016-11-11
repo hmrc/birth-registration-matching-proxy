@@ -85,20 +85,20 @@ object ResponseHandler {
 
   def handle(response: Response, attempts : Attempts)(f : Response => BirthResponse, metrics : Metrics) = {
     debug(CLASS_NAME, "handle",s"$response")
-    info(CLASS_NAME, "handle", s"response received")
+    info(CLASS_NAME, "handle", s"response received after $attempts attempt(s)")
 
     response.status match {
       case Status.S200_OK =>
         metrics.httpResponseCodeStatus(OK)
-        info(CLASS_NAME, "handleResponse", s"[authenticate][200] Success")
+        info(CLASS_NAME, "handleResponse", s"[authenticate][200] Success, attempt $attempts")
         (f(response), attempts)
       case e @ (Status.S400_BadRequest | Status.S404_NotFound) =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        warn(CLASS_NAME, "handleResponse", s"[authenticate][${e.code}}}] ${e.category}: $response")
+        warn(CLASS_NAME, "handleResponse", s"[authenticate][${e.code}}}] ${e.category}: $response, attempt $attempts")
         (ErrorHandler.error(response), attempts)
       case e@_ =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
-        error(CLASS_NAME, "handleResponse", s"[authenticate][5xx] InternalServerError: $response")
+        error(CLASS_NAME, "handleResponse", s"[authenticate][5xx] InternalServerError: $response, attemp $attempts")
         (ErrorHandler.error(response), attempts)
     }
   }
@@ -433,7 +433,7 @@ trait BirthConnector extends ServicesConfig {
     metrics.requestCount("reference-match")
 
     debug(CLASS_NAME, "getChildByReference", s"$eventEndpoint/$reference headers: $headers")
-    info(CLASS_NAME, "getChildByReference", s"requesting child's details $eventEndpoint")
+    info(CLASS_NAME, "getChildByReference", s"requesting child's details $eventEndpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
     val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headers))
@@ -447,13 +447,13 @@ trait BirthConnector extends ServicesConfig {
     metrics.requestCount("details-match")
 
     debug(CLASS_NAME, "getChildByDetails", s"$eventEndpoint/ headers: $headers")
-    info(CLASS_NAME, "getChildByDetails", s"requesting child's details $eventEndpoint")
+    info(CLASS_NAME, "getChildByDetails", s"requesting child's details $eventEndpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
     val query = details.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
     val url = s"$eventEndpoint/?$query"
 
-    debug(CLASS_NAME, "getChildByDetails", "query: $url")
+    debug(CLASS_NAME, "getChildByDetails", s"query: $url")
 
     val response = httpClient.get(url, Headers.apply(headers))
     metrics.endTimer(startTime, "details-match-timer")
@@ -463,6 +463,7 @@ trait BirthConnector extends ServicesConfig {
   private def request(reference: String, token: AccessToken) : BirthResponse = {
 
     // TODO add logic back in for SocketTimeoutException
+    // TODO refactor the < 3 to be configuration with maxAttempts
     @tailrec
     def referenceHelper(attempts: Attempts) : BirthResponse = {
       getChildByReference(reference, token, attempts) match {
@@ -477,6 +478,7 @@ trait BirthConnector extends ServicesConfig {
   private def request(details: Map[String, String], token: AccessToken) : BirthResponse = {
 
     // TODO add logic back in for SocketTimeoutException
+    // TODO refactor the < 3 to be configuration with maxAttempts
     @tailrec
     def detailsHelper(attempts: Attempts) : BirthResponse = {
       getChildByDetails(details, token, attempts) match {
@@ -532,7 +534,7 @@ trait BirthConnector extends ServicesConfig {
 //
 //  }
 
-  def getReference(reference: String)
+  def get(reference: String)
                   (implicit hc: HeaderCarrier): Future[BirthResponse] =
   {
     metrics.requestCount()
@@ -545,7 +547,7 @@ trait BirthConnector extends ServicesConfig {
     Future.successful(json)
   }
 
-  def getDetails(firstName: String, lastName: String, dateOfBirth: String)
+  def get(firstName: String, lastName: String, dateOfBirth: String)
                 (implicit hc: HeaderCarrier) : Future[BirthResponse] =
   {
     metrics.requestCount("details-request")
