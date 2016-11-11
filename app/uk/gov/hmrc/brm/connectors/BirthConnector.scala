@@ -40,7 +40,7 @@ import scala.util.{Try, Failure, Success}
 sealed trait BirthResponse
 
 case class BirthAccessTokenResponse(token : AccessToken) extends BirthResponse
-case class BirthSuccessResponse(json: JsValue) extends BirthResponse
+case class BirthSuccessResponse[T <: JsValue](json: T) extends BirthResponse
 case class BirthErrorResponse(cause: Exception) extends BirthResponse
 
 object ConnectorTypes {
