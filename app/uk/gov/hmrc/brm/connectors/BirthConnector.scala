@@ -127,11 +127,10 @@ object ResponseParser {
 
 }
 
-sealed class Authenticator(username : String,
+class Authenticator(username : String,
                            password : String,
                            endpoint : String,
-                           service : String,
-                           http: HttpClient,
+                           val http: HttpClient,
                            val tokenCache : AccessTokenRepository,
                             metrics : Metrics) {
 
@@ -248,12 +247,11 @@ object Authenticator {
   def apply() : Authenticator = {
     val username = GROConnectorConfiguration.username
     val password = GROConnectorConfiguration.password
-    val endpoint = s"oauth/login"
-    val service = GROConnectorConfiguration.serviceUrl
+    val endpoint = s"${GROConnectorConfiguration.serviceUrl}/oauth/login"
     val tokenRepo = new AccessTokenRepository
     val metrics = GroMetrics
 
-    new Authenticator(username, password, endpoint, service, httpClient, tokenRepo, metrics)
+    new Authenticator(username, password, endpoint, httpClient, tokenRepo, metrics)
   }
 
 }
@@ -270,8 +268,7 @@ object GROEnglandAndWalesConnector extends BirthConnector {
   override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
   override val delayAttempts = GROConnectorConfiguration.delayAttempts
   override val version = GROConnectorConfiguration.version
-  override val eventUri = s"api/$version/events/birth"
-  override val serviceUrl = GROConnectorConfiguration.serviceUrl
+  override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
   override val username = GROConnectorConfiguration.username
 }
 
@@ -280,17 +277,14 @@ trait BirthConnector extends ServicesConfig {
   private val CLASS_NAME : String = this.getClass.getCanonicalName
 
   protected val version: String
-  protected val eventUri : String
-  protected val serviceUrl : String
+  protected val endpoint : String
 
   protected val username : String
-
-  protected lazy val eventEndpoint = s"$serviceUrl/$eventUri"
 
   protected val httpClient: HttpClient
   protected val metrics: Metrics
 
-  protected val authenticator : Authenticator
+  val authenticator : Authenticator
 
   protected val delayTime : Int
   protected val delayAttempts : Int
@@ -432,11 +426,11 @@ trait BirthConnector extends ServicesConfig {
     val headers = GROHeaderCarrier(token)
     metrics.requestCount("reference-match")
 
-    debug(CLASS_NAME, "getChildByReference", s"$eventEndpoint/$reference headers: $headers")
-    info(CLASS_NAME, "getChildByReference", s"requesting child's details $eventEndpoint, attempt $attempts")
+    debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
+    info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
-    val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headers))
+    val response = httpClient.get(s"$endpoint/$reference", Headers.apply(headers))
     metrics.endTimer(startTime, "reference-match-timer")
 
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
@@ -446,12 +440,12 @@ trait BirthConnector extends ServicesConfig {
     val headers = GROHeaderCarrier(token)
     metrics.requestCount("details-match")
 
-    debug(CLASS_NAME, "getChildByDetails", s"$eventEndpoint/ headers: $headers")
-    info(CLASS_NAME, "getChildByDetails", s"requesting child's details $eventEndpoint, attempt $attempts")
+    debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers")
+    info(CLASS_NAME, "getChildByDetails", s"requesting child's details $endpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
     val query = details.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
-    val url = s"$eventEndpoint/?$query"
+    val url = s"$endpoint/?$query"
 
     debug(CLASS_NAME, "getChildByDetails", s"query: $url")
 
@@ -500,11 +494,11 @@ trait BirthConnector extends ServicesConfig {
 //        val headerCarrier = GROHeaderCarrier(token)
 //        metrics.requestCount("reference-match")
 //
-//        debug(CLASS_NAME, "requestReference", s"$eventEndpoint/$reference headers: $headerCarrier")
-//        info(CLASS_NAME, "requestReference", s"requesting child's details $eventEndpoint")
+//        debug(CLASS_NAME, "requestReference", s"$endpoint/$reference headers: $headerCarrier")
+//        info(CLASS_NAME, "requestReference", s"requesting child's details $endpoint")
 //
 //        try {
-//          val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
+//          val response = httpClient.get(s"$endpoint/$reference", Headers.apply(headerCarrier))
 //
 //          metrics.endTimer(startTime, "reference-match-timer")
 //          handleResponse(response, extractJson, "requestReference")

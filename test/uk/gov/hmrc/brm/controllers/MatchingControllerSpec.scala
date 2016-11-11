@@ -19,24 +19,22 @@ package uk.gov.hmrc.brm.controllers
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
-import org.scalatest.{BeforeAndAfter, OneInstancePerTest}
 import org.scalatest.mock.MockitoSugar
-import play.api.Logger
-import play.api.libs.iteratee.Iteratee
+import org.scalatest.{BeforeAndAfter, OneInstancePerTest}
 import play.api.libs.json._
-import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
-import uk.gov.hmrc.brm.connectors.{BirthConnector, BirthErrorResponse, BirthResponse, BirthSuccessResponse}
-import uk.gov.hmrc.play.http.{JsValidationException, _}
+import uk.co.bigbeeconsultants.http.HttpClient
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.connectors._
+import uk.gov.hmrc.brm.metrics.GroMetrics
+import uk.gov.hmrc.play.http.JsValidationException
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import utils.JsonUtils
 import utils.ResponseHelper._
 
 import scala.concurrent.Future
-import org.joda.time.LocalDate
-
-import scala.util.parsing.json.JSON
+import scala.util.Success
 
 class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
@@ -58,7 +56,19 @@ class MatchingControllerSpec extends UnitSpec
   val validDetailsRequest = detailsRequest("Adam", "Wilson", "2010-08-27")
   val noMatchDetailsRequest = detailsRequest("Adam", "Conder", "2010-08-27")
 
-  private val mockConnector = mock[BirthConnector]
+  private val mockAuthenticator = mock[Authenticator]
+  private val mockHttpClient = mock[HttpClient]
+
+  object MockBirthConnector extends BirthConnector {
+    override val httpClient = mockHttpClient
+    override val metrics = GroMetrics
+    override val authenticator = mockAuthenticator
+    override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+    override val delayAttempts = GROConnectorConfiguration.delayAttempts
+    override val version = GROConnectorConfiguration.version
+    override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
+    override val username = GROConnectorConfiguration.username
+  }
 
   def successResponse(json:JsValue) ={
     Future.successful(BirthSuccessResponse(json))
@@ -69,11 +79,12 @@ class MatchingControllerSpec extends UnitSpec
   )
 
   object MockController extends MatchingController {
-    override val groConnector = mockConnector
+    override val groConnector = MockBirthConnector
   }
 
   before {
-    reset(mockConnector)
+    reset(mockAuthenticator)
+    reset(mockHttpClient)
   }
 
   /**
@@ -180,12 +191,6 @@ class MatchingControllerSpec extends UnitSpec
 
 
       "GET /birth-registration-matching-proxy/match" should {
-
-        "accept mandatory query parameters" in {
-          val request = detailsRequest(firstName = "Adam", lastName = "Conder", dateOfBirth = "2016-10-10")
-          val result = route(request)
-          status(result.get) shouldBe OK
-        }
 
         "return records for details that match" in {
           val firstName = "adam"
