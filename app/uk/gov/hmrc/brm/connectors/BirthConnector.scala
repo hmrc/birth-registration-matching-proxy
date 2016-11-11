@@ -121,7 +121,9 @@ object ResponseParser {
     } catch {
       case e: Exception =>
         warn(CLASS_NAME, "parse", "unable to parse json")
-        ErrorHandler.error(response)
+        // from 200 t0 500 or override somehow?
+        val error = response.copy(status = Status.S500_InternalServerError)
+        ErrorHandler.error(error)
     }
   }
 
@@ -262,7 +264,7 @@ object Authenticator {
 
 object GROEnglandAndWalesConnector extends BirthConnector {
   private val config = TLSFactory.getConfig
-  override val httpClient = new HttpClient(config)
+  override val http = new HttpClient(config)
   override val metrics = GroMetrics
   override val authenticator = Authenticator.apply()
   override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
@@ -281,7 +283,7 @@ trait BirthConnector extends ServicesConfig {
 
   protected val username : String
 
-  protected val httpClient: HttpClient
+  protected val http: HttpClient
   protected val metrics: Metrics
 
   val authenticator : Authenticator
@@ -430,7 +432,7 @@ trait BirthConnector extends ServicesConfig {
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
-    val response = httpClient.get(s"$endpoint/$reference", Headers.apply(headers))
+    val response = http.get(s"$endpoint/$reference", Headers.apply(headers))
     metrics.endTimer(startTime, "reference-match-timer")
 
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
@@ -449,7 +451,7 @@ trait BirthConnector extends ServicesConfig {
 
     debug(CLASS_NAME, "getChildByDetails", s"query: $url")
 
-    val response = httpClient.get(url, Headers.apply(headers))
+    val response = http.get(url, Headers.apply(headers))
     metrics.endTimer(startTime, "details-match-timer")
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
   }

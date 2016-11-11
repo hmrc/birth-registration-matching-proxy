@@ -60,7 +60,7 @@ class MatchingControllerSpec extends UnitSpec
   private val mockHttpClient = mock[HttpClient]
 
   object MockBirthConnector extends BirthConnector {
-    override val httpClient = mockHttpClient
+    override val http = mockHttpClient
     override val metrics = GroMetrics
     override val authenticator = mockAuthenticator
     override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
