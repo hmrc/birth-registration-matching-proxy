@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.net.URLEncoder
+import java.net.{SocketTimeoutException, URLEncoder}
 
 import play.api.http.Status._
 import play.api.libs.json._
@@ -25,7 +25,7 @@ import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
-import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
+import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayTime, DelayAttempts, AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -35,7 +35,7 @@ import uk.gov.hmrc.play.http._
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 sealed trait BirthResponse
 
@@ -47,12 +47,23 @@ object ConnectorTypes {
 
   type Attempts = Int
   type AccessToken = String
+  type DelayAttempts = Int
+  type DelayTime = Int
 
 }
 
 object ErrorHandler {
 
+  def wait(delay: Int) = {
+    val tick = System.currentTimeMillis() + delay
+    do {
+      debug(super.getClass.getName, "wait()", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
+    } while (System.currentTimeMillis() < tick)
+  }
+
+
   def error(response: Response) = {
+    info(super.getClass.getName, "error", s"isServerError: ${response.status.isServerError}")
     val upstream = if (response.status.isServerError) {
       Upstream5xxResponse(
         s"[${super.getClass.getName}][${response.status.toString}]",
@@ -134,7 +145,9 @@ class Authenticator(username : String,
                            endpoint : String,
                            val http: HttpClient,
                            val tokenCache : AccessTokenRepository,
-                            metrics : Metrics) {
+                            metrics : Metrics,
+                            delayTime : DelayTime,
+                            delayAttempts : DelayAttempts) {
 
   private[Authenticator] val CLASS_NAME : String = this.getClass.getCanonicalName
 
@@ -177,35 +190,53 @@ class Authenticator(username : String,
           tokenCache.saveToken(token, tokenCache.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
+        case e @ BirthErrorResponse(error) =>
+          e
       }
+  }
+
+  private def requestNewToken() = {
+    // TODO add logic back in for SocketTimeoutException
+    @tailrec
+    def authHelper(attempts: Attempts) : BirthResponse = {
+      Try(authenticate(attempts)) match {
+        case Success((r @ BirthAccessTokenResponse(token), _)) => r
+        case Success((r @ BirthErrorResponse(_), loop)) =>
+          if (loop < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            authHelper(attempts + 1)
+          }
+          else r
+        case Failure(exception : SocketTimeoutException) =>
+          if (attempts < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            authHelper(attempts + 1)
+          }
+          else ErrorHandler.error(exception.getMessage)
+        case Failure(exception) =>
+          ErrorHandler.error(exception.getMessage)
+      }
+    }
+
+    authHelper(1)
   }
 
 
   def token : BirthResponse = {
     if(!CertificateStatus.certificateStatus()) {
       // return an BirthErrorResponse as TLS certificate has expired
-      error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
+      error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
     } else {
       tokenCache.token match {
         case Success(cache) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has not expired")
-          debug(CLASS_NAME, "requestAuth", s"cached access_token: $cache")
+          info(CLASS_NAME, "token", s"access_token has not expired")
+          debug(CLASS_NAME, "token", s"cached access_token: $cache")
           BirthAccessTokenResponse(cache)
         case Failure(expired) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has expired $expired")
+          info(CLASS_NAME, "token", s"access_token has expired $expired")
           //get new auth token
-
-          // TODO add logic back in for SocketTimeoutException
-          @tailrec
-          def authHelper(attempts: Attempts) : BirthResponse = {
-            authenticate(attempts) match {
-              case (r @ BirthAccessTokenResponse(token), _) => r
-              case (r @ BirthErrorResponse(_), loop) => if (loop < 3) authHelper(attempts + 1) else r
-            }
-          }
-
-          authHelper(1)
+          requestNewToken()
 
         //        try {
         //          val response = authenticate()
@@ -252,8 +283,19 @@ object Authenticator {
     val endpoint = s"${GROConnectorConfiguration.serviceUrl}/oauth/login"
     val tokenRepo = new AccessTokenRepository
     val metrics = GroMetrics
+    val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+    val delayAttempts = GROConnectorConfiguration.delayAttempts
 
-    new Authenticator(username, password, endpoint, httpClient, tokenRepo, metrics)
+    new Authenticator(
+      username,
+      password,
+      endpoint,
+      httpClient,
+      tokenRepo,
+      metrics,
+      delayTime,
+      delayAttempts
+    )
   }
 
 }
@@ -303,127 +345,6 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-//  @tailrec
-//  private def requestAuth(count : Int = 1)(implicit hc: HeaderCarrier) : BirthResponse = {
-//    if(!CertificateStatus.certificateStatus()) {
-//      // return an BirthErrorResponse as TLS certificate has expired
-//      error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
-//      BirthErrorResponse(
-//        Upstream5xxResponse(
-//          s"[${super.getClass.getName}][InternalServerError][TLS Certificate expired]",
-//          INTERNAL_SERVER_ERROR,
-//          INTERNAL_SERVER_ERROR)
-//      )
-//    } else {
-//      info(CLASS_NAME, "requestAuth", "checking access_token")
-//      authRepository.token match {
-//        case Success(token) =>
-//          info(CLASS_NAME, "requestAuth", s"access_token has not expired")
-//          debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
-//          BirthAccessTokenResponse(token)
-//        case Failure(expired) =>
-//          info(CLASS_NAME, "requestAuth", s"access_token has expired ${expired.getMessage}")
-//          //get new auth token
-//
-//          try {
-//            val response = getAuthResponse
-//            handleResponse(response, extractAccessToken, "requestAuth")
-//          } catch {
-//            case e : SocketTimeoutException =>
-//              if (count < delayAttempts) {
-//                val tick = System.currentTimeMillis() + delayTime
-//
-//                do {
-//                  debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-//                } while (System.currentTimeMillis() < tick)
-//
-//                info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
-//                requestAuth(count + 1)
-//              } else {
-//                warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-//                BirthErrorResponse(e)
-//              }
-//            case e : Exception =>
-//              warn(CLASS_NAME, "requestAuth", s"Exception: ${e.getMessage}")
-//              BirthErrorResponse(e)
-//          }
-//      }
-//    }
-//  }
-
-//  @tailrec
-//  private def requestAuth(count : Int = 1)(implicit hc: HeaderCarrier) : BirthResponse = {
-//    if(!CertificateStatus.certificateStatus()) {
-//      // return an BirthErrorResponse as TLS certificate has expired
-//      error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
-//      BirthErrorResponse(
-//        Upstream5xxResponse(
-//          s"[${super.getClass.getName}][InternalServerError][TLS Certificate expired]",
-//          INTERNAL_SERVER_ERROR,
-//          INTERNAL_SERVER_ERROR)
-//      )
-//    } else {
-//      info(CLASS_NAME, "requestAuth", "checking access_token")
-//      authRepository.token match {
-//        case Success(token) =>
-//          info(CLASS_NAME, "requestAuth", s"access_token has not expired")
-//          debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
-//          BirthAccessTokenResponse(token)
-//        case Failure(expired) =>
-//          info(CLASS_NAME, "requestAuth", s"access_token has expired ${expired.getMessage}")
-//          //get new auth token
-//
-//          try {
-//            val response = getAuthResponse
-//            handleResponse(response, extractAccessToken, "requestAuth")
-//          } catch {
-//            case e : SocketTimeoutException =>
-//              if (count < delayAttempts) {
-//                val tick = System.currentTimeMillis() + delayTime
-//
-//                do {
-//                  debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-//                } while (System.currentTimeMillis() < tick)
-//
-//                info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
-//                requestAuth(count + 1)
-//              } else {
-//                warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-//                BirthErrorResponse(e)
-//              }
-//            case e : Exception =>
-//              warn(CLASS_NAME, "requestAuth", s"Exception: ${e.getMessage}")
-//              BirthErrorResponse(e)
-//          }
-//      }
-//    }
-//  }
-
-//  private def getAuthResponse : Response = {
-//    val credentials: Map[String, String] = Map(
-//      "username" -> username,
-//      "password" -> password
-//    )
-//
-//    debug(CLASS_NAME, "requestAuth", s"$authEndpoint credentials: $credentials")
-//    info(CLASS_NAME, "requestAuth", s"requesting authentication token $authEndpoint")
-//    metrics.requestCount("authentication")
-//
-//    val startTime = metrics.startTimer()
-//    // request new access token
-//    val response = httpClient.post(
-//      url = authEndpoint,
-//      body = Some(RequestBody.apply(credentials)),
-//      requestHeaders = Headers.apply(
-//        Map("Content-Type" -> "application/x-www-form-urlencoded")
-//      )
-//    )
-//
-//    metrics.endTimer(startTime, "authentication-timer")
-//    response
-//  }
-
-
   private[BirthConnector] def getChildByReference(reference : String, token: AccessToken, attempts : Attempts) : (BirthResponse, Attempts) = {
     val headers = GROHeaderCarrier(token)
     metrics.requestCount("reference-match")
@@ -462,9 +383,22 @@ trait BirthConnector extends ServicesConfig {
     // TODO refactor the < 3 to be configuration with maxAttempts
     @tailrec
     def referenceHelper(attempts: Attempts) : BirthResponse = {
-      getChildByReference(reference, token, attempts) match {
-        case (r @ BirthSuccessResponse(js), _) => r
-        case (r @ BirthErrorResponse(e), loop) => if (loop < 3) referenceHelper(attempts + 1) else r
+      Try(getChildByReference(reference, token, attempts)) match {
+        case Success((r @ BirthSuccessResponse(js), _)) => r
+        case Success((r @ BirthErrorResponse(_), loop)) =>
+          if (loop < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            referenceHelper(attempts + 1)
+          }
+          else r
+        case Failure(exception : SocketTimeoutException) =>
+          if (attempts < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            referenceHelper(attempts + 1)
+          }
+          else ErrorHandler.error(exception.getMessage)
+        case Failure(exception) =>
+          ErrorHandler.error(exception.getMessage)
       }
     }
 
@@ -474,61 +408,29 @@ trait BirthConnector extends ServicesConfig {
   private def request(details: Map[String, String], token: AccessToken) : BirthResponse = {
 
     // TODO add logic back in for SocketTimeoutException
-    // TODO refactor the < 3 to be configuration with maxAttempts
     @tailrec
     def detailsHelper(attempts: Attempts) : BirthResponse = {
-      getChildByDetails(details, token, attempts) match {
-        case (r @ BirthSuccessResponse(js), _) => r
-        case (r @ BirthErrorResponse(_), loop) => if (loop < 3) detailsHelper(attempts + 1) else r
+      Try(getChildByDetails(details, token, attempts)) match {
+        case Success((r @ BirthSuccessResponse(js), _)) => r
+        case Success((r @ BirthErrorResponse(_), loop)) =>
+          if (loop < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            detailsHelper(attempts + 1)
+          }
+          else r
+        case Failure(exception : SocketTimeoutException) =>
+          if (attempts < delayAttempts) {
+            ErrorHandler.wait(delayTime)
+            detailsHelper(attempts + 1)
+          }
+          else ErrorHandler.error(exception.getMessage)
+        case Failure(exception) =>
+          ErrorHandler.error(exception.getMessage)
       }
     }
 
     detailsHelper(1)
   }
-
-//  @tailrec
-//  private def requestReference(reference: String, count : Attempts = 1)(implicit hc: HeaderCarrier): BirthResponse = {
-//
-//    requestAuth() match {
-//      case BirthAccessTokenResponse(token) =>
-//        val startTime = metrics.startTimer()
-//
-//        val headerCarrier = GROHeaderCarrier(token)
-//        metrics.requestCount("reference-match")
-//
-//        debug(CLASS_NAME, "requestReference", s"$endpoint/$reference headers: $headerCarrier")
-//        info(CLASS_NAME, "requestReference", s"requesting child's details $endpoint")
-//
-//        try {
-//          val response = httpClient.get(s"$endpoint/$reference", Headers.apply(headerCarrier))
-//
-//          metrics.endTimer(startTime, "reference-match-timer")
-//          handleResponse(response, extractJson, "requestReference")
-//        } catch {
-//          case e : SocketTimeoutException =>
-//            if (count < delayAttempts) {
-//              val tick = System.currentTimeMillis() + delayTime
-//
-//              do {
-//                debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-//              } while (System.currentTimeMillis() < tick)
-//
-//              info(CLASS_NAME, "requestReference", s"SocketTimeoutException on attempt: $count error: ${e.getMessage}")
-//              requestReference(reference, count + 1)
-//            } else {
-//              warn(CLASS_NAME, "requestReference", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-//              BirthErrorResponse(e)
-//            }
-////          case e : Exception =>
-////            warn(CLASS_NAME, "requestReference", s"Exception: ${e.getMessage}")
-////            BirthErrorResponse(e)
-//        }
-////      case birthError @ BirthErrorResponse(e) =>
-////        warn(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth")
-////        birthError
-//    }
-//
-//  }
 
   def get(reference: String)
                   (implicit hc: HeaderCarrier): Future[BirthResponse] =

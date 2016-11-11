@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.config
 
 import com.typesafe.config.Config
 import play.api.{Application, Configuration, Play}
+import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayTime, DelayAttempts}
 import uk.gov.hmrc.play.audit.filters.AuditFilter
 import uk.gov.hmrc.play.config.{ServicesConfig, AppName, ControllerConfig, RunMode}
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
@@ -43,8 +44,8 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val tlsEnabled = getConfBool("birth-registration-matching.tlsEnabled", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.tlsEnabled"))
   lazy val connectionTimeout = getConfInt("birth-registration-matching.connectionTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.connectionTimeout"))
   lazy val readTimeout = getConfInt("birth-registration-matching.readTimeout", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.readTimeout"))
-  lazy val delayAttemptInMilliseconds = getConfInt("birth-registration-matching.delayAttemptInMilliseconds", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttemptInMilliseconds"))
-  lazy val delayAttempts = getConfInt("birth-registration-matching.delayAttempts", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttempts"))
+  lazy val delayAttemptInMilliseconds : DelayTime = getConfInt("birth-registration-matching.delayAttemptInMilliseconds", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttemptInMilliseconds"))
+  lazy val delayAttempts : DelayAttempts = getConfInt("birth-registration-matching.delayAttempts", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttempts"))
 }
 
 object MicroserviceAuditFilter extends AuditFilter with AppName {
