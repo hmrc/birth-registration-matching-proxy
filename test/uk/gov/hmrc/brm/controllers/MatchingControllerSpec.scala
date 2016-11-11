@@ -107,7 +107,7 @@ class MatchingControllerSpec extends UnitSpec
         "return 200 for a reference than exists in GRO" in {
           val json = groResponse(reference)
 
-          when(MockController.groConnector.get(reference)).thenReturn(successResponse(json))
+          when(MockController.groConnector.get(mockEq(reference))(mockEq(hc))).thenReturn(successResponse(json))
 
           val request = referenceRequest(reference)
           val result = await(MockController.reference(reference).apply(request))
