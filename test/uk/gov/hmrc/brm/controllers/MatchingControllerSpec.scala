@@ -38,8 +38,7 @@ import scala.concurrent.Future
 class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
   with MockitoSugar
-  with BeforeAndAfter
-  with OneInstancePerTest {
+  with BeforeAndAfter {
 
   val reference = "500035710"
   val invalidReference = "812739812739183"

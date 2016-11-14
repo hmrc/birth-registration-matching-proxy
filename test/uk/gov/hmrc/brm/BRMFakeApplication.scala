@@ -24,7 +24,6 @@ trait BRMFakeApplication extends WithFakeApplication {
   this: Suite =>
 
   var config: Map[String, _] = Map(
-    "csrf.sign.tokens" -> false,
     "Test.microservice.services.auth.host" -> "localhost",
     "Test.microservice.services.auth.port" -> "8500",
     "microservice.services.birth-registration-matching.delayAttemptInMilliseconds" -> 100,
