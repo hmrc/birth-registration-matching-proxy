@@ -18,7 +18,6 @@ package uk.gov.hmrc.brm.tls
 
 import java.nio.charset.StandardCharsets
 
-
 import uk.co.bigbeeconsultants.http.Config
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.utils.BrmLogger._

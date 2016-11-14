@@ -17,13 +17,13 @@
 package uk.gov.hmrc.brm.config
 
 import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
 import play.api.{Application, Configuration, Play}
-import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayTime, DelayAttempts}
+import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayAttempts, DelayTime}
 import uk.gov.hmrc.play.audit.filters.AuditFilter
-import uk.gov.hmrc.play.config.{ServicesConfig, AppName, ControllerConfig, RunMode}
+import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode, ServicesConfig}
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
 import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
-import net.ceedubs.ficus.Ficus._
 
 
 object ControllerConfiguration extends ControllerConfig {

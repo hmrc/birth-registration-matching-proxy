@@ -16,13 +16,10 @@
 
 package utils
 
-import org.joda.time.{DateTime, DateTimeUtils, Minutes, Seconds}
-import org.mockito.Mockito._
+import org.joda.time.{DateTime, DateTimeUtils, Seconds}
 import org.scalatest.BeforeAndAfter
 import uk.gov.hmrc.brm.utils.AccessTokenRepository
 import uk.gov.hmrc.play.test.UnitSpec
-
-import scala.util.{Failure, Success}
 
 class AccessTokenRepositorySpec extends UnitSpec with BeforeAndAfter {
 

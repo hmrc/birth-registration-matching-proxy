@@ -16,11 +16,11 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.joda.time.{Seconds, DateTime}
+import org.joda.time.{DateTime, Seconds}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
+import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import scala.util.{Failure, Success, Try}
-import uk.gov.hmrc.brm.utils.BrmLogger._
 
 class AccessTokenRepository {
 
