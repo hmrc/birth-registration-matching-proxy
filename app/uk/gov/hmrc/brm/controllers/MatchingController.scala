@@ -46,31 +46,42 @@ trait MatchingController extends BaseController {
     )
   }
 
-  def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
+  def notFoundException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
       info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found")
       respond(NotFound(ErrorResponses.NOT_FOUND))
+  }
+
+  def badRequestException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] BadRequest: $message")
       respond(BadGateway(ErrorResponses.BAD_REQUEST))
+  }
+
+  def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
       respond(BadGateway(ErrorResponses.BAD_REQUEST))
+  }
+
+  def gatewayTimeoutException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
       respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
+  }
+
+  def connectionDown(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-        error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
-        respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
+      respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
+  }
+
+  def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(e) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
       respond(InternalServerError)
   }
 
-  private def setKey(request : Request[_]) = {
-    val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
-    KeyHolder.setKey(brmKey)
-  }
 
   def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthSuccessResponse(js) =>
@@ -79,13 +90,28 @@ trait MatchingController extends BaseController {
       respond(Ok(js))
   }
 
+  def handle(method: String) = Seq(
+    notFoundException(method),
+    badRequestException(method),
+    badGatewayException(method),
+    gatewayTimeoutException(method),
+    connectionDown(method),
+    exception(method),
+    success(method)
+  ).reduce(_ orElse _)
+
+  private def setKey(request : Request[_]) = {
+    val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+    KeyHolder.setKey(brmKey)
+  }
+
   def reference(reference: String) = Action.async {
     implicit request =>
       setKey(request)
       Logger.debug(s"connector: ${groConnector.get(reference)}")
+
       groConnector.get(reference).flatMap[Result](
-        handleException("getReference", reference)
-        orElse success("getReference")
+        handle("getReference").apply(_)
       )
   }
 
@@ -94,8 +120,7 @@ trait MatchingController extends BaseController {
       setKey(request)
       debug(CLASS_NAME, "details", s"firstName $forenames, lastName: $lastname, dateOfBirth: $dateofbirth")
       groConnector.get(forenames, lastname, dateofbirth).flatMap[Result](
-        handleException("getDetails", dateofbirth)
-        orElse success("getDetails")
+        handle("getDetails").apply(_)
       )
   }
 
