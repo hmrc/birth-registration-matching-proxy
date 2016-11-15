@@ -25,9 +25,9 @@ trait BRMFakeApplication extends WithFakeApplication {
 
   val config: Map[String, _] = Map(
     "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500",
-    "microservice.services.birth-registration-matching.delayAttemptInMilliseconds" -> 100,
-    "microservice.services.birth-registration-matching.delayAttempts" -> 3
+    "Test.microservice.services.auth.port" -> "8500"
+//    "microservice.services.birth-registration-matching.delayAttemptInMilliseconds" -> 100,
+//    "microservice.services.birth-registration-matching.delayAttempts" -> 3
   )
 
   override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)

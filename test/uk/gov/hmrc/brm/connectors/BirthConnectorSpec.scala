@@ -37,16 +37,27 @@ import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
-import play.api.test.Helpers._
 
 import scala.util.{Failure, Success}
 
-class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSugar with BeforeAndAfter {
+class BirthConnectorSpec extends UnitSpec
+  with MockitoSugar
+  with BeforeAndAfter
+  with BRMFakeApplication {
 
   implicit val hc = HeaderCarrier()
 
   val mockTokenCache = mock[AccessTokenRepository]
   val mockHttpClient = mock[HttpClient]
+  val mockCertificateStatus = mock[CertificateStatus]
+  val authRecord = JsonUtils.getJsonFromFile("gro/auth")
+  val headers = Map(
+    "Authorization" -> s"Bearer something",
+    "X-Auth-Downstream-Username" -> "hmrc"
+  )
+
+  def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
+
   object MockAuthenticator extends Authenticator(
     username = GROConnectorConfiguration.username,
     password = GROConnectorConfiguration.password,
@@ -57,8 +68,6 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     delayTime = 1,
     delayAttempts = 3
   )
-
-  val mockCertificateStatus = mock[CertificateStatus]
 
   object MockBirthConnector extends BirthConnector {
     override val http = mockHttpClient
@@ -72,27 +81,17 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     override val encoder = Encoder
   }
 
-  def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
-
-
-  val authRecord = JsonUtils.getJsonFromFile("gro/auth")
-
-  val headers = Map(
-    "Authorization" -> s"Bearer something",
-    "X-Auth-Downstream-Username" -> "hmrc"
-  )
-
   before(
     reset(mockHttpClient)
   )
 
-  "BirthConnector" when running(fakeApplication) {
+  "BirthConnector" when {
 
     "initialising" should {
 
       "having correct configurations" in {
         GROEnglandAndWalesConnector.delayAttempts shouldBe 3
-        GROEnglandAndWalesConnector.delayTime shouldBe 100
+        GROEnglandAndWalesConnector.delayTime shouldBe 5000
         GROEnglandAndWalesConnector.authenticator shouldBe a[Authenticator]
         GROEnglandAndWalesConnector.metrics shouldBe a[Metrics]
         GROEnglandAndWalesConnector.http shouldBe a[HttpClient]
@@ -322,7 +321,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
 
         val eventResponse = Response.apply(
           Request.get(url,
-          headers = Headers.apply(headers)),
+            headers = Headers.apply(headers)),
           Status.S200_OK,
           MediaType.APPLICATION_JSON,
           groResponse("2006-11-12_smith_adam").toString())
