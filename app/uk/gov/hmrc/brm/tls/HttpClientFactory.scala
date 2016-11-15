@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm
+package uk.gov.hmrc.brm.tls
 
-import org.scalatest.Suite
-import play.api.test.FakeApplication
-import uk.gov.hmrc.play.test.WithFakeApplication
+import uk.co.bigbeeconsultants.http.HttpClient
 
-trait BRMFakeApplication extends WithFakeApplication {
-  this: Suite =>
+/**
+  * Created by adamconder on 15/11/2016.
+  */
+object HttpClientFactory {
 
-  val config: Map[String, _] = Map(
-    "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500"
-  )
+  private val config = TLSFactory.getConfig
 
-  override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
+  def apply() : HttpClient = {
+    new HttpClient(config)
+  }
 }
