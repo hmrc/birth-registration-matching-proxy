@@ -24,7 +24,7 @@ import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
-import uk.gov.hmrc.brm.tls.TLSFactory
+import uk.gov.hmrc.brm.tls.{HttpClientFactory, TLSFactory}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
@@ -38,8 +38,7 @@ import scala.util.{Failure, Success, Try}
  */
 
 object GROEnglandAndWalesConnector extends BirthConnector {
-  private val config = TLSFactory.getConfig
-  override val http = new HttpClient(config)
+  override val http = HttpClientFactory.apply()
   override val metrics = GroMetrics
   override val authenticator = Authenticator.apply()
   override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds

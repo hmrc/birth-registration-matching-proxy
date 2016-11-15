@@ -25,7 +25,7 @@ import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{Attempts, DelayAttempts, DelayTime}
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
-import uk.gov.hmrc.brm.tls.TLSFactory
+import uk.gov.hmrc.brm.tls.{HttpClientFactory, TLSFactory}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 
@@ -141,10 +141,8 @@ class Authenticator(username : String,
 
 object Authenticator {
 
-  private val config = TLSFactory.getConfig
-  private val httpClient = new HttpClient(config)
-
   def apply() : Authenticator = {
+    val httpClient = HttpClientFactory.apply()
     val username = GROConnectorConfiguration.username
     val password = GROConnectorConfiguration.password
     val endpoint = s"${GROConnectorConfiguration.serviceUrl}/oauth/login"
