@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.controllers
 
-object KeyHolder {
+/**
+ * Created by adamconder on 10/11/2016.
+ */
+object ErrorResponses {
 
-  private var keyForRequest : String = null
-
-   def geKey():String = {
-    keyForRequest
-  }
-
-  def setKey(key: String ): Unit = {
-    keyForRequest = key
-  }
-
-
+  val CONNECTION_DOWN = "CONNECTION_DOWN"
+  val BAD_REQUEST = "BAD_REQUEST"
+  val NOT_FOUND = s"NOT_FOUND"
+  val GATEWAY_TIMEOUT = s"GATEWAY_TIMEOUT"
 
 }

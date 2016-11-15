@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.connectors
 
-object KeyHolder {
+/**
+ * Created by adamconder on 14/11/2016.
+ */
+object ConnectorTypes {
 
-  private var keyForRequest : String = null
-
-   def geKey():String = {
-    keyForRequest
-  }
-
-  def setKey(key: String ): Unit = {
-    keyForRequest = key
-  }
-
-
+  type Attempts = Int
+  type AccessToken = String
+  type DelayAttempts = Int
+  type DelayTime = Int
 
 }

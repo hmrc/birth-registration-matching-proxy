@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.connectors
 
-object KeyHolder {
+import play.api.libs.json.JsValue
+import uk.gov.hmrc.brm.connectors.ConnectorTypes._
 
-  private var keyForRequest : String = null
+/**
+ * Created by adamconder on 14/11/2016.
+ */
+sealed trait BirthResponse
 
-   def geKey():String = {
-    keyForRequest
-  }
-
-  def setKey(key: String ): Unit = {
-    keyForRequest = key
-  }
-
-
-
-}
+case class BirthAccessTokenResponse(token : AccessToken) extends BirthResponse
+case class BirthSuccessResponse[T <: JsValue](json: T) extends BirthResponse
+case class BirthErrorResponse(cause: Exception) extends BirthResponse

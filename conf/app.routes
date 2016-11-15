@@ -1,3 +1,4 @@
 # microservice specific routes
 
 GET         /match/:ref               uk.gov.hmrc.brm.controllers.MatchingController.reference(ref : String)
+GET         /match                    uk.gov.hmrc.brm.controllers.MatchingController.details(forenames: String, lastname : String, dateofbirth: String)

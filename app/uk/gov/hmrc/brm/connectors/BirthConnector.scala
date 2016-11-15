@@ -18,265 +18,171 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import org.joda.time.DateTime
-import play.api.http.Status._
-import play.api.libs.json._
 import uk.co.bigbeeconsultants.http.header.Headers
-import uk.co.bigbeeconsultants.http.request.RequestBody
-import uk.co.bigbeeconsultants.http.response.{Response, Status}
+import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.tls.TLSFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
-sealed trait BirthResponse
+/**
+ * GROEnglandAndWalesConnector
+ */
 
-case class BirthAccessTokenResponse(token : String) extends BirthResponse
-case class BirthSuccessResponse(json: JsValue) extends BirthResponse
-
-case class BirthErrorResponse(cause: Exception) extends BirthResponse
+object GROEnglandAndWalesConnector extends BirthConnector {
+  private val config = TLSFactory.getConfig
+  override val http = new HttpClient(config)
+  override val metrics = GroMetrics
+  override val authenticator = Authenticator.apply()
+  override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
+  override val delayAttempts = GROConnectorConfiguration.delayAttempts
+  override val version = GROConnectorConfiguration.version
+  override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
+  override val username = GROConnectorConfiguration.username
+  override val encoder = Encoder
+}
 
 trait BirthConnector extends ServicesConfig {
 
-  protected val version: String = GROConnectorConfiguration.version
-  protected val eventUri = s"api/$version/events/birth"
-  protected val authUri = s"oauth/login"
-  protected val CLASS_NAME : String = this.getClass.getCanonicalName
+  private val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  protected lazy val eventEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$eventUri"
-  protected lazy val authEndpoint = s"${GROConnectorConfiguration.serviceUrl}/$authUri"
+  protected val version: String
+  protected val endpoint : String
 
-  protected val httpClient: HttpClient
+  protected val username : String
+
+  protected val http: HttpClient
   protected val metrics: Metrics
-  protected val authRepository : AccessTokenRepository
+
+  protected val encoder : Encoder
+
+  val authenticator : Authenticator
 
   protected val delayTime : Int
   protected val delayAttempts : Int
 
-  private def throwInternalServerError(response: Response, message: String = "_") = {
-    BirthErrorResponse(
-      Upstream5xxResponse(
-        s"[${super.getClass.getName}][InternalServerError][$message]",
-        response.status.code,
-        response.status.code)
-    )
-  }
-
-  private def throwBadRequest(response: Response) = {
-    BirthErrorResponse(
-      Upstream4xxResponse(
-        s"[${super.getClass.getName}][${response.status.toString}]",
-        response.status.code,
-        response.status.code)
-    )
-  }
-
-  protected def parseJson(response: Response) : BirthResponse = {
-    try {
-      val bodyText = response.body.asString
-      debug(CLASS_NAME, "parseJson",s"${response.body.asString}")
-
-      val json = Json.parse(bodyText)
-      BirthSuccessResponse(json)
-    } catch {
-      case e: Exception =>
-        warn(CLASS_NAME, "parseJson", "unable to parse json")
-        throwInternalServerError(response, "unable to parse json")
-    }
-  }
-
   protected val extractJson: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
-      info(CLASS_NAME, "extractJson", "parsing json from reference endpoint")
-      parseJson(response)
+      ResponseParser.parse(response)
   }
 
-  protected val extractAccessToken: PartialFunction[Response, BirthResponse] = {
-    case response: Response =>
-      info(CLASS_NAME, "extractAccessToken", "parsing response from authentication")
-      parseJson(response) match {
-        case BirthSuccessResponse(body) =>
-
-          val token = body.\("access_token").as[String]
-          val seconds = body.\("expires_in").as[Int]
-
-          // save the new token
-          authRepository.saveToken(token, authRepository.newExpiry(seconds))
-
-          BirthAccessTokenResponse(token)
-        case e @ BirthErrorResponse(err) =>
-          error(CLASS_NAME, "extractAccessToken", s"BirthErrorResponse received: ${err.getMessage}")
-          e
-      }
-  }
-
-  private def handleResponse(response: Response, f: PartialFunction[Response, BirthResponse], method: String): BirthResponse = {
-    debug(CLASS_NAME, "handleResponse",s"[$method] : $response")
-    info(CLASS_NAME, "handleResponse", s"[$method] response received")
-    response.status match {
-      case Status.S200_OK =>
-        metrics.httpResponseCodeStatus(OK)
-        info(CLASS_NAME, "handleResponse",s"[$method][200] Success")
-        f(response)
-      case e@Status.S400_BadRequest =>
-        metrics.httpResponseCodeStatus(BAD_REQUEST)
-        warn(CLASS_NAME, "handleResponse",s"[$method][400] BadRequest: $response")
-        throwBadRequest(response)
-      case e@Status.S404_NotFound =>
-        metrics.httpResponseCodeStatus(BAD_REQUEST)
-        warn(CLASS_NAME, "handleResponse",s"[$method][404] Not Found: $response")
-        throwBadRequest(response)
-      case e@_ =>
-        metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
-        error(CLASS_NAME, "handleResponse",s"[$method][5xx] InternalServerError: $response")
-        throwInternalServerError(response)
-    }
-  }
-
-  private def GROEventHeaderCarrier(token: String) = {
+  private def GROHeaderCarrier(token: String) = {
     Map(
       "Authorization" -> s"Bearer $token",
-      "X-Auth-Downstream-Username" -> GROConnectorConfiguration.username
+      "X-Auth-Downstream-Username" -> username
     )
   }
 
-  @tailrec
-  private def requestAuth(count : Int = 1)(implicit hc: HeaderCarrier) : BirthResponse = {
-    if(!CertificateStatus.certificateStatus()) {
-      // return an BirthErrorResponse as TLS certificate has expired
-      error(CLASS_NAME, "requestAuth", "TLS Certificate expired")
-      BirthErrorResponse(
-        Upstream5xxResponse(
-          s"[${super.getClass.getName}][InternalServerError][TLS Certificate expired]",
-          INTERNAL_SERVER_ERROR,
-          INTERNAL_SERVER_ERROR)
-      )
-    } else {
-      info(CLASS_NAME, "requestAuth", "checking access_token")
-      authRepository.token match {
-        case Success(token) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has not expired")
-          debug(CLASS_NAME, "requestAuth", s"cached access_token: $token")
-          BirthAccessTokenResponse(token)
-        case Failure(expired) =>
-          info(CLASS_NAME, "requestAuth", s"access_token has expired ${expired.getMessage}")
-          //get new auth token
+  private[BirthConnector] def getChildByReference(reference : String, token: AccessToken, attempts : Attempts) : (BirthResponse, Attempts) = {
+    val headers = GROHeaderCarrier(token)
+    metrics.requestCount("reference-match")
 
-          try {
-            val response = getAuthResponse
-            handleResponse(response, extractAccessToken, "requestAuth")
-          } catch {
+    debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
+    info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
+
+    val startTime = metrics.startTimer()
+    val response = http.get(s"$endpoint/$reference", Headers.apply(headers))
+    metrics.endTimer(startTime, "reference-match-timer")
+
+    ResponseHandler.handle(response, attempts)(extractJson, metrics)
+  }
+
+  private[BirthConnector] def getChildByDetails(details: Map[String, String], token : AccessToken, attempts: Attempts) : (BirthResponse, Attempts) = {
+    val headers = GROHeaderCarrier(token)
+    metrics.requestCount("details-match")
+
+    debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers")
+    info(CLASS_NAME, "getChildByDetails", s"requesting child's details $endpoint, attempt $attempts")
+
+    val startTime = metrics.startTimer()
+    val query = encoder.encode(details)
+    val url = s"$endpoint/?$query"
+
+    debug(CLASS_NAME, "getChildByDetails", s"query: $url")
+
+    val response = http.get(url, Headers.apply(headers))
+    metrics.endTimer(startTime, "details-match-timer")
+    ResponseHandler.handle(response, attempts)(extractJson, metrics)
+  }
+
+  private def request(reference: String, token: AccessToken) : BirthResponse = {
+    @tailrec
+    def referenceHelper(attempts: Attempts) : BirthResponse = {
+      Try(getChildByReference(reference, token, attempts)) match {
+        case Success((response, _)) => response
+        case Failure(exception) =>
+          exception match {
             case e : SocketTimeoutException =>
-              if (count < delayAttempts) {
-                val tick = System.currentTimeMillis() + delayTime
-
-                do {
-                  debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-                } while (System.currentTimeMillis() < tick)
-
-                info(CLASS_NAME, "requestAuth", s"SocketTimeoutException on attempt: $count, error: ${e.getMessage}")
-                requestAuth(count + 1)
-              } else {
-                warn(CLASS_NAME, "requestAuth", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-                BirthErrorResponse(e)
-              }
+              if (attempts < delayAttempts) {
+                ErrorHandler.wait(delayTime)
+                referenceHelper(attempts + 1)
+              } else { ErrorHandler.error(exception.getMessage) }
             case e : Exception =>
-              warn(CLASS_NAME, "requestAuth", s"Exception: ${e.getMessage}")
-              BirthErrorResponse(e)
+              ErrorHandler.error(exception.getMessage)
           }
       }
     }
+
+    referenceHelper(1)
   }
 
-
-  private def getAuthResponse : Response = {
-    val credentials: Map[String, String] = Map(
-      "username" -> GROConnectorConfiguration.username,
-      "password" -> GROConnectorConfiguration.password
-    )
-
-    debug(CLASS_NAME, "requestAuth", s"$authEndpoint credentials: $credentials")
-    info(CLASS_NAME, "requestAuth", s"requesting authentication token $authEndpoint")
-    metrics.requestCount("authentication")
-
-    val startTime = metrics.startTimer()
-    // request new access token
-    val response = httpClient.post(
-      url = authEndpoint,
-      body = Some(RequestBody.apply(credentials)),
-      requestHeaders = Headers.apply(
-        Map("Content-Type" -> "application/x-www-form-urlencoded")
-      )
-    )
-
-    metrics.endTimer(startTime, "authentication-timer")
-    response
-  }
-
-  @tailrec
-  private def requestReference(reference: String, count : Int = 1)(implicit hc: HeaderCarrier): BirthResponse = {
-    requestAuth() match {
-      case BirthAccessTokenResponse(token) =>
-        val startTime = metrics.startTimer()
-
-        val headerCarrier = GROEventHeaderCarrier(token)
-        metrics.requestCount("reference-match")
-
-        debug(CLASS_NAME, "requestReference", s"$eventEndpoint/$reference headers: $headerCarrier")
-        info(CLASS_NAME, "requestReference", s"requesting child's details $eventEndpoint")
-
-        try {
-          val response = httpClient.get(s"$eventEndpoint/$reference", Headers.apply(headerCarrier))
-
-          metrics.endTimer(startTime, "reference-match-timer")
-          handleResponse(response, extractJson, "requestReference")
-        } catch {
-          case e : SocketTimeoutException =>
-            if (count < delayAttempts) {
-              val tick = System.currentTimeMillis() + delayTime
-
-              do {
-                debug(CLASS_NAME, "requestReference", s"Waiting to execute the next request: ${System.currentTimeMillis()}")
-              } while (System.currentTimeMillis() < tick)
-
-              info(CLASS_NAME, "requestReference", s"SocketTimeoutException on attempt: $count error: ${e.getMessage}")
-              requestReference(reference, count + 1)
-            } else {
-              warn(CLASS_NAME, "requestReference", s"SocketTimeoutException on all attempts, error: ${e.getMessage}")
-              BirthErrorResponse(e)
-            }
-          case e : Exception =>
-            warn(CLASS_NAME, "requestReference", s"Exception: ${e.getMessage}")
-            BirthErrorResponse(e)
-        }
-      case birthError @ BirthErrorResponse(e) =>
-        warn(CLASS_NAME, "requestReference", "BirthErrorResponse returned from requestAuth()")
-        birthError
+  /**
+    * if the failure is caused due to a SocketTimeoutException then retry
+     */
+  private def request(details: Map[String, String], token: AccessToken) : BirthResponse = {
+    @tailrec
+    def detailsHelper(attempts: Attempts) : BirthResponse = {
+      Try(getChildByDetails(details, token, attempts)) match {
+        case Success((response, _)) => response
+        case Failure(exception) =>
+          exception match {
+            case e : SocketTimeoutException =>
+              if (attempts < delayAttempts) {
+                ErrorHandler.wait(delayTime)
+                detailsHelper(attempts + 1)
+              } else { ErrorHandler.error(exception.getMessage) }
+            case e : Exception =>
+              ErrorHandler.error(exception.getMessage)
+          }
+      }
     }
 
+    detailsHelper(1)
   }
 
-  def getReference(reference: String)(implicit hc: HeaderCarrier): Future[BirthResponse] = {
+  def get(reference: String)
+                  (implicit hc: HeaderCarrier): Future[BirthResponse] =
+  {
     metrics.requestCount()
-    val json = requestReference(reference)
+    val json = authenticator.token match {
+      case BirthAccessTokenResponse(token) =>
+        request(reference, token)
+      case error @BirthErrorResponse(e) =>
+        error
+    }
     Future.successful(json)
   }
 
-}
+  def get(forenames: String, lastname: String, dateofbirth: String)
+                (implicit hc: HeaderCarrier) : Future[BirthResponse] =
+  {
+    metrics.requestCount("details-request")
+    val json = authenticator.token match {
+      case BirthAccessTokenResponse(token) =>
+        val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
+        request(details, token)
+      case error @BirthErrorResponse(e) =>
+        error
+    }
+    Future.successful(json)
+  }
 
-object GROEnglandAndWalesConnector extends BirthConnector {
-  val config = TLSFactory.getConfig
-  override val httpClient = new HttpClient(config)
-  override val metrics = GroMetrics
-  override val authRepository = new AccessTokenRepository
-  override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
-  override val delayAttempts = GROConnectorConfiguration.delayAttempts
 }

@@ -16,15 +16,17 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.libs.json.JsArray
-import play.api.mvc.{Action, Result}
+import play.api.Logger
+import play.api.libs.json.{JsArray, JsObject}
+import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
-import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
+import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
+
 
 object MatchingController extends MatchingController {
   override val groConnector = GROEnglandAndWalesConnector
@@ -44,41 +46,82 @@ trait MatchingController extends BaseController {
     )
   }
 
-  def handleException(method: String, reference: String): PartialFunction[BirthResponse, Future[Result]] = {
+  def notFoundException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      info(CLASS_NAME, "handleException", s"NotFound: no record found")
-      respond(NotFound(s"$reference"))
+      info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found")
+      respond(NotFound(ErrorResponses.NOT_FOUND))
+  }
+
+  def badRequestException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
-      warn(CLASS_NAME, "handleException",s"[$method] BadRequest: $message")
-      respond(BadGateway("BadRequest returned from GRO"))
+      warn(CLASS_NAME, "handleException", s"[$method] BadRequest: $message")
+      respond(BadGateway(ErrorResponses.BAD_REQUEST))
+  }
+
+  def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
-      error(CLASS_NAME, "handleException",s"[$method] BadGateway: $message")
-      respond(BadGateway("BadGateway returned from GRO"))
+      error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
+      respond(BadGateway(ErrorResponses.BAD_REQUEST))
+  }
+
+  def gatewayTimeoutException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
-      error(CLASS_NAME, "handleException",s"[MatchingController][GROConnector][$method][Timeout] GatewayTimeout: $message")
-      respond(GatewayTimeout)
+      error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
+      respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
+  }
+
+  def connectionDown(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      error(CLASS_NAME, "handleException",s"InternalServerError: $message")
-      respond(InternalServerError("Connection to GRO is down"))
-    case BirthErrorResponse(_) =>
-      error(CLASS_NAME, "handleException",s"InternalServerError: Exception")
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
+      respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
+  }
+
+  def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(e) =>
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
       respond(InternalServerError)
+  }
+
+
+  def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthSuccessResponse(js) =>
+      val count = if(js.isInstanceOf[JsArray]) js.as[JsArray].value.length else 1
+      info(CLASS_NAME, s"$method", s"success: $count record(s) found")
+      respond(Ok(js))
+  }
+
+  def handle(method: String) = Seq(
+    notFoundException(method),
+    badRequestException(method),
+    badGatewayException(method),
+    gatewayTimeoutException(method),
+    connectionDown(method),
+    exception(method),
+    success(method)
+  ).reduce(_ orElse _)
+
+  private def setKey(request : Request[_]) = {
+    val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
+    KeyHolder.setKey(brmKey)
   }
 
   def reference(reference: String) = Action.async {
     implicit request =>
-      val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
-      KeyHolder.setKey(brmKey)
+      setKey(request)
+      Logger.debug(s"connector: ${groConnector.get(reference)}")
 
-      val success: PartialFunction[BirthResponse, Future[Result]] = {
-        case BirthSuccessResponse(js) =>
-
-          info(CLASS_NAME, "getReference", s"record(s) found")
-          debug(CLASS_NAME, "reference", s"success.")
-          respond(Ok(js))
-      }
-
-      groConnector.getReference(reference).flatMap[Result](handleException("getReference", reference) orElse success)
-
+      groConnector.get(reference).flatMap[Result](
+        handle("getReference").apply(_)
+      )
   }
+
+  def details(forenames: String, lastname: String, dateofbirth: String) = Action.async {
+    implicit request =>
+      setKey(request)
+      debug(CLASS_NAME, "details", s"firstName $forenames, lastName: $lastname, dateOfBirth: $dateofbirth")
+      groConnector.get(forenames, lastname, dateofbirth).flatMap[Result](
+        handle("getDetails").apply(_)
+      )
+  }
+
 }

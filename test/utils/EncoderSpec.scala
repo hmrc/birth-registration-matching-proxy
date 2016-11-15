@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package utils
 
-object KeyHolder {
+import uk.gov.hmrc.brm.connectors.Encoder
+import uk.gov.hmrc.play.test.UnitSpec
 
-  private var keyForRequest : String = null
+/**
+  * Created by adamconder on 14/11/2016.
+  */
+class EncoderSpec extends UnitSpec {
 
-   def geKey():String = {
-    keyForRequest
+  "Encoder" should {
+
+    "parse a Map[String, String] into a UTF-8 URI" in {
+      val details =  Map(
+        "forenames" -> "Adàm TËST",
+        "lastname" -> "SMÏTH",
+        "dateofbirth" -> "2006-11-12"
+      )
+      Encoder.encode(details) shouldBe "forenames=Ad%C3%A0m+T%C3%8BST&lastname=SM%C3%8FTH&dateofbirth=2006-11-12"
+    }
+
   }
-
-  def setKey(key: String ): Unit = {
-    keyForRequest = key
-  }
-
-
 
 }

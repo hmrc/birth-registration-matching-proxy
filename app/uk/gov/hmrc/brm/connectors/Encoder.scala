@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.connectors
 
-object KeyHolder {
+import java.net.URLEncoder
 
-  private var keyForRequest : String = null
+import uk.gov.hmrc.brm.utils.BrmLogger
 
-   def geKey():String = {
-    keyForRequest
+/**
+ * Created by adamconder on 14/11/2016.
+ */
+trait Encoder {
+
+  def encode(params: Map[String,String]) : String
+
+}
+
+object Encoder extends Encoder {
+
+  def encode(params : Map[String, String]) : String = {
+    val query = params.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
+    BrmLogger.debug(this.getClass.getCanonicalName, "encode", s"params: $query")
+    query
   }
-
-  def setKey(key: String ): Unit = {
-    keyForRequest = key
-  }
-
-
 
 }

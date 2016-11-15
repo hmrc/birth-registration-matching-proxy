@@ -1,18 +1,14 @@
-import _root_.scoverage.ScoverageSbtPlugin
-import _root_.scoverage.ScoverageSbtPlugin.ScoverageKeys
 import sbt.Keys._
-import sbt.Tests.{SubProcess, Group}
+import sbt.Tests.{Group, SubProcess}
 import sbt._
-import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import scoverage.ScoverageSbtPlugin
+import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 
 trait MicroService {
 
   import uk.gov.hmrc._
   import DefaultBuildSettings._
-  import uk.gov.hmrc.{SbtBuildInfo, ShellPrompt}
-
   import TestPhases._
 
   val appName: String
