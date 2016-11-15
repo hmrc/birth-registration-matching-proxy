@@ -37,6 +37,7 @@ import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
+import play.api.test.Helpers._
 
 import scala.util.{Failure, Success}
 
@@ -85,7 +86,7 @@ class BirthConnectorSpec extends UnitSpec with BRMFakeApplication with MockitoSu
     reset(mockHttpClient)
   )
 
-  "BirthConnector" when {
+  "BirthConnector" when running(fakeApplication) {
 
     "initialising" should {
 

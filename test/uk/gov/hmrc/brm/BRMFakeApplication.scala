@@ -23,7 +23,7 @@ import uk.gov.hmrc.play.test.WithFakeApplication
 trait BRMFakeApplication extends WithFakeApplication {
   this: Suite =>
 
-  var config: Map[String, _] = Map(
+  val config: Map[String, _] = Map(
     "Test.microservice.services.auth.host" -> "localhost",
     "Test.microservice.services.auth.port" -> "8500",
     "microservice.services.birth-registration-matching.delayAttemptInMilliseconds" -> 100,
