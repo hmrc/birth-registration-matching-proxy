@@ -103,7 +103,7 @@ trait BirthConnector extends ServicesConfig {
 
     val startTime = metrics.startTimer()
     val query = encoder.encode(details)
-    val url = s"$endpoint/?$query"
+    val url = s"$endpoint?$query"
 
     debug(CLASS_NAME, "getChildByDetails", s"query: $url")
 
