@@ -108,7 +108,7 @@ trait MatchingController extends BaseController {
   def reference(reference: String) = Action.async {
     implicit request =>
       setKey(request)
-      Logger.debug(s"connector: ${groConnector.get(reference)}")
+      debug(CLASS_NAME, "reference",s"connector: ${groConnector.get(reference)}")
 
       groConnector.get(reference).flatMap[Result](
         handle("getReference").apply(_)

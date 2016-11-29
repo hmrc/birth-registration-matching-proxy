@@ -26,7 +26,7 @@ class AccessTokenRepository {
 
   private var _token : Option[AccessToken] = None
   private var _expiry : Option[DateTime] = None
-
+  private var _expireSecondsDiff = 60  //1 min
   private val CLASS_NAME = this.getClass.getCanonicalName
 
   private val expiredTokenException  = new RuntimeException(s"access_token expired")
@@ -40,11 +40,12 @@ class AccessTokenRepository {
 
   def newExpiry(seconds : Int) = {
     info(CLASS_NAME, "newExpiry", s"access_token new expiry time in seconds: $seconds")
-    DateTime.now.plusSeconds(seconds)
+    //making expiry time less by one minute.
+    DateTime.now.plusSeconds(seconds).minusSeconds(_expireSecondsDiff)
   }
 
   def hasExpired : Boolean = {
-    def currentTime = DateTime.now().minusSeconds(30)
+    def currentTime = DateTime.now()
     val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
     info(CLASS_NAME, "access_token hasExpired", s"access_token has expired $expired")
     expired

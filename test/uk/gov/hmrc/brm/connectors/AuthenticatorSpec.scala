@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, Seconds}
 import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -51,7 +51,10 @@ class AuthenticatorSpec extends UnitSpec with BRMFakeApplication {
 
       "generate new expiry" in {
         val authenticator = Authenticator.apply()
-        authenticator.tokenCache.newExpiry(100) shouldBe DateTime.now.plusSeconds(100)
+
+        var expiryTime = authenticator.tokenCache.newExpiry(100)
+        //expiry time shd be less by 60 sec.
+        Seconds.secondsBetween(DateTime.now(), expiryTime).getSeconds shouldBe 40
       }
 
     }
