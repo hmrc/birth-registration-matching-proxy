@@ -36,15 +36,15 @@ object ResponseHandler {
     response.status match {
       case Status.S200_OK =>
         metrics.httpResponseCodeStatus(OK)
-        info(CLASS_NAME, "handleResponse", s"[authenticate][200] Success, attempt $attempts")
+        info(CLASS_NAME, "handleResponse", s"[200] Success, attempt $attempts")
         (f(response), attempts)
-      case e @ (Status.S400_BadRequest | Status.S404_NotFound) =>
+      case e @ x if x.isClientError =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        warn(CLASS_NAME, "handleResponse", s"[authenticate][${e.code}}}] ${e.category}: $response, attempt $attempts")
+        warn(CLASS_NAME, "handleResponse", s"[${e.code}}}] ${e.category}: $response, attempt $attempts")
         (ErrorHandler.error(response), attempts)
-      case e@_ =>
+      case e : Status =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
-        error(CLASS_NAME, "handleResponse", s"[authenticate][5xx] InternalServerError: $response, attempt $attempts")
+        error(CLASS_NAME, "handleResponse", s"[${e.category}}] InternalServerError: $response, attempt $attempts")
         (ErrorHandler.error(response), attempts)
     }
   }
