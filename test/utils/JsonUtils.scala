@@ -33,8 +33,6 @@ object JsonUtils {
       }
     }
 
-    Logger.debug(s"Loading JSON: $path")
-
     resourceAsString(path) match {
       case Some(x) =>
         val json : JsValue = Json.parse(x)
