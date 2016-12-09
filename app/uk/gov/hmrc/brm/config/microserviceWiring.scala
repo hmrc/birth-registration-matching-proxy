@@ -46,22 +46,22 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
     resultF
       .recoverWith {
         case t =>
-          println("body0......... " )
+
           var message = ""
           if (isContainBlockedWord(body)) {
-            message = makeFailureMessageWithoutBody(body)
+            message = makeFailureMessageWithoutBody()
 
           } else {
             message = makeFailureMessage(body)
           }
-          println("body01......... " + message)
+
         logError(message, t)
         Future.failed(AuditResult.Failure(message, Some(t)))
       }
       .map { response =>
         checkResponse(body, response) match {
           case Some(error) =>
-            println("body1......... " + error)
+
             logError(error)
             throw AuditResult.Failure(error)
           case None => response
@@ -71,12 +71,13 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
 
   private def isContainBlockedWord(body: JsValue) : Boolean = {
     var  returnValue: Boolean = false
-    var stringValue = body.toString()
-   // val noAuditWordList = Seq("child", "subjects", "givenname")
-    val noAuditWordList =  GROConnectorConfiguration.blockedBodyWords.get
+    var responseJsonBody = body.toString()
+
+    val noAuditWordList =  GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq(""))
+
     breakable {
-      for (notAllowedworld <- noAuditWordList) {
-        var isContains = stringValue.toLowerCase.contains(notAllowedworld.toLowerCase())
+      for (notAllowedword <- noAuditWordList) {
+        var isContains = responseJsonBody.toLowerCase.contains(notAllowedword.toLowerCase)
         if (isContains) {
           returnValue = true
           scala.util.control.Breaks.break();
@@ -87,5 +88,5 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
     returnValue
   }
 
- protected def makeFailureMessageWithoutBody(body: JsValue): String = s"$LoggingAuditRequestFailureKey :"
+ protected def makeFailureMessageWithoutBody(): String = s"$LoggingAuditRequestFailureKey :"
 }
