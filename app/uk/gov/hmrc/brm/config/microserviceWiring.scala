@@ -74,7 +74,7 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
     var responseJsonBody = body.toString()
 
     val noAuditWordList =  GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq(""))
-
+    info("BRMResultHandler", "isContainBlockedWord",s" noAuditWordList  ${noAuditWordList}")
     breakable {
       for (notAllowedword <- noAuditWordList) {
         var isContains = responseJsonBody.toLowerCase.contains(notAllowedword.toLowerCase)
