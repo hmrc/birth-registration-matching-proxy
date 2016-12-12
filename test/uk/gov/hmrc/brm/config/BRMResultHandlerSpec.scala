@@ -37,7 +37,7 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
 
   override val logger = mock[LoggerLike]
   implicit val hc = HeaderCarrier()
-  private  val reference = "500035710"
+  private val reference = "500035710"
   private val jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
 
   val withBlockedValues: Map[String, _] = Map(
@@ -51,10 +51,8 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
   "BRMResultHandler" should {
     import scala.concurrent.ExecutionContext.Implicits.global
     "not log body if body contains blocked words " in {
-
-      var blockedWords = Seq("subjects", "givenname")
       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
-
+        var blockedWords = Seq("subjects", "givenname")
         try {
           await(handleResult(Future.failed(new Exception), jsonBody))
 
@@ -66,7 +64,6 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
             }
         }
       }
-
     }
     "log the body if body does not contain blocked words " in {
 
@@ -81,12 +78,6 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
 
         }
       }
-
     }
   }
-
-
-
-
-
 }
