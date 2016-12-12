@@ -38,24 +38,19 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
   override val logger = mock[LoggerLike]
   implicit val hc = HeaderCarrier()
   private  val reference = "500035710"
-  private var jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
-
+  private val jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
 
   val withBlockedValues: Map[String, _] = Map(
-
     "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("subjects", "name")
   )
 
   val noBlockedWord: Map[String, _] = Map(
-
-    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("")
+    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq()
   )
 
-
-
-  "BRMResultHandler" when {
+  "BRMResultHandler" should {
     import scala.concurrent.ExecutionContext.Implicits.global
-    "should not log blocked words " in {
+    "not log body if body contains blocked words " in {
 
       var blockedWords = Seq("subjects", "givenname")
       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
@@ -73,7 +68,7 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
       }
 
     }
-    "should log the body if not contains blocked words " in {
+    "log the body if body does not contain blocked words " in {
 
       running(FakeApplication(additionalConfiguration = noBlockedWord)) {
         try {
@@ -81,7 +76,7 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
           await(handleResult(Future.failed(new Exception), jsonBody))
         } catch {
           case e: Exception => {
-            e.getMessage.contains(jsonBody) shouldBe true
+            e.getMessage.contains(jsonBody.toString) shouldBe true
           }
 
         }

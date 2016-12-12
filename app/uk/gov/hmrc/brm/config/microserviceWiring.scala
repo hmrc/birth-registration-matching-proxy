@@ -47,12 +47,10 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
       .recoverWith {
         case t =>
 
-          var message = ""
-          if (isContainBlockedWord(body)) {
-            message = makeFailureMessageWithoutBody()
-
+          def message : String = if(isContainBlockedWord(body)) {
+            makeFailureMessageWithoutBody()
           } else {
-            message = makeFailureMessage(body)
+            makeFailureMessage(body)
           }
 
         logError(message, t)
@@ -70,23 +68,17 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
   }
 
   private def isContainBlockedWord(body: JsValue) : Boolean = {
-    var  returnValue: Boolean = false
-    var responseJsonBody = body.toString()
+    val containsWord : Boolean = {
+      val bodyString = body.toString
+      val blackList = GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq[String]())
+      debug("BRMResultHandler", "blackList", s"$blackList")
+      val excludedWords = blackList.filter(excluded => bodyString.toLowerCase.contains(excluded.toLowerCase))
 
-    val noAuditWordList =  GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq(""))
-    info("BRMResultHandler", "isContainBlockedWord",s" noAuditWordList  ${noAuditWordList}")
-    breakable {
-      for (notAllowedword <- noAuditWordList) {
-        var isContains = responseJsonBody.toLowerCase.contains(notAllowedword.toLowerCase)
-        if (isContains) {
-          returnValue = true
-          scala.util.control.Breaks.break();
-        }
-      }
+      excludedWords.nonEmpty
     }
-    info("BRMResultHandler", "isContainBlockedWord",s" isContainBlockedWord  ${returnValue}")
-    returnValue
+    info("BRMResultHandler", "isContainBlockedWord",s" isContainBlockedWord  $containsWord")
+    containsWord
   }
 
- protected def makeFailureMessageWithoutBody(): String = s"$LoggingAuditRequestFailureKey :"
+  protected def makeFailureMessageWithoutBody(): String = s"$LoggingAuditRequestFailureKey : audit item : body removed, contains sensitive data."
 }
