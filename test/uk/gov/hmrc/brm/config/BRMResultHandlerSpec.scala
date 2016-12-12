@@ -33,7 +33,7 @@ import scala.concurrent.Future
 /**
   * Created by user on 09/12/16.
   */
-class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with MockitoSugar with BRMResultHandler with LoggerProvider {
+class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHandler with LoggerProvider {
 
   override val logger = mock[LoggerLike]
   implicit val hc = HeaderCarrier()
