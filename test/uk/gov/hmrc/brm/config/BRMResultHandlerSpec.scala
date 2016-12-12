@@ -25,6 +25,8 @@ import uk.gov.hmrc.play.audit.http.connector.LoggerProvider
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
+import org.mockito.Mockito._
+import org.specs2.mock.mockito.ArgumentCapture
 
 import scala.concurrent.Future
 
@@ -55,13 +57,14 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
 
       var blockedWords = Seq("subjects", "givenname")
       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
-
+ 
         try {
 
           val reference = "500035710"
           var jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
 
           await(handleResult(Future.failed(new Exception), jsonBody))
+
         } catch {
           case e: Exception =>
 
