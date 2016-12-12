@@ -21,7 +21,7 @@ package uk.gov.hmrc.brm.controllers
  */
 object ErrorResponses {
 
-  val CONNECTION_DOWN = "CONNECTION_DOWN"
+  val CONNECTION_DOWN = "GRO_CONNECTION_DOWN"
   val BAD_REQUEST = "BAD_REQUEST"
   val NOT_FOUND = s"NOT_FOUND"
   val GATEWAY_TIMEOUT = s"GATEWAY_TIMEOUT"
