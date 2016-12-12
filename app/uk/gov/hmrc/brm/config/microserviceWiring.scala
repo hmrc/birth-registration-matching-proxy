@@ -47,7 +47,7 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
       .recoverWith {
         case t =>
 
-          def message : String = if(isContainBlockedWord(body)) {
+          def message : String = if(isContainBlockedWord(body.toString())) {
             makeFailureMessageWithoutBody()
           } else {
             makeFailureMessage(body)
@@ -60,19 +60,27 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
         checkResponse(body, response) match {
           case Some(error) =>
 
-            logError(error)
-            throw AuditResult.Failure(error)
+            def message : String = if(isContainBlockedWord(error)) {
+              makeFailureMessageWithoutBody()
+            } else{
+              error
+            }
+            logError(message)
+            throw AuditResult.Failure(message)
           case None => response
         }
       }
   }
 
-  private def isContainBlockedWord(body: JsValue) : Boolean = {
+  private def isContainBlockedWord(body: String) : Boolean = {
     val containsWord : Boolean = {
-      val bodyString = body.toString
+      val bodyString = body.toLowerCase
       val blackList = GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq[String]())
       debug("BRMResultHandler", "blackList", s"$blackList")
-      val excludedWords = blackList.filter(excluded => bodyString.toLowerCase.contains(excluded.toLowerCase))
+      val excludedWords = blackList.filter(excluded => {
+        val trimmedExcluded = excluded.trim.toLowerCase
+        trimmedExcluded.nonEmpty && bodyString.contains(trimmedExcluded)
+      })
 
       excludedWords.nonEmpty
     }

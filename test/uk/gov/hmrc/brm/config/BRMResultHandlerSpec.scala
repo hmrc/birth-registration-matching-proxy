@@ -22,7 +22,7 @@ import play.api.test.FakeApplication
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.play.audit.http.connector.LoggerProvider
-import uk.gov.hmrc.play.http.HeaderCarrier
+import uk.gov.hmrc.play.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import utils.JsonUtils
 import org.mockito.Mockito._
@@ -40,44 +40,81 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
   private val reference = "500035710"
   private val jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
 
+  var mock400HttpResponse = HttpResponse.apply(400, Some(jsonBody))
+
+
   val withBlockedValues: Map[String, _] = Map(
     "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("subjects", "name")
   )
 
   val noBlockedWord: Map[String, _] = Map(
-    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq()
+    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("")
   )
 
   "BRMResultHandler" should {
     import scala.concurrent.ExecutionContext.Implicits.global
-    "not log body if body contains blocked words " in {
+     "not log body if body contains blocked words when audit response throws exception " in {
+       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
+         var blockedWords = Seq("subjects", "givenname")
+         try {
+           await(handleResult(Future.failed(new Exception), jsonBody))
+
+         } catch {
+           case e: Exception =>
+
+             for (blockedWord <- blockedWords) {
+               e.getMessage should not contain blockedWord
+             }
+         }
+       }
+     }
+     "log the body if body does not contain blocked words " in {
+
+       running(FakeApplication(additionalConfiguration = noBlockedWord)) {
+         try {
+
+           await(handleResult(Future.failed(new Exception), jsonBody))
+         } catch {
+           case e: Exception => {
+             e.getMessage.contains(jsonBody.toString) shouldBe true
+           }
+
+         }
+       }
+     }
+
+    "not log body if body contains blocked words when audit reponse has status code more than 300" in {
       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
         var blockedWords = Seq("subjects", "givenname")
         try {
-          await(handleResult(Future.failed(new Exception), jsonBody))
+          var httpResponse = await(handleResult(Future.successful(mock400HttpResponse), jsonBody))
 
         } catch {
           case e: Exception =>
 
             for (blockedWord <- blockedWords) {
               e.getMessage should not contain blockedWord
+              e.getMessage.contains("body removed, contains sensitive data") shouldBe true
             }
         }
       }
     }
-    "log the body if body does not contain blocked words " in {
 
+    "log body if body does not contain blocked words when audit reponse has status code more than 300" in {
       running(FakeApplication(additionalConfiguration = noBlockedWord)) {
+
         try {
 
-          await(handleResult(Future.failed(new Exception), jsonBody))
+          var httpResponse = await(handleResult(Future.successful(mock400HttpResponse), jsonBody))
+
         } catch {
           case e: Exception => {
             e.getMessage.contains(jsonBody.toString) shouldBe true
+            e.getMessage.contains("body removed, contains sensitive data") shouldBe false
           }
-
         }
       }
     }
+
   }
 }
