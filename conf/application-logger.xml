@@ -56,7 +56,5 @@
     <root level="DEBUG">
         <appender-ref ref="FILE"/>
         <appender-ref ref="STDOUT"/>
-        <appender-ref ref="CONNECTOR_LOG_FILE"/>
-        <appender-ref ref="ACCESS_LOG_FILE"/>
     </root>
 </configuration>

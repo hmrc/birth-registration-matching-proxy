@@ -37,6 +37,8 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
 
   override val logger = mock[LoggerLike]
   implicit val hc = HeaderCarrier()
+  private  val reference = "500035710"
+  private var jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
 
 
   val withBlockedValues: Map[String, _] = Map(
@@ -57,12 +59,8 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
 
       var blockedWords = Seq("subjects", "givenname")
       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
- 
+
         try {
-
-          val reference = "500035710"
-          var jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
-
           await(handleResult(Future.failed(new Exception), jsonBody))
 
         } catch {
@@ -75,18 +73,11 @@ class BRMResultHandlerSpec extends UnitSpec with BRMFakeApplication with Mockito
       }
 
     }
-
-
     "should log the body if not contains blocked words " in {
 
-
-
       running(FakeApplication(additionalConfiguration = noBlockedWord)) {
-
-        var jsonBody = ""
         try {
-          val reference = "500035710"
-          var jsonBody = JsonUtils.getJsonFromFile(s"gro/$reference")
+
           await(handleResult(Future.failed(new Exception), jsonBody))
         } catch {
           case e: Exception => {
