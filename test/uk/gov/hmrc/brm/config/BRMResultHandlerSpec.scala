@@ -44,11 +44,11 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
 
 
   val withBlockedValues: Map[String, _] = Map(
-    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("subjects", "name")
+    "microservice.services.birth-registration-matching.noAuditWordList" -> Seq("subjects", "name")
   )
 
   val noBlockedWord: Map[String, _] = Map(
-    "microservice.services.birth-registration-matching.no-audit-word-list" -> Seq("")
+    "microservice.services.birth-registration-matching.noAuditWordList" -> Seq("")
   )
 
   "BRMResultHandler" should {
