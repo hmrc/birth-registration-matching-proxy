@@ -53,16 +53,15 @@ class MatchingControllerSpec extends UnitSpec
                     |}
                     """.stripMargin))
 
-//  def detailsRequest(forenames : String, lastname : String, dateofbirth : String) = {
-//    val params = Map(
-//      "forenames" -> forenames,
-//      "lastname" -> lastname,
-//      "dateofbirth" -> dateofbirth
-//    )
-//    val query = params.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
-//    Logger.debug(s"query: /birth-registration-matching-proxy/match?$query")
-//    FakeRequest("GET", s"/birth-registration-matching-proxy/match?$query")
-//  }
+  def badReferenceRequest(ref : String) : FakeRequest[JsValue] =
+    FakeRequest("POST", s"/birth-registration-matching-proxy/match/reference")
+      .withHeaders(("Content-type", "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"ref": "$ref"
+                      |}
+                    """.stripMargin))
 
   def detailsRequest(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
     FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
@@ -70,6 +69,19 @@ class MatchingControllerSpec extends UnitSpec
         Json.parse(s"""
          |{
          |"forenames": "$forenames",
+         |"lastname": "$lastname",
+         |"dateofbirth": "$dateofbirth"
+         |}
+       """.stripMargin)
+    )
+  }
+
+  def badDetailsRequest(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+         |{
+         |"firstname": "$forenames",
          |"lastname": "$lastname",
          |"dateofbirth": "$dateofbirth"
          |}
@@ -99,20 +111,6 @@ class MatchingControllerSpec extends UnitSpec
     reset(mockBirthConnector)
   }
 
-  /**
-   * MatchingController when:
-   *
-   *  initialising should wire up dependencies correctly
-   *  GET should return 200 OK for a reference than exists in GRO
-   *  GET should return 404 NOT_FOUND for a reference that does not exist in GRO
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse InternalServerError
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse BadGateway
-   *  GET should return BAD_GATEWAY when invalid reference number is provided
-   *  GET should return INTERNAL_SERVER_ERROR when invalid json is returned
-   *  GET should return INTERNAL_SERVER_ERROR when GRO times out
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Forbidden
-   */
-
   "MatchingController" when {
 
       "initialising" should {
@@ -138,6 +136,12 @@ class MatchingControllerSpec extends UnitSpec
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result).as[JsObject] shouldBe json.as[JsObject]
+        }
+
+        "return 400 for when reference is not passed" in {
+          val request = badReferenceRequest(reference)
+          val result = await(MockController.reference.apply(request))
+          status(result) shouldBe BAD_REQUEST
         }
 
         "return 404 for a reference that does not exist in GRO" in {
@@ -210,8 +214,7 @@ class MatchingControllerSpec extends UnitSpec
 
       }
 
-
-      "GET /birth-registration-matching-proxy/match" should {
+      "POST /birth-registration-matching-proxy/match/details" should {
 
         "return 200 with records for details that match" in {
           val forenames = "adam"
@@ -258,6 +261,15 @@ class MatchingControllerSpec extends UnitSpec
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result) shouldBe groResponse("NoMatch")
+        }
+
+        "return 400 for when firstname key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {

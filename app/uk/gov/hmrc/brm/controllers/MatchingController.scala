@@ -108,24 +108,36 @@ trait MatchingController extends BaseController {
     implicit request =>
 
       setKey(request)
-      val reference = request.body.\("reference").as[String]
-      debug(CLASS_NAME, "reference",s"connector: ${groConnector.get(reference)}")
+      val reference = request.body.\("reference").asOpt[String]
+      debug(CLASS_NAME, "reference",s"connector")
 
-      groConnector.get(reference).flatMap[Result](
-        handle("getReference").apply(_)
-      )
+      reference match {
+        case Some(r) =>
+          groConnector.get(r).flatMap[Result](
+            handle("getReference").apply(_)
+          )
+        case _ =>
+          respond(BadRequest)
+      }
+
   }
 
   def details() = Action.async(parse.json) {
     implicit request =>
       setKey(request)
-      val firstname = request.body.\("forenames").as[String]
-      val lastname = request.body.\("lastname").as[String]
-      val dateofbirth = request.body.\("dateofbirth").as[String]
+      val firstname = request.body.\("forenames").asOpt[String]
+      val lastname = request.body.\("lastname").asOpt[String]
+      val dateofbirth = request.body.\("dateofbirth").asOpt[String]
       debug(CLASS_NAME, "details", s"firstName $firstname, lastName: $lastname, dateOfBirth: $dateofbirth")
-      groConnector.get(firstname, lastname, dateofbirth).flatMap[Result](
-        handle("getDetails").apply(_)
-      )
+
+      (firstname, lastname, dateofbirth) match {
+        case (Some(f), Some(l), Some(d)) =>
+          groConnector.get(f, l, d).flatMap[Result](
+            handle("getDetails").apply(_)
+          )
+        case _ =>
+          respond(BadRequest)
+      }
   }
 
 }
