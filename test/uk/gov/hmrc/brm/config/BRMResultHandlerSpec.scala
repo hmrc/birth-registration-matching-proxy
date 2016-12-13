@@ -24,7 +24,7 @@ import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.play.audit.http.connector.LoggerProvider
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
-import utils.JsonUtils
+import uk.gov.hmrc.brm.utils.JsonUtils
 import org.mockito.Mockito._
 import org.specs2.mock.mockito.ArgumentCapture
 

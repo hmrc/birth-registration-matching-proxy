@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.{BirthErrorResponse, BirthResponse}

@@ -27,8 +27,8 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{HeaderCarrier, JsValidationException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
-import utils.JsonUtils
-import utils.ResponseHelper._
+import uk.gov.hmrc.brm.utils.JsonUtils
+import uk.gov.hmrc.brm.utils.ResponseHelper._
 
 import scala.concurrent.Future
 
@@ -87,6 +87,32 @@ class MatchingControllerSpec extends UnitSpec
          |}
        """.stripMargin)
     )
+  }
+
+  def badDetailsRequestForLastName(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"forenames": "$forenames",
+                      |"surname": "$lastname",
+                      |"dateofbirth": "$dateofbirth"
+                      |}
+       """.stripMargin)
+      )
+  }
+
+  def badDetailsRequestForDateOfBirth(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"forenames": "$forenames",
+                      |"lastname": "$lastname",
+                      |"dob": "$dateofbirth"
+                      |}
+       """.stripMargin)
+      )
   }
 
   val validDetailsRequest = detailsRequest("Adam", "Wilson", "2010-08-27")
@@ -263,11 +289,30 @@ class MatchingControllerSpec extends UnitSpec
           jsonBodyOf(result) shouldBe groResponse("NoMatch")
         }
 
-        "return 400 for when firstname key is invalid" in {
+        "return 400 BadRequest when firstname key is invalid" in {
           val forenames = "adam"
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
           val request = badDetailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
+        }
+
+        "return 400 BadRequest when lastname key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequestForLastName(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
+        }
+
+
+        "return 400 BadRequest when dateofbirth key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequestForDateOfBirth(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_REQUEST
         }
