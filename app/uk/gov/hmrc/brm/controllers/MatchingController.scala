@@ -16,8 +16,7 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.Logger
-import play.api.libs.json.{JsArray, JsObject}
+import play.api.libs.json.JsArray
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -105,9 +104,11 @@ trait MatchingController extends BaseController {
     KeyHolder.setKey(brmKey)
   }
 
-  def reference(reference: String) = Action.async {
+  def reference = Action.async(parse.json) {
     implicit request =>
+
       setKey(request)
+      val reference = request.body.\("reference").as[String]
       debug(CLASS_NAME, "reference",s"connector: ${groConnector.get(reference)}")
 
       groConnector.get(reference).flatMap[Result](
@@ -115,11 +116,14 @@ trait MatchingController extends BaseController {
       )
   }
 
-  def details(forenames: String, lastname: String, dateofbirth: String) = Action.async {
+  def details() = Action.async(parse.json) {
     implicit request =>
       setKey(request)
-      debug(CLASS_NAME, "details", s"firstName $forenames, lastName: $lastname, dateOfBirth: $dateofbirth")
-      groConnector.get(forenames, lastname, dateofbirth).flatMap[Result](
+      val firstname = request.body.\("forenames").as[String]
+      val lastname = request.body.\("lastname").as[String]
+      val dateofbirth = request.body.\("dateofbirth").as[String]
+      debug(CLASS_NAME, "details", s"firstName $firstname, lastName: $lastname, dateOfBirth: $dateofbirth")
+      groConnector.get(firstname, lastname, dateofbirth).flatMap[Result](
         handle("getDetails").apply(_)
       )
   }
