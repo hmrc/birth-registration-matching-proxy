@@ -26,7 +26,8 @@ import uk.gov.hmrc.play.http.HttpResponse
 import uk.gov.hmrc.play.http.hooks.HttpHook
 import uk.gov.hmrc.play.http.logging.LoggingDetails
 import uk.gov.hmrc.play.http.ws._
-import scala.util.control.Breaks._
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration._
+
 
 import scala.concurrent.Future
 
@@ -43,11 +44,12 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
   this: LoggerProvider =>
   import scala.concurrent.ExecutionContext.Implicits.global
   override protected def handleResult(resultF: Future[HttpResponse], body: JsValue)(implicit ld: LoggingDetails): Future[HttpResponse] = {
+
     resultF
       .recoverWith {
         case t =>
 
-          def message : String = if(isContainBlockedWord(body.toString())) {
+          def message : String = if(isContainBlockedWord(body.toString()) && disableAuditingLogging) {
             makeFailureMessageWithoutBody()
           } else {
             makeFailureMessage(body)
@@ -60,7 +62,7 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
         checkResponse(body, response) match {
           case Some(error) =>
 
-            def message : String = if(isContainBlockedWord(error)) {
+            def message : String = if(isContainBlockedWord(error) && disableAuditingLogging) {
               makeFailureMessageWithoutBody()
             } else{
               error
@@ -75,7 +77,7 @@ trait BRMResultHandler extends uk.gov.hmrc.play.audit.http.connector.ResultHandl
   private def isContainBlockedWord(body: String) : Boolean = {
     val containsWord : Boolean = {
       val bodyString = body.toLowerCase
-      val blackList = GROConnectorConfiguration.blockedBodyWords.getOrElse(Seq[String]())
+      val blackList = blockedBodyWords.getOrElse(Seq[String]())
       debug("BRMResultHandler", "blackList", s"$blackList")
       val excludedWords = blackList.filter(excluded => {
         val trimmedExcluded = excluded.trim.toLowerCase
