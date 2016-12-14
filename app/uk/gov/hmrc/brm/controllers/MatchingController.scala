@@ -106,11 +106,8 @@ trait MatchingController extends BaseController {
 
   def reference = Action.async(parse.json) {
     implicit request =>
-
       setKey(request)
       val reference = request.body.\("reference").asOpt[String]
-      debug(CLASS_NAME, "reference",s"connector")
-
       reference match {
         case Some(r) =>
           groConnector.get(r).flatMap[Result](
@@ -119,7 +116,6 @@ trait MatchingController extends BaseController {
         case _ =>
           respond(BadRequest)
       }
-
   }
 
   def details() = Action.async(parse.json) {
