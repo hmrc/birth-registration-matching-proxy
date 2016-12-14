@@ -20,13 +20,10 @@ import org.scalatest.mock.MockitoSugar
 import play.api.LoggerLike
 import play.api.test.FakeApplication
 import play.api.test.Helpers._
-import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.play.audit.http.connector.LoggerProvider
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.brm.utils.JsonUtils
-import org.mockito.Mockito._
-import org.specs2.mock.mockito.ArgumentCapture
 
 import scala.concurrent.Future
 
@@ -43,8 +40,16 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
   var mock400HttpResponse = HttpResponse.apply(400, Some(jsonBody))
 
 
-  val withBlockedValues: Map[String, _] = Map(
-    "microservice.services.birth-registration-matching.noAuditWordList" -> Seq("subjects", "name")
+  val withBlockedValuesAndSwitchOn: Map[String, _] = Map(
+    "microservice.services.birth-registration-matching.noAuditWordList" -> Seq("subjects", "name"),
+    "microservice.services.birth-registration-matching.features.disableAuditingLogging" -> true
+
+  )
+
+  val withBlockedValuesAndSwitchOff: Map[String, _] = Map(
+    "microservice.services.birth-registration-matching.noAuditWordList" -> Seq("subjects", "name"),
+    "microservice.services.birth-registration-matching.features.disableAuditingLogging" -> false
+
   )
 
   val noBlockedWord: Map[String, _] = Map(
@@ -52,9 +57,8 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
   )
 
   "BRMResultHandler" should {
-    import scala.concurrent.ExecutionContext.Implicits.global
-     "not log body if body contains blocked words when audit response throws exception " in {
-       running(FakeApplication(additionalConfiguration = withBlockedValues)) {
+     "not log body if body contains blocked words, audit logging is disabled and audit response throws exception " in {
+       running(FakeApplication(additionalConfiguration = withBlockedValuesAndSwitchOn)) {
          var blockedWords = Seq("subjects", "givenname")
          try {
            await(handleResult(Future.failed(new Exception), jsonBody))
@@ -68,6 +72,19 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
          }
        }
      }
+
+    "log body if audit logging is enabled and audit response throws exception " in {
+      running(FakeApplication(additionalConfiguration = withBlockedValuesAndSwitchOff)) {
+        try {
+          await(handleResult(Future.failed(new Exception), jsonBody))
+        } catch {
+          case e: Exception =>
+
+            e.getMessage.contains(jsonBody.toString) shouldBe true
+        }
+      }
+    }
+
      "log the body if body does not contain blocked words " in {
 
        running(FakeApplication(additionalConfiguration = noBlockedWord)) {
@@ -84,7 +101,7 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
      }
 
     "not log body if body contains blocked words when audit reponse has status code more than 300" in {
-      running(FakeApplication(additionalConfiguration = withBlockedValues)) {
+      running(FakeApplication(additionalConfiguration = withBlockedValuesAndSwitchOn)) {
         var blockedWords = Seq("subjects", "givenname")
         try {
           var httpResponse = await(handleResult(Future.successful(mock400HttpResponse), jsonBody))
@@ -96,6 +113,22 @@ class BRMResultHandlerSpec extends UnitSpec with MockitoSugar with BRMResultHand
               e.getMessage should not contain blockedWord
               e.getMessage.contains("body removed, contains sensitive data") shouldBe true
             }
+        }
+      }
+    }
+
+    "log body if audit logging is enabled and audit reponse has status code more than 300" in {
+      running(FakeApplication(additionalConfiguration = withBlockedValuesAndSwitchOff)) {
+
+        try {
+
+          var httpResponse = await(handleResult(Future.successful(mock400HttpResponse), jsonBody))
+
+        } catch {
+          case e: Exception => {
+            e.getMessage.contains(jsonBody.toString) shouldBe true
+            e.getMessage.contains("body removed, contains sensitive data") shouldBe false
+          }
         }
       }
     }

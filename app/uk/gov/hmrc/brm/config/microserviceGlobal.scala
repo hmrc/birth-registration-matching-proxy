@@ -47,6 +47,7 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val delayAttemptInMilliseconds : DelayTime = getConfInt("birth-registration-matching.delayAttemptInMilliseconds", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttemptInMilliseconds"))
   lazy val delayAttempts : DelayAttempts = getConfInt("birth-registration-matching.delayAttempts", throw new RuntimeException("[Configuration][NotFound] birth-registration-matching.delayAttempts"))
    def  blockedBodyWords =   Play.current.configuration.getStringSeq(s"$rootServices.birth-registration-matching.noAuditWordList")
+   def disableAuditingLogging = getConfBool("birth-registration-matching.features.disableAuditingLogging", true)
 
 }
 
