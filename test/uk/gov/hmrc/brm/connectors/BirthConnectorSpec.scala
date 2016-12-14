@@ -36,7 +36,7 @@ import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
-import utils.JsonUtils
+import uk.gov.hmrc.brm.utils.JsonUtils
 
 import scala.util.{Failure, Success}
 

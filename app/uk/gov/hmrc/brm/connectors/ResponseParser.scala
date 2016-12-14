@@ -29,8 +29,6 @@ object ResponseParser {
 
   def parse(response: Response) : BirthResponse = {
     info(CLASS_NAME, "parse", "parsing json")
-    debug(CLASS_NAME, "parse", s"${response.body.asString}")
-
     try {
       val bodyText = response.body.asString
       val json = Json.parse(bodyText)

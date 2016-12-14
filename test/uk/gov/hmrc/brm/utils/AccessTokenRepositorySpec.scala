@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
 import org.scalatest.BeforeAndAfter

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import uk.gov.hmrc.brm.connectors.Encoder
 import uk.gov.hmrc.play.test.UnitSpec

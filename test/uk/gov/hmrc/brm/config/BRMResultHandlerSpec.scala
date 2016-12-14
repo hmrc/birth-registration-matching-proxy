@@ -23,7 +23,7 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.play.audit.http.connector.LoggerProvider
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
-import utils.JsonUtils
+import uk.gov.hmrc.brm.utils.JsonUtils
 
 import scala.concurrent.Future
 

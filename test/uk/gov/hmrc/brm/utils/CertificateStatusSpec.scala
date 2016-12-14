@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import org.joda.time.LocalDate
 import uk.gov.hmrc.brm.utils.CertificateStatus

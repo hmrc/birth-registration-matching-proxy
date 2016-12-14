@@ -16,22 +16,19 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import java.net.URLEncoder
-
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
-import org.scalatest.{BeforeAndAfter, OneInstancePerTest}
-import play.api.Logger
 import play.api.libs.json._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.play.http.{HeaderCarrier, JsValidationException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
-import utils.JsonUtils
-import utils.ResponseHelper._
+import uk.gov.hmrc.brm.utils.JsonUtils
+import uk.gov.hmrc.brm.utils.ResponseHelper._
 
 import scala.concurrent.Future
 
@@ -46,18 +43,76 @@ class MatchingControllerSpec extends UnitSpec
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
   val groJsonNoRecord = JsonUtils.getJsonFromFile("gro/NoMatch")
 
-  def referenceRequest(ref : String) = FakeRequest("GET", s"/birth-registration-matching-proxy/match/$ref")
-    .withHeaders(("Content-type", "application/json"))
+  def referenceRequest(ref : String) : FakeRequest[JsValue] =
+    FakeRequest("POST", s"/birth-registration-matching-proxy/match/reference")
+      .withHeaders(("Content-type", "application/json"))
+      .withBody(
+        Json.parse(s"""
+                    |{
+                    |"reference": "$ref"
+                    |}
+                    """.stripMargin))
 
-  def detailsRequest(forenames : String, lastname : String, dateofbirth : String) = {
-    val params = Map(
-      "forenames" -> forenames,
-      "lastname" -> lastname,
-      "dateofbirth" -> dateofbirth
+  def badReferenceRequest(ref : String) : FakeRequest[JsValue] =
+    FakeRequest("POST", s"/birth-registration-matching-proxy/match/reference")
+      .withHeaders(("Content-type", "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"ref": "$ref"
+                      |}
+                    """.stripMargin))
+
+  def detailsRequest(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+         |{
+         |"forenames": "$forenames",
+         |"lastname": "$lastname",
+         |"dateofbirth": "$dateofbirth"
+         |}
+       """.stripMargin)
     )
-    val query = params.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
-    Logger.debug(s"query: /birth-registration-matching-proxy/match?$query")
-    FakeRequest("GET", s"/birth-registration-matching-proxy/match?$query")
+  }
+
+  def badDetailsRequest(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+         |{
+         |"firstname": "$forenames",
+         |"lastname": "$lastname",
+         |"dateofbirth": "$dateofbirth"
+         |}
+       """.stripMargin)
+    )
+  }
+
+  def badDetailsRequestForLastName(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"forenames": "$forenames",
+                      |"surname": "$lastname",
+                      |"dateofbirth": "$dateofbirth"
+                      |}
+       """.stripMargin)
+      )
+  }
+
+  def badDetailsRequestForDateOfBirth(forenames : String, lastname : String, dateofbirth : String): FakeRequest[JsValue] = {
+    FakeRequest("POST", "/birth-registration-matching/match/details").withHeaders((ACCEPT, "application/json"))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"forenames": "$forenames",
+                      |"lastname": "$lastname",
+                      |"dob": "$dateofbirth"
+                      |}
+       """.stripMargin)
+      )
   }
 
   val validDetailsRequest = detailsRequest("Adam", "Wilson", "2010-08-27")
@@ -82,20 +137,6 @@ class MatchingControllerSpec extends UnitSpec
     reset(mockBirthConnector)
   }
 
-  /**
-   * MatchingController when:
-   *
-   *  initialising should wire up dependencies correctly
-   *  GET should return 200 OK for a reference than exists in GRO
-   *  GET should return 404 NOT_FOUND for a reference that does not exist in GRO
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse InternalServerError
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse BadGateway
-   *  GET should return BAD_GATEWAY when invalid reference number is provided
-   *  GET should return INTERNAL_SERVER_ERROR when invalid json is returned
-   *  GET should return INTERNAL_SERVER_ERROR when GRO times out
-   *  GET should return INTERNAL_SERVER_ERROR when GRO returns Forbidden
-   */
-
   "MatchingController" when {
 
       "initialising" should {
@@ -108,7 +149,7 @@ class MatchingControllerSpec extends UnitSpec
 
       // TODO ADD UNIT TEST CASES FOR REFERENCE NUMBER WITH SPECIAL CHARACTERS / UTF-8
 
-      "GET /birth-registration-matching-proxy/match/:ref" should {
+      "POST /birth-registration-matching-proxy/match/reference" should {
 
         "return 200 for a reference than exists in GRO" in {
           val json = groResponse(reference)
@@ -116,11 +157,17 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(reference))(Matchers.any())).thenReturn(successResponse(json))
 
           val request = referenceRequest(reference)
-          val result = await(MockController.reference(reference).apply(request))
+          val result = await(MockController.reference.apply(request))
 
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result).as[JsObject] shouldBe json.as[JsObject]
+        }
+
+        "return 400 for when reference is not passed" in {
+          val request = badReferenceRequest(reference)
+          val result = await(MockController.reference.apply(request))
+          status(result) shouldBe BAD_REQUEST
         }
 
         "return 404 for a reference that does not exist in GRO" in {
@@ -128,7 +175,7 @@ class MatchingControllerSpec extends UnitSpec
             thenReturn(notFoundResponse)
 
           val request = referenceRequest(invalidReference)
-          val result = await(MockController.reference(invalidReference).apply(request))
+          val result = await(MockController.reference.apply(request))
 
           status(result) shouldBe NOT_FOUND
           contentType(result).get shouldBe "application/json"
@@ -139,7 +186,7 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(reference))(Matchers.any())).thenReturn(internalServerErrorResponse)
 
           val request = referenceRequest(reference)
-          val result = await(MockController.reference(reference).apply(request))
+          val result = await(MockController.reference.apply(request))
 
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
@@ -150,7 +197,7 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(reference))(Matchers.any())).thenReturn(badGatewayResponse)
 
           val request = referenceRequest(reference)
-          val result = await(MockController.reference(reference).apply(request))
+          val result = await(MockController.reference.apply(request))
 
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
@@ -160,7 +207,7 @@ class MatchingControllerSpec extends UnitSpec
         "return BadGateway when invalid reference number is provided" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(badRequestResponse)
           val request = referenceRequest("ass1212sqw")
-          val result = await(MockController.reference("ass1212sqw").apply(request))
+          val result = await(MockController.reference.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
@@ -169,7 +216,7 @@ class MatchingControllerSpec extends UnitSpec
         "return InternalServerError when invalid json is returned" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(jsValidationExceptionResponse)
           val request = referenceRequest("ass1212sqw")
-          val result = await(MockController.reference("ass1212sqw").apply(request))
+          val result = await(MockController.reference.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
         }
@@ -177,7 +224,7 @@ class MatchingControllerSpec extends UnitSpec
         "return InternalServerError when GRO times out" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(gatewayTimeoutResponse)
           val request = referenceRequest("ass1212sqw")
-          val result = await(MockController.reference("ass1212sqw").apply(request))
+          val result = await(MockController.reference.apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
@@ -186,15 +233,14 @@ class MatchingControllerSpec extends UnitSpec
         "return InternalServerError when GRO returns Forbidden" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any())).thenReturn(forbiddenResponse)
           val request = referenceRequest("ass1212sqw")
-          val result = await(MockController.reference("ass1212sqw").apply(request))
+          val result = await(MockController.reference.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
        }
 
       }
 
-
-      "GET /birth-registration-matching-proxy/match" should {
+      "POST /birth-registration-matching-proxy/match/details" should {
 
         "return 200 with records for details that match" in {
           val forenames = "adam"
@@ -205,7 +251,7 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result) shouldBe json
@@ -220,7 +266,7 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result) shouldBe json
@@ -237,10 +283,38 @@ class MatchingControllerSpec extends UnitSpec
             thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe OK
           contentType(result).get shouldBe "application/json"
           jsonBodyOf(result) shouldBe groResponse("NoMatch")
+        }
+
+        "return 400 BadRequest when firstname key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
+        }
+
+        "return 400 BadRequest when lastname key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequestForLastName(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
+        }
+
+
+        "return 400 BadRequest when dateofbirth key is invalid" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+          val request = badDetailsRequestForDateOfBirth(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe BAD_REQUEST
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
@@ -250,7 +324,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(internalServerErrorResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
@@ -263,7 +337,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(badGatewayResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
@@ -276,7 +350,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
@@ -289,7 +363,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
@@ -302,7 +376,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
@@ -320,7 +394,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(internalServerErrorResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
@@ -333,7 +407,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(jsValidationExceptionResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe empty
@@ -346,7 +420,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(gatewayTimeoutResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
@@ -359,7 +433,7 @@ class MatchingControllerSpec extends UnitSpec
 
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any())).thenReturn(forbiddenResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
-          val result = await(MockController.details(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth).apply(request))
+          val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe empty
