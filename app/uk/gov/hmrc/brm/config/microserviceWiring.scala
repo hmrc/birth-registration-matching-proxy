@@ -17,23 +17,16 @@
 package uk.gov.hmrc.brm.config
 
 import play.api.libs.json.JsValue
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration._
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.audit.http.config.LoadAuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.AuditEventFailureKeys._
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult, LoggerProvider}
-import uk.gov.hmrc.play.config.{AppName, RunMode}
+import uk.gov.hmrc.play.config.RunMode
 import uk.gov.hmrc.play.http.HttpResponse
-import uk.gov.hmrc.play.http.hooks.HttpHook
 import uk.gov.hmrc.play.http.logging.LoggingDetails
-import uk.gov.hmrc.play.http.ws._
-import uk.gov.hmrc.brm.config.GROConnectorConfiguration._
-
 
 import scala.concurrent.Future
-
-object WSHttp extends WSGet with WSPut with WSPost with WSDelete with WSPatch with AppName {
-  override val hooks: Seq[HttpHook] = NoneRequired
-}
 
 object MicroserviceAuditConnector extends AuditConnector with RunMode with BRMResultHandler {
   override lazy val auditingConfig = LoadAuditingConfig(s"auditing")
