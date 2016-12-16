@@ -40,11 +40,11 @@ object ResponseHandler {
         (f(response), attempts)
       case e @ x if x.isClientError =>
         metrics.httpResponseCodeStatus(BAD_REQUEST)
-        warn(CLASS_NAME, "handleResponse", s"[${e.code}}}] ${e.category}: $response, attempt $attempts")
+        warn(CLASS_NAME, "handleResponse", s"[${e.code}}}] ${e.category}: attempt $attempts")
         (ErrorHandler.error(response), attempts)
       case e : Status =>
         metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
-        error(CLASS_NAME, "handleResponse", s"[${e.category}}] InternalServerError: $response, attempt $attempts")
+        error(CLASS_NAME, "handleResponse", s"[${e.category}}] InternalServerError: attempt $attempts")
         (ErrorHandler.error(response), attempts)
     }
   }
