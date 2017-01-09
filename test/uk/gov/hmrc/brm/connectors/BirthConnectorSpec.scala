@@ -62,7 +62,7 @@ class BirthConnectorSpec extends UnitSpec with OneAppPerSuite with MockitoSugar 
 //<<<<<<< HEAD
 
   object MockBirthConnector extends BirthConnector {
-    override val httpClient = mockHttpClient
+    override val http = mockHttpClient
     override val metrics = GroMetrics
     override val authRepository = new AccessTokenRepository
     override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
@@ -70,7 +70,7 @@ class BirthConnectorSpec extends UnitSpec with OneAppPerSuite with MockitoSugar 
   }
 
   object MockBirthConnectorTestConfig extends BirthConnector {
-    override val httpClient = mockHttpClient
+    override val http = mockHttpClient
     override val metrics = GroMetrics
     override val authRepository = new AccessTokenRepository
     override val delayTime = 100
