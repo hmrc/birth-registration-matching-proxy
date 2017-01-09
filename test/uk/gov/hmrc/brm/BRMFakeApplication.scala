@@ -17,6 +17,7 @@
 package uk.gov.hmrc.brm
 
 import org.scalatest.Suite
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.FakeApplication
 import uk.gov.hmrc.play.test.WithFakeApplication
 
