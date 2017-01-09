@@ -23,7 +23,9 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 
 trait Metrics extends MicroserviceMetrics {
 
+
   BrmLogger.info(this.getClass.toString, "[constructor]", "metrics instantiated")
+
 
   val prefix: String
 
@@ -44,6 +46,10 @@ trait Metrics extends MicroserviceMetrics {
   }
 }
 
-object GroMetrics extends Metrics {
+object GroReferenceMetrics extends Metrics {
   override val prefix = "gro"
+}
+
+object GRODetailsMetrics extends Metrics {
+  override val prefix = "gro-details"
 }
