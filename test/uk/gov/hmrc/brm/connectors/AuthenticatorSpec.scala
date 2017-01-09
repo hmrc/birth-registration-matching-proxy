@@ -18,14 +18,14 @@ package uk.gov.hmrc.brm.connectors
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
 import uk.gov.hmrc.brm.BRMFakeApplication
-import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 import scala.util.Success
 
 /**
   * Created by adamconder on 14/11/2016.
   */
-class AuthenticatorSpec extends UnitSpec with BRMFakeApplication {
+class AuthenticatorSpec extends UnitSpec with WithFakeApplication {
 
   "Authenticator" when {
 
