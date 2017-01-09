@@ -23,8 +23,6 @@ import play.api.Logger
 
 trait Metrics {
 
-  Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
-
   val prefix: String
 
   def httpResponseCodeStatus(code: Int): Unit =
@@ -44,6 +42,10 @@ trait Metrics {
   }
 }
 
-object GroMetrics extends Metrics {
+object GroReferenceMetrics extends Metrics {
   override val prefix = "gro"
+}
+
+object GRODetailsMetrics extends Metrics {
+  override val prefix = "gro-details"
 }

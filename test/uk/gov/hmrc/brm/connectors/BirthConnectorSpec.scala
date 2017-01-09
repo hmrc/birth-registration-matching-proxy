@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
-import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
+import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GroReferenceMetrics, Metrics}
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.UnitSpec
@@ -64,14 +64,12 @@ class BirthConnectorSpec extends UnitSpec
     endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth",
     http = mockHttpClient,
     tokenCache = mockTokenCache,
-    metrics = GroMetrics,
     delayTime = 1,
     delayAttempts = 3
   )
 
   object MockBirthConnector extends BirthConnector {
     override val http = mockHttpClient
-    override val metrics = GroMetrics
     override val authenticator = MockAuthenticator
     override val delayTime = 1
     override val delayAttempts = 3
@@ -93,13 +91,14 @@ class BirthConnectorSpec extends UnitSpec
         GROEnglandAndWalesConnector.delayAttempts shouldBe 3
         GROEnglandAndWalesConnector.delayTime shouldBe 5000
         GROEnglandAndWalesConnector.authenticator shouldBe a[Authenticator]
-        GROEnglandAndWalesConnector.metrics shouldBe a[Metrics]
         GROEnglandAndWalesConnector.http shouldBe a[HttpClient]
       }
 
     }
 
     "parsing json" should {
+
+      implicit val metrics = GroReferenceMetrics
 
       "throw Upstream4xxResponse for invalid json" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
@@ -118,6 +117,8 @@ class BirthConnectorSpec extends UnitSpec
     }
 
     "authentication" should {
+
+      implicit val metrics = GroReferenceMetrics
 
       "BirthErrorResponse of 4xx when authentication returns BadRequest" in {
         val authResponse = Response.apply(
@@ -219,6 +220,8 @@ class BirthConnectorSpec extends UnitSpec
 
     "get" should {
 
+      implicit val metrics = GroReferenceMetrics
+
       "BirthSuccessResponse when gro responds with 200" in {
         val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
         val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("500035710").toString())
@@ -306,6 +309,8 @@ class BirthConnectorSpec extends UnitSpec
     }
 
     "getDetails" should {
+
+      implicit val metrics = GRODetailsMetrics
 
       "BirthSuccessResponse when gro details responds with 200 with single record." in {
         val firstName = "adam"
