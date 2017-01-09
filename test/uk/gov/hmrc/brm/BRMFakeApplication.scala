@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package uk.gov.hmrc.brm
 
 import org.scalatest.Suite
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.FakeApplication
 import uk.gov.hmrc.play.test.WithFakeApplication
 
@@ -28,5 +29,8 @@ trait BRMFakeApplication extends WithFakeApplication {
     "Test.microservice.services.auth.port" -> "8500"
   )
 
-  override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
+  override lazy val fakeApplication = GuiceApplicationBuilder(
+    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
+  ).configure(config)
+    .build()
 }

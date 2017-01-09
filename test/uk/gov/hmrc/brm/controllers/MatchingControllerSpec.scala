@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.brm.controllers
 
+import akka.stream.Materializer
 import org.mockito.Matchers
 import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
+import play.api.{Logger, Play}
 import play.api.libs.json._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -36,6 +38,8 @@ class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
   with MockitoSugar
   with BeforeAndAfter {
+
+  implicit lazy val materializer = Play.current.injector.instanceOf[Materializer]
 
   val reference = "500035710"
   val invalidReference = "812739812739183"

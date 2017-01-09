@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,23 @@ package uk.gov.hmrc.brm.metrics
 
 import java.util.concurrent.TimeUnit
 
-import com.kenshoo.play.metrics.MetricsRegistry
-import play.api.Logger
+import uk.gov.hmrc.play.graphite.MicroserviceMetrics
+import uk.gov.hmrc.brm.utils.BrmLogger
 
-trait Metrics {
+trait Metrics extends MicroserviceMetrics {
 
-  Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
+  BrmLogger.info(this.getClass.toString, "[constructor]", "metrics instantiated")
 
   val prefix: String
 
   def httpResponseCodeStatus(code: Int): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
+    metrics.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
   def requestCount(key: String = "request"): Unit =
-    MetricsRegistry.defaultRegistry.counter(s"$prefix-$key-count").inc()
+    metrics.defaultRegistry.counter(s"$prefix-$key-count").inc()
 
   def time(diff: Long, unit: TimeUnit, key: String) =
-    MetricsRegistry.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
+    metrics.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
 
   def startTimer(): Long = System.currentTimeMillis()
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ import net.ceedubs.ficus.Ficus._
 import play.api.{Application, Configuration, Play}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayAttempts, DelayTime}
 import uk.gov.hmrc.play.audit.filters.AuditFilter
+import uk.gov.hmrc.play.filters.MicroserviceFilterSupport
 import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode, ServicesConfig}
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
-import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
+import uk.gov.hmrc.play.microservice.bootstrap.{DefaultMicroserviceGlobal, MicroserviceFilters}
+import net.ceedubs.ficus.Ficus._
 
 
 object ControllerConfiguration extends ControllerConfig {
@@ -51,16 +53,16 @@ object GROConnectorConfiguration extends ServicesConfig {
 
 }
 
-object MicroserviceAuditFilter extends AuditFilter with AppName {
+object MicroserviceAuditFilter extends AuditFilter with AppName with MicroserviceFilterSupport{
   override val auditConnector = MicroserviceAuditConnector
   override def controllerNeedsAuditing(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsAuditing
 }
 
-object MicroserviceLoggingFilter extends LoggingFilter {
+object MicroserviceLoggingFilter extends LoggingFilter with MicroserviceFilterSupport {
   override def controllerNeedsLogging(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsLogging
 }
 
-object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode {
+object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with MicroserviceFilters {
   override val auditConnector = MicroserviceAuditConnector
 
   override def microserviceMetricsConfig(implicit app: Application): Option[Configuration] = app.configuration.getConfig(s"microservice.metrics")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.brm.metrics
 
-import com.kenshoo.play.metrics.MetricsRegistry
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class MetricsSpec extends UnitSpec with WithFakeApplication {
@@ -29,35 +28,41 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     }
 
     "measure response time for authentication request" in {
-      val startTimer = GroMetrics.startTimer()
-      GroMetrics.endTimer(startTimer, "authentication-response-time")
-      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-authentication-response-time").getCount shouldBe 1
+      val metrics = GroMetrics
+      val startTimer = metrics.startTimer()
+      metrics.endTimer(startTimer, "authentication-response-time")
+      metrics.metrics.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-authentication-response-time").getCount shouldBe 1
     }
 
     "measure response time for match request" in {
-      val startTimer = GroMetrics.startTimer()
-      GroMetrics.endTimer(startTimer, "match-response-time")
-      MetricsRegistry.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-match-response-time").getCount shouldBe 1
+      val metrics = GroMetrics
+      val startTimer = metrics.startTimer()
+      metrics.endTimer(startTimer, "match-response-time")
+      metrics.metrics.defaultRegistry.getTimers.get(s"${GroMetrics.prefix}-match-response-time").getCount shouldBe 1
     }
 
     "increment count for http response code 200" in {
-      GroMetrics.httpResponseCodeStatus(200: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-200").getCount shouldBe 1
+      val metrics = GroMetrics
+      metrics.httpResponseCodeStatus(200: Int)
+      metrics.metrics.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-200").getCount shouldBe 1
     }
 
     "increment count for http response code 400" in {
-      GroMetrics.httpResponseCodeStatus(400: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-400").getCount shouldBe 1
+      val metrics = GroMetrics
+      metrics.httpResponseCodeStatus(400: Int)
+      metrics.metrics.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-400").getCount shouldBe 1
     }
 
     "increment count for http response code 500" in {
-      GroMetrics.httpResponseCodeStatus(500: Int)
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-500").getCount shouldBe 1
+      val metrics = GroMetrics
+      metrics.httpResponseCodeStatus(500: Int)
+      metrics.metrics.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-http-response-code-500").getCount shouldBe 1
     }
 
     "increment count for request to proxy" in {
-      GroMetrics.requestCount()
-      MetricsRegistry.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-request-count").getCount shouldBe 1
+      val metrics = GroMetrics
+      metrics.requestCount()
+      metrics.metrics.defaultRegistry.getCounters.get(s"${GroMetrics.prefix}-request-count").getCount shouldBe 1
     }
 
   }
