@@ -19,11 +19,11 @@ package uk.gov.hmrc.brm.metrics
 import java.util.concurrent.TimeUnit
 
 import uk.gov.hmrc.play.graphite.MicroserviceMetrics
-import play.api.Logger
+import uk.gov.hmrc.brm.utils.BrmLogger
 
 trait Metrics extends MicroserviceMetrics {
 
-  Logger.info(s"[${this.getClass.toString}][constructor] metrics keys")
+  BrmLogger.info(this.getClass.toString, "[constructor]", "metrics instantiated")
 
   val prefix: String
 
