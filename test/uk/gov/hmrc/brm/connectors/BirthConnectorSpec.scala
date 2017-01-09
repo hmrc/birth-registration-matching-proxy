@@ -199,10 +199,9 @@ class BirthConnectorSpec extends UnitSpec with OneAppPerSuite with MockitoSugar 
       "BirthErrorResponse 5xx when all attempts fail for authentication (SocketTimeoutException)" in {
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new SocketTimeoutException(""))
 
+        implicit val metrics = GroReferenceMetrics
         val result = await(MockBirthConnector.get("500035710"))
         verify(mockHttpClient, times(3)).post(Matchers.any(), Matchers.any(), Matchers.any())
-
-        implicit val metrics = GroReferenceMetrics
 
         "BirthSuccessResponse when gro responds with 200" in {
           val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
@@ -292,7 +291,7 @@ class BirthConnectorSpec extends UnitSpec with OneAppPerSuite with MockitoSugar 
 
       "get" should {
 
-        implicit val metric = GRODetailsMetrics
+        implicit val metrics = GRODetailsMetrics
 
         "BirthSuccessResponse when gro responds with 200" in {
           val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())

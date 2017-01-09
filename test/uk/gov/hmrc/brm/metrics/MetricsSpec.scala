@@ -27,7 +27,8 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
       "measure response time for authentication request" in {
         val startTimer = GroReferenceMetrics.startTimer()
         GroReferenceMetrics.endTimer(startTimer, "authentication-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-authentication-response-time").getCount shouldBe 1
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-authentication-response-timer-count").inc
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-authentication-response-timer-count").getCount shouldBe 1
       }
 
     }
@@ -42,7 +43,8 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
       "measure response time for match request" in {
         val startTimer = GroReferenceMetrics.startTimer()
         GroReferenceMetrics.endTimer(startTimer, "match-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-match-response-time").getCount shouldBe 1
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-match-response-count").inc
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-match-response-count").getCount shouldBe 1
       }
 
       "increment count for http response code 200" in {
@@ -77,7 +79,8 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
       "measure response time for match request" in {
         val startTimer = GRODetailsMetrics.startTimer()
         GRODetailsMetrics.endTimer(startTimer, "match-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-match-response-time").getCount shouldBe 1
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-match-response-count").inc
+        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-match-response-count").getCount shouldBe 1
       }
 
       "increment count for http response code 200" in {
