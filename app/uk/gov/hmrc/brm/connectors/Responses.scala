@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm
+package uk.gov.hmrc.brm.connectors
 
-import org.scalatest.Suite
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.FakeApplication
-import uk.gov.hmrc.play.test.WithFakeApplication
+import play.api.libs.json.JsValue
+import uk.gov.hmrc.brm.connectors.ConnectorTypes._
 
-trait BRMFakeApplication extends WithFakeApplication {
-  this: Suite =>
+/**
+ * Created by adamconder on 14/11/2016.
+ */
+sealed trait BirthResponse
 
-  val config: Map[String, _] = Map(
-    "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500"
-  )
-
-  override lazy val fakeApplication = GuiceApplicationBuilder(
-    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
-  ).configure(config)
-    .build()
-}
+case class BirthAccessTokenResponse(token : AccessToken) extends BirthResponse
+case class BirthSuccessResponse[T <: JsValue](json: T) extends BirthResponse
+case class BirthErrorResponse(cause: Exception) extends BirthResponse

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
@@ -32,8 +32,6 @@ object JsonUtils {
         Source.fromInputStream(is).getLines.mkString("\n")
       }
     }
-
-    Logger.debug(s"Loading JSON: $path")
 
     resourceAsString(path) match {
       case Some(x) =>

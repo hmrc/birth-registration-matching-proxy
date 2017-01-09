@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,6 @@
  */
 
 package uk.gov.hmrc.brm.utils
-
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
-import play.api.libs.json.JsValue
-import play.api.mvc.Request
 
 object KeyHolder {
 

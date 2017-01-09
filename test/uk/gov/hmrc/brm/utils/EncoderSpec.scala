@@ -14,23 +14,27 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm
+package uk.gov.hmrc.brm.utils
 
-import org.scalatest.Suite
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.FakeApplication
-import uk.gov.hmrc.play.test.WithFakeApplication
+import uk.gov.hmrc.brm.connectors.Encoder
+import uk.gov.hmrc.play.test.UnitSpec
 
-trait BRMFakeApplication extends WithFakeApplication {
-  this: Suite =>
+/**
+  * Created by adamconder on 14/11/2016.
+  */
+class EncoderSpec extends UnitSpec {
 
-  val config: Map[String, _] = Map(
-    "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500"
-  )
+  "Encoder" should {
 
-  override lazy val fakeApplication = GuiceApplicationBuilder(
-    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
-  ).configure(config)
-    .build()
+    "parse a Map[String, String] into a UTF-8 URI" in {
+      val details =  Map(
+        "forenames" -> "Adàm TËST",
+        "lastname" -> "SMÏTH",
+        "dateofbirth" -> "2006-11-12"
+      )
+      Encoder.encode(details) shouldBe "forenames=Ad%C3%A0m+T%C3%8BST&lastname=SM%C3%8FTH&dateofbirth=2006-11-12"
+    }
+
+  }
+
 }

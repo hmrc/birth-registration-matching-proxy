@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package utils
+package uk.gov.hmrc.brm.utils
 
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.{BirthErrorResponse, BirthResponse}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 
 object ResponseHelper {
-
 
   val notFoundResponse: BirthResponse = BirthErrorResponse(
     Upstream4xxResponse("", NOT_FOUND, NOT_FOUND)

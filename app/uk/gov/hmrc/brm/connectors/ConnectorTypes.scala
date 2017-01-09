@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm
+package uk.gov.hmrc.brm.connectors
 
-import org.scalatest.Suite
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.FakeApplication
-import uk.gov.hmrc.play.test.WithFakeApplication
+/**
+ * Created by adamconder on 14/11/2016.
+ */
+object ConnectorTypes {
 
-trait BRMFakeApplication extends WithFakeApplication {
-  this: Suite =>
+  type Attempts = Int
+  type AccessToken = String
+  type DelayAttempts = Int
+  type DelayTime = Int
 
-  val config: Map[String, _] = Map(
-    "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500"
-  )
-
-  override lazy val fakeApplication = GuiceApplicationBuilder(
-    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
-  ).configure(config)
-    .build()
 }

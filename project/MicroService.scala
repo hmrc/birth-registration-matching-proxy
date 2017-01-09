@@ -1,19 +1,15 @@
-import _root_.scoverage.ScoverageSbtPlugin
-import _root_.scoverage.ScoverageSbtPlugin.ScoverageKeys
+import play.routes.compiler.StaticRoutesGenerator
 import sbt.Keys._
-import sbt.Tests.{SubProcess, Group}
-import sbt._
+import sbt.Tests.{Group, SubProcess}
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import scoverage.ScoverageSbtPlugin
-import play.routes.compiler.StaticRoutesGenerator
+import sbt._
 
 
 trait MicroService {
 
   import uk.gov.hmrc._
   import DefaultBuildSettings._
-  import uk.gov.hmrc.{SbtBuildInfo, ShellPrompt}
-
   import TestPhases._
   import play.sbt.routes.RoutesKeys.routesGenerator
 
