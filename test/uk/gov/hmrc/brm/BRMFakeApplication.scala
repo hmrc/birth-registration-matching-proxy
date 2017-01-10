@@ -29,5 +29,8 @@ trait BRMFakeApplication extends WithFakeApplication {
     "Test.microservice.services.auth.port" -> "8500"
   )
 
-  override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
+  override lazy val fakeApplication = GuiceApplicationBuilder(
+    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
+  ).configure(config)
+    .build()
 }
