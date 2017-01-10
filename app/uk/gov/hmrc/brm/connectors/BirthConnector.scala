@@ -23,8 +23,8 @@ import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
-import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
-import uk.gov.hmrc.brm.tls.{HttpClientFactory, TLSFactory}
+import uk.gov.hmrc.brm.metrics.BRMMetrics
+import uk.gov.hmrc.brm.tls.HttpClientFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
@@ -39,7 +39,6 @@ import scala.util.{Failure, Success, Try}
 
 object GROEnglandAndWalesConnector extends BirthConnector {
   override val http = HttpClientFactory.apply()
-  override val metrics = GroMetrics
   override val authenticator = Authenticator.apply()
   override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
   override val delayAttempts = GROConnectorConfiguration.delayAttempts
@@ -59,7 +58,6 @@ trait BirthConnector extends ServicesConfig {
   protected val username : String
 
   protected val http: HttpClient
-  protected val metrics: Metrics
 
   protected val encoder : Encoder
 
@@ -80,9 +78,11 @@ trait BirthConnector extends ServicesConfig {
     )
   }
 
-  private[BirthConnector] def getChildByReference(reference : String, token: AccessToken, attempts : Attempts) : (BirthResponse, Attempts) = {
+  private[BirthConnector] def getChildByReference(reference : String,
+                                                  token: AccessToken,
+                                                  attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val headers = GROHeaderCarrier(token)
-    metrics.requestCount("reference-match")
+    metrics.requestCount("request") // increase counter for attempt to gro reference
 
     debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
@@ -94,9 +94,11 @@ trait BirthConnector extends ServicesConfig {
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
   }
 
-  private[BirthConnector] def getChildByDetails(details: Map[String, String], token : AccessToken, attempts: Attempts) : (BirthResponse, Attempts) = {
+  private[BirthConnector] def getChildByDetails(details: Map[String, String],
+                                                token : AccessToken,
+                                                attempts: Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val headers = GROHeaderCarrier(token)
-    metrics.requestCount("details-match")
+    metrics.requestCount("details-request") // increase counter for attempt to gro details
 
     debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers")
     info(CLASS_NAME, "getChildByDetails", s"requesting child's details $endpoint, attempt $attempts")
@@ -112,7 +114,7 @@ trait BirthConnector extends ServicesConfig {
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
   }
 
-  private def request(reference: String, token: AccessToken) : BirthResponse = {
+  private def request(reference: String, token: AccessToken)(implicit metrics : BRMMetrics) : BirthResponse = {
     @tailrec
     def referenceHelper(attempts: Attempts) : BirthResponse = {
       Try(getChildByReference(reference, token, attempts)) match {
@@ -136,7 +138,7 @@ trait BirthConnector extends ServicesConfig {
   /**
     * if the failure is caused due to a SocketTimeoutException then retry
      */
-  private def request(details: Map[String, String], token: AccessToken) : BirthResponse = {
+  private def request(details: Map[String, String], token: AccessToken)(implicit metrics : BRMMetrics) : BirthResponse = {
     @tailrec
     def detailsHelper(attempts: Attempts) : BirthResponse = {
       Try(getChildByDetails(details, token, attempts)) match {
@@ -158,9 +160,8 @@ trait BirthConnector extends ServicesConfig {
   }
 
   def get(reference: String)
-                  (implicit hc: HeaderCarrier): Future[BirthResponse] =
+                  (implicit hc: HeaderCarrier, metrics: BRMMetrics): Future[BirthResponse] =
   {
-    metrics.requestCount()
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
         request(reference, token)
@@ -171,9 +172,8 @@ trait BirthConnector extends ServicesConfig {
   }
 
   def get(forenames: String, lastname: String, dateofbirth: String)
-                (implicit hc: HeaderCarrier) : Future[BirthResponse] =
+                (implicit hc: HeaderCarrier, metrics : BRMMetrics) : Future[BirthResponse] =
   {
-    metrics.requestCount("details-request")
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
         val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)

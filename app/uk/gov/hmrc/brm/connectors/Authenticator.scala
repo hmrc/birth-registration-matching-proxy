@@ -24,7 +24,7 @@ import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{Attempts, DelayAttempts, DelayTime}
-import uk.gov.hmrc.brm.metrics.{GroMetrics, Metrics}
+import uk.gov.hmrc.brm.metrics.{GROReferenceMetrics, BRMMetrics}
 import uk.gov.hmrc.brm.tls.{HttpClientFactory, TLSFactory}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
@@ -41,13 +41,12 @@ class Authenticator(username : String,
                     endpoint : String,
                     val http: HttpClient,
                     val tokenCache : AccessTokenRepository,
-                    metrics : Metrics,
                     delayTime : DelayTime,
                     delayAttempts : DelayAttempts) {
 
   private[Authenticator] val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  private[Authenticator] def authenticate(attempts : Attempts) : (BirthResponse, Attempts) = {
+  private[Authenticator] def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val credentials: Map[String, String] = Map(
       "username" -> username,
       "password" -> password
@@ -56,7 +55,7 @@ class Authenticator(username : String,
     debug(CLASS_NAME, "requestAuth", s"$endpoint credentials: $credentials")
     info(CLASS_NAME, "requestAuth", s"requesting authentication token $endpoint")
 
-    metrics.requestCount("authentication")
+    metrics.requestCount("authentication") // gro-authentication-count
 
     val startTime = metrics.startTimer()
     // request new access token
@@ -91,7 +90,7 @@ class Authenticator(username : String,
       }
   }
 
-  private def requestNewToken() = {
+  private def requestNewToken()(implicit metrics : BRMMetrics) = {
     @tailrec
     def authHelper(attempts: Attempts) : BirthResponse = {
       Try(authenticate(attempts)) match {
@@ -113,7 +112,7 @@ class Authenticator(username : String,
   }
 
 
-  def token : BirthResponse = {
+  def token()(implicit metrics : BRMMetrics) : BirthResponse = {
     if(!CertificateStatus.certificateStatus()) {
       // return an BirthErrorResponse as TLS certificate has expired
       error(CLASS_NAME, "token", "TLS Certificate expired")
@@ -142,12 +141,12 @@ class Authenticator(username : String,
 object Authenticator {
 
   def apply() : Authenticator = {
+
     val httpClient = HttpClientFactory.apply()
     val username = GROConnectorConfiguration.username
     val password = GROConnectorConfiguration.password
     val endpoint = s"${GROConnectorConfiguration.serviceUrl}/oauth/login"
     val tokenRepo = new AccessTokenRepository
-    val metrics = GroMetrics
     val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
     val delayAttempts = GROConnectorConfiguration.delayAttempts
 
@@ -157,7 +156,6 @@ object Authenticator {
       endpoint,
       httpClient,
       tokenRepo,
-      metrics,
       delayTime,
       delayAttempts
     )

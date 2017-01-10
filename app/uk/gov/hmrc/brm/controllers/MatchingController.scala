@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.controllers
 import play.api.libs.json.JsArray
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
+import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
@@ -107,6 +108,9 @@ trait MatchingController extends BaseController {
   def reference = Action.async(parse.json) {
     implicit request =>
       setKey(request)
+
+      implicit val metrics = GROReferenceMetrics
+
       val reference = request.body.\("reference").asOpt[String]
       reference match {
         case Some(r) =>
@@ -121,6 +125,9 @@ trait MatchingController extends BaseController {
   def details() = Action.async(parse.json) {
     implicit request =>
       setKey(request)
+
+      implicit val metrics = GRODetailsMetrics
+
       val firstname = request.body.\("forenames").asOpt[String]
       val lastname = request.body.\("lastname").asOpt[String]
       val dateofbirth = request.body.\("dateofbirth").asOpt[String]
