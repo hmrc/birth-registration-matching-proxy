@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.controllers
 import play.api.libs.json.JsArray
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GroReferenceMetrics}
+import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
@@ -109,7 +109,7 @@ trait MatchingController extends BaseController {
     implicit request =>
       setKey(request)
 
-      implicit val metrics = GroReferenceMetrics
+      implicit val metrics = GROReferenceMetrics
 
       val reference = request.body.\("reference").asOpt[String]
       reference match {

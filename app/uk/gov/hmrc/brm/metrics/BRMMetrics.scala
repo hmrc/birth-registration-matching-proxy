@@ -21,19 +21,19 @@ import java.util.concurrent.TimeUnit
 import uk.gov.hmrc.play.graphite.MicroserviceMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger
 
-trait Metrics extends MicroserviceMetrics {
-
+trait BRMMetrics extends MicroserviceMetrics {
 
   BrmLogger.info(this.getClass.toString, "[constructor]", "metrics instantiated")
-
 
   val prefix: String
 
   def httpResponseCodeStatus(code: Int): Unit =
     metrics.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
-  def requestCount(key: String = "request"): Unit =
+  def requestCount(key: String = "request"): Unit = {
+    BrmLogger.info(this.getClass.toString, "requestCount", s"$prefix-$key-count")
     metrics.defaultRegistry.counter(s"$prefix-$key-count").inc()
+  }
 
   def time(diff: Long, unit: TimeUnit, key: String) =
     metrics.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
@@ -46,10 +46,10 @@ trait Metrics extends MicroserviceMetrics {
   }
 }
 
-object GroReferenceMetrics extends Metrics {
+object GROReferenceMetrics extends BRMMetrics {
   override val prefix = "gro"
 }
 
-object GRODetailsMetrics extends Metrics {
-  override val prefix = "gro-details"
+object GRODetailsMetrics extends BRMMetrics {
+  override val prefix = "gro"
 }

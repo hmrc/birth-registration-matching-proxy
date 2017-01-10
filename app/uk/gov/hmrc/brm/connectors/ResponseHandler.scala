@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status._
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.Attempts
-import uk.gov.hmrc.brm.metrics.Metrics
+import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 /**
@@ -29,7 +29,7 @@ object ResponseHandler {
 
   private val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  def handle(response: Response, attempts : Attempts)(f : Response => BirthResponse, metrics : Metrics) = {
+  def handle(response: Response, attempts : Attempts)(f : Response => BirthResponse, metrics : BRMMetrics) = {
     debug(CLASS_NAME, "handle",s"$response")
     info(CLASS_NAME, "handle", s"response received after $attempts attempt(s)")
 

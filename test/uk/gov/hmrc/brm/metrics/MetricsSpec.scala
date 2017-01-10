@@ -25,10 +25,9 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     "making requests to authentication" should {
 
       "measure response time for authentication request" in {
-        val startTimer = GroReferenceMetrics.startTimer()
-        GroReferenceMetrics.endTimer(startTimer, "authentication-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-authentication-response-timer-count").inc
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-authentication-response-timer-count").getCount shouldBe 1
+        val startTimer = GROReferenceMetrics.startTimer()
+        GROReferenceMetrics.endTimer(startTimer, "authentication-timer")
+        GROReferenceMetrics.metrics.defaultRegistry.timer(s"${GROReferenceMetrics.prefix}-authentication-timer").getCount should not be 0
       }
 
     }
@@ -36,35 +35,35 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     "making requests to reference" should {
 
       "initialise Metrics instance" in {
-        GroReferenceMetrics shouldBe a[Metrics]
-        GroReferenceMetrics.prefix shouldBe "gro"
+        GROReferenceMetrics shouldBe a[BRMMetrics]
+        GROReferenceMetrics.prefix shouldBe "gro"
       }
 
       "measure response time for match request" in {
-        val startTimer = GroReferenceMetrics.startTimer()
-        GroReferenceMetrics.endTimer(startTimer, "match-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-match-response-count").inc
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-match-response-count").getCount shouldBe 1
+        val startTimer = GROReferenceMetrics.startTimer()
+        GROReferenceMetrics.endTimer(startTimer, "reference-match-timer")
+        GROReferenceMetrics.metrics.defaultRegistry.timer("gro-reference-match-timer").getCount should not be 0
       }
 
       "increment count for http response code 200" in {
-        GroReferenceMetrics.httpResponseCodeStatus(200: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-http-response-code-200").getCount shouldBe 1
+        GROReferenceMetrics.httpResponseCodeStatus(200: Int)
+        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-200").getCount shouldBe 1
       }
 
       "increment count for http response code 400" in {
-        GroReferenceMetrics.httpResponseCodeStatus(400: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-http-response-code-400").getCount shouldBe 1
+
+        GROReferenceMetrics.httpResponseCodeStatus(400: Int)
+        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-400").getCount shouldBe 1
       }
 
       "increment count for http response code 500" in {
-        GroReferenceMetrics.httpResponseCodeStatus(500: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-http-response-code-500").getCount shouldBe 1
+        GROReferenceMetrics.httpResponseCodeStatus(500: Int)
+        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-500").getCount shouldBe 1
       }
 
       "increment count for request to proxy" in {
-        GroReferenceMetrics.requestCount()
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GroReferenceMetrics.prefix}-request-count").getCount shouldBe 1
+        GROReferenceMetrics.requestCount()
+        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-request-count").getCount shouldBe 1
       }
 
     }
@@ -72,35 +71,34 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     "making requests to details" should {
 
       "initialise Metrics instance" in {
-        GRODetailsMetrics shouldBe a[Metrics]
-        GRODetailsMetrics.prefix shouldBe "gro-details"
+        GRODetailsMetrics shouldBe a[BRMMetrics]
+        GRODetailsMetrics.prefix shouldBe "gro"
       }
 
       "measure response time for match request" in {
         val startTimer = GRODetailsMetrics.startTimer()
-        GRODetailsMetrics.endTimer(startTimer, "match-response-time")
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-match-response-count").inc
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-match-response-count").getCount shouldBe 1
+        GRODetailsMetrics.endTimer(startTimer, "details-match-timer")
+        GRODetailsMetrics.metrics.defaultRegistry.timer("gro-details-match-timer").getCount should not be 0
       }
 
       "increment count for http response code 200" in {
         GRODetailsMetrics.httpResponseCodeStatus(200: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-200").getCount shouldBe 1
+        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-200").getCount should not be 0
       }
 
       "increment count for http response code 400" in {
         GRODetailsMetrics.httpResponseCodeStatus(400: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-400").getCount shouldBe 1
+        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-400").getCount should not be 0
       }
 
       "increment count for http response code 500" in {
         GRODetailsMetrics.httpResponseCodeStatus(500: Int)
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-500").getCount shouldBe 1
+        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-500").getCount should not be 0
       }
 
       "increment count for request to proxy" in {
-        GRODetailsMetrics.requestCount()
-        GroReferenceMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-request-count").getCount shouldBe 1
+        GRODetailsMetrics.requestCount("details-request")
+        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-details-request-count").getCount should not be 0
       }
     }
   }
