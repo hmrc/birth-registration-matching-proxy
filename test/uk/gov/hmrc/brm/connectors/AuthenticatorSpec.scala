@@ -17,7 +17,6 @@
 package uk.gov.hmrc.brm.connectors
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
-import uk.gov.hmrc.brm.BRMFakeApplication
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 import scala.util.Success
