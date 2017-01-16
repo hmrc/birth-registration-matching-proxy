@@ -1,4 +1,4 @@
 # microservice specific routes
 
-POST         /match/reference            uk.gov.hmrc.brm.controllers.MatchingController.reference
+POST        /match/reference         uk.gov.hmrc.brm.controllers.MatchingController.reference
 POST        /match/details           uk.gov.hmrc.brm.controllers.MatchingController.details

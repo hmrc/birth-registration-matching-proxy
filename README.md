@@ -16,7 +16,11 @@ Base endpoint ```/birth-registration-matching-proxy```
 
 | PATH | Method | Description |
 | ---- | ------ | ----------  |
-| ```/match/:ref``` | ```GET``` | Return a childs record for the birth reference number ```:ref``` (England and Wales) |
+| ```/match/reference``` | ```POST``` | Return a childs record for the birth reference number (England and Wales) |
+
+Parameters           | Type                                                   | Size  | Description
+-------------------- | ------------------------------------------------------ | ------| ------------------------------------------------------------------------------
+reference            | `String`                                               | 1-9   | Birth reference number
 
 ### Response
 
@@ -91,7 +95,13 @@ Base endpoint ```/birth-registration-matching-proxy```
 
 | PATH | Method | Description |
 | ---- | ------ | ----------  |
-| ```/match?firstName=adam&lastName=smith&dateOfBirth=2006-10-10``` | ```GET``` | Return child(ren)s record(s) by searching with firstName, lastName and dateOfBirth (England and Wales) |
+| ```/match/details``` | ```POST``` | Return child(ren)s record(s) by searching with forenames, lastname and date of birth
+
+Parameters           | Type                                                   | Size  | Description
+-------------------- | ------------------------------------------------------ | ------| ------------------------------------------------------------------------------
+forenames            | `String`                                               | 1-250 | Child's first name
+lastname             | `String`                                               | 1-250 | Child's last name
+dateofbirth          | `Date (yyyy-MM-dd)`                                    | 10    | Child's date of birth YYYY-MM-DD
 
 ### Response
 
