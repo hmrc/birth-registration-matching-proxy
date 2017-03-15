@@ -384,22 +384,17 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
-        /**
-         * NOTE: This should be a 502 BadGateway returned to signify the data is incorrect
-         * GRO comment:
-         * Currently the response status is 500 Internal Server Error; this is not the intention and will be fixed in a future release to show the proper 400 Bad Request instead.
-         */
-        "return InternalServerError when dateofbirth is invalid format" in {
+        "return BadGateway when dateofbirth is invalid format" in {
           val forenames = "adam"
           val lastname = "conder"
           val dateofbirth = "10-10-2016"
 
-          when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any(), Matchers.any())).thenReturn(internalServerErrorResponse)
+          when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any(), Matchers.any())).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
-          status(result) shouldBe INTERNAL_SERVER_ERROR
+          status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
         "return InternalServerError when invalid json is returned" in {
