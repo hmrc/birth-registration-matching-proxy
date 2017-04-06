@@ -241,13 +241,13 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
         }
 
-        // TODO is this correct?
-        "return InternalServerError when GRO returns Forbidden" in {
+        "return 403 Forbidden when GRO returns Forbidden" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any(), Matchers.any())).thenReturn(forbiddenResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
-          status(result) shouldBe INTERNAL_SERVER_ERROR
+          status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe empty
        }
 
       }
@@ -445,8 +445,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
         }
 
-        // TODO is this correct?
-        "return InternalServerError when GRO returns Forbidden" in {
+        "return 403 Forbidden when GRO returns Forbidden" in {
           val forenames = "adam"
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
@@ -454,7 +453,7 @@ class MatchingControllerSpec extends UnitSpec
           when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any(), Matchers.any())).thenReturn(forbiddenResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
-          status(result) shouldBe INTERNAL_SERVER_ERROR
+          status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
           bodyOf(result) shouldBe empty
         }
