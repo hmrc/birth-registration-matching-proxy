@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import play.api.http.Status._
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.Attempts
 import uk.gov.hmrc.brm.metrics.BRMMetrics
@@ -33,17 +32,16 @@ object ResponseHandler {
     debug(CLASS_NAME, "handle",s"$response")
     info(CLASS_NAME, "handle", s"response received after $attempts attempt(s)")
 
+    metrics.httpResponseCodeStatus(response.status.code)
+
     response.status match {
       case Status.S200_OK =>
-        metrics.httpResponseCodeStatus(OK)
         info(CLASS_NAME, "handleResponse", s"[200] Success, attempt $attempts")
         (f(response), attempts)
       case e @ x if x.isClientError =>
-        metrics.httpResponseCodeStatus(BAD_REQUEST)
         info(CLASS_NAME, "handleResponse", s"[${e.code}}}] ${e.category}: attempt $attempts")
         (ErrorHandler.error(response), attempts)
       case e : Status =>
-        metrics.httpResponseCodeStatus(INTERNAL_SERVER_ERROR)
         error(CLASS_NAME, "handleResponse", s"[${e.category}}] InternalServerError: attempt $attempts")
         (ErrorHandler.error(response), attempts)
     }

@@ -21,7 +21,7 @@ import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.KeyHolder
+import uk.gov.hmrc.brm.utils.{HttpStatus, KeyHolder}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -58,6 +58,12 @@ trait MatchingController extends BaseController {
       respond(BadGateway(ErrorResponses.BAD_REQUEST))
   }
 
+  def teapotException(method : String) : PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream4xxResponse(message, HttpStatus.TEAPOT, _, _)) =>
+      warn(CLASS_NAME, "handleException", s"[$method] TeaPot: $message")
+      respond(Forbidden(ErrorResponses.BAD_REQUEST))
+  }
+
   def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
@@ -82,7 +88,6 @@ trait MatchingController extends BaseController {
       respond(InternalServerError)
   }
 
-
   def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthSuccessResponse(js) =>
       val count = if(js.isInstanceOf[JsArray]) js.as[JsArray].value.length else 1
@@ -94,6 +99,7 @@ trait MatchingController extends BaseController {
     notFoundException(method),
     badRequestException(method),
     badGatewayException(method),
+    teapotException(method),
     gatewayTimeoutException(method),
     connectionDown(method),
     exception(method),

@@ -29,6 +29,10 @@ object ResponseHelper {
     Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)
   )
 
+  val teapotException : BirthResponse = BirthErrorResponse(
+    Upstream4xxResponse("", HttpStatus.TEAPOT, HttpStatus.TEAPOT)
+  )
+
   val internalServerErrorResponse: BirthResponse = BirthErrorResponse(
     Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
   )

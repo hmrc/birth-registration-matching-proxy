@@ -223,6 +223,15 @@ class MatchingControllerSpec extends UnitSpec
           contentType(result).get shouldBe "application/json"
         }
 
+        "return 403 Forbidden when GRO responds with 418 teapot" in {
+          when(MockController.groConnector.get(mockEq("SELECT ALL --"))(Matchers.any(), Matchers.any())).thenReturn(teapotException)
+          val request = referenceRequest("SELECT ALL --")
+          val result = await(MockController.reference.apply(request))
+          status(result) shouldBe FORBIDDEN
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+        }
+
         "return InternalServerError when GRO times out" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any(), Matchers.any())).thenReturn(gatewayTimeoutResponse)
           val request = referenceRequest("ass1212sqw")
@@ -232,6 +241,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
         }
 
+        // TODO is this correct?
         "return InternalServerError when GRO returns Forbidden" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any(), Matchers.any())).thenReturn(forbiddenResponse)
           val request = referenceRequest("ass1212sqw")
@@ -308,7 +318,6 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_REQUEST
         }
-
 
         "return 400 BadRequest when dateofbirth key is invalid" in {
           val forenames = "adam"
@@ -410,7 +419,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe empty
         }
 
-        "return InternalServerError when GRO times out" in {
+        "return GatewayTimeout when GRO times out" in {
           val forenames = "adam"
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
@@ -423,6 +432,20 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
         }
 
+        "return 403 Forbidden when GRO responds with 418 teapot" in {
+          val forenames = "SELECT ALL --"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+
+          when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any(), Matchers.any())).thenReturn(teapotException)
+          val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe FORBIDDEN
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+        }
+
+        // TODO is this correct?
         "return InternalServerError when GRO returns Forbidden" in {
           val forenames = "adam"
           val lastname = "conder"
