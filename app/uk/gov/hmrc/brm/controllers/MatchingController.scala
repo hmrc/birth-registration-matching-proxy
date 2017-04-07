@@ -61,12 +61,12 @@ trait MatchingController extends BaseController {
   def teapotException(method : String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, HttpStatus.TEAPOT, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] TeaPot: $message")
-      respond(Forbidden(ErrorResponses.BAD_REQUEST))
+      respond(Forbidden(ErrorResponses.TEAPOT))
   }
 
   def forbiddenException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, FORBIDDEN, _, _)) =>
-      warn(CLASS_NAME, "handleException", s"[$method] Forbidden: $message")
+      warn(CLASS_NAME, "handleException", s"[$method] Forbidden [certificate not provided]: $message")
       respond(Forbidden)
   }
 

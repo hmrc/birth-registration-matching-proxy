@@ -229,7 +229,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result) shouldBe ErrorResponses.TEAPOT
         }
 
         "return InternalServerError when GRO times out" in {
@@ -442,7 +442,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result) shouldBe ErrorResponses.TEAPOT
         }
 
         "return 403 Forbidden when GRO returns Forbidden" in {
