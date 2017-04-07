@@ -67,7 +67,7 @@ trait MatchingController extends BaseController {
   def forbiddenException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, FORBIDDEN, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] Forbidden [certificate not provided]: $message")
-      respond(Forbidden)
+      respond(Forbidden(ErrorResponses.CERTIFICATE_INVALID))
   }
 
   def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
@@ -91,7 +91,7 @@ trait MatchingController extends BaseController {
   def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(e) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
-      respond(InternalServerError)
+      respond(InternalServerError(ErrorResponses.UNKNOWN_ERROR))
   }
 
   def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
@@ -131,7 +131,7 @@ trait MatchingController extends BaseController {
             handle("getReference").apply(_)
           )
         case _ =>
-          respond(BadRequest)
+          respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }
 
@@ -152,7 +152,7 @@ trait MatchingController extends BaseController {
             handle("getDetails").apply(_)
           )
         case _ =>
-          respond(BadRequest)
+          respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }
 

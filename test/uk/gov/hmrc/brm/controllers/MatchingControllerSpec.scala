@@ -181,7 +181,7 @@ class MatchingControllerSpec extends UnitSpec
 
           status(result) shouldBe NOT_FOUND
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.NOT_FOUND
+          bodyOf(result).toString shouldBe ErrorResponses.NOT_FOUND.toString
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
@@ -192,7 +192,7 @@ class MatchingControllerSpec extends UnitSpec
 
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
+          bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse BadGateway" in {
@@ -203,7 +203,7 @@ class MatchingControllerSpec extends UnitSpec
 
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return BadGateway when invalid reference number is provided" in {
@@ -212,7 +212,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return InternalServerError when invalid json is returned" in {
@@ -229,7 +229,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.TEAPOT
+          bodyOf(result).toString shouldBe ErrorResponses.TEAPOT.toString
         }
 
         "return InternalServerError when GRO times out" in {
@@ -238,7 +238,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
+          bodyOf(result).toString shouldBe ErrorResponses.GATEWAY_TIMEOUT.toString
         }
 
         "return 403 Forbidden when GRO returns Forbidden" in {
@@ -247,7 +247,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe empty
+          bodyOf(result).toString shouldBe ErrorResponses.CERTIFICATE_INVALID.toString
        }
 
       }
@@ -317,6 +317,8 @@ class MatchingControllerSpec extends UnitSpec
           val request = badDetailsRequestForLastName(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_REQUEST
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return 400 BadRequest when dateofbirth key is invalid" in {
@@ -326,6 +328,8 @@ class MatchingControllerSpec extends UnitSpec
           val request = badDetailsRequestForDateOfBirth(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_REQUEST
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
@@ -338,7 +342,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.CONNECTION_DOWN
+          bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
         }
 
         "return BadGateway when GRO returns Upstream5xxResponse BadGateway" in {
@@ -351,7 +355,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return BadGateway when forenames is not provided" in {
@@ -364,7 +368,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return BadGateway when lastname is not provided" in {
@@ -377,7 +381,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return BadGateway when dateofbirth is not provided" in {
@@ -390,7 +394,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return BadGateway when dateofbirth is invalid format" in {
@@ -403,7 +407,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.BAD_REQUEST
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
         "return InternalServerError when invalid json is returned" in {
@@ -416,7 +420,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe empty
+          bodyOf(result).toString shouldBe ErrorResponses.UNKNOWN_ERROR.toString
         }
 
         "return GatewayTimeout when GRO times out" in {
@@ -429,7 +433,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.GATEWAY_TIMEOUT
+          bodyOf(result).toString shouldBe ErrorResponses.GATEWAY_TIMEOUT.toString
         }
 
         "return 403 Forbidden when GRO responds with 418 teapot" in {
@@ -442,7 +446,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe ErrorResponses.TEAPOT
+          bodyOf(result).toString shouldBe ErrorResponses.TEAPOT.toString
         }
 
         "return 403 Forbidden when GRO returns Forbidden" in {
@@ -455,7 +459,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe FORBIDDEN
           contentType(result).get shouldBe "application/json"
-          bodyOf(result) shouldBe empty
+          bodyOf(result).toString shouldBe ErrorResponses.CERTIFICATE_INVALID.toString
         }
 
       }
