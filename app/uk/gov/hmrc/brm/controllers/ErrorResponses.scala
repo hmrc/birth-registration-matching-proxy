@@ -27,7 +27,7 @@ object ErrorResponses {
     s"""
        |{
        |  "code": "$code",
-       |  "description": "$message"
+       |  "message": "$message"
        |}
      """.stripMargin)
 
