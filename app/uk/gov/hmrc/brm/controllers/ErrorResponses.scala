@@ -16,14 +16,27 @@
 
 package uk.gov.hmrc.brm.controllers
 
+import play.api.libs.json.Json
+
 /**
  * Created by adamconder on 10/11/2016.
  */
 object ErrorResponses {
 
-  val CONNECTION_DOWN = "GRO_CONNECTION_DOWN"
-  val BAD_REQUEST = "BAD_REQUEST"
-  val NOT_FOUND = s"NOT_FOUND"
-  val GATEWAY_TIMEOUT = s"GATEWAY_TIMEOUT"
+  private def error(code: String, message: String) = Json.parse(
+    s"""
+       |{
+       |  "code": "$code",
+       |  "message": "$message"
+       |}
+     """.stripMargin)
+
+  val CONNECTION_DOWN = error("GRO_CONNECTION_DOWN", "Connection to GRO is down")
+  val BAD_REQUEST = error("BAD_REQUEST", "Invalid payload provided")
+  val TEAPOT = error("TEAPOT", "Invalid argument sent to GRO")
+  val NOT_FOUND = error("NOT_FOUND", "Resource not found")
+  val GATEWAY_TIMEOUT = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
+  val CERTIFICATE_INVALID = error("INVALID_CERTIFICATE", "TLS certificate was either not provided or was invalid")
+  val UNKNOWN_ERROR = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
 
 }

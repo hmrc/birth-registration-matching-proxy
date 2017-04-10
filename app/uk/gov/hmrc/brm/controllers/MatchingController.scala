@@ -21,7 +21,7 @@ import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.KeyHolder
+import uk.gov.hmrc.brm.utils.{HttpStatus, KeyHolder}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -58,6 +58,18 @@ trait MatchingController extends BaseController {
       respond(BadGateway(ErrorResponses.BAD_REQUEST))
   }
 
+  def teapotException(method : String) : PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream4xxResponse(message, HttpStatus.TEAPOT, _, _)) =>
+      warn(CLASS_NAME, "handleException", s"[$method] TeaPot: $message")
+      respond(Forbidden(ErrorResponses.TEAPOT))
+  }
+
+  def forbiddenException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream4xxResponse(message, FORBIDDEN, _, _)) =>
+      warn(CLASS_NAME, "handleException", s"[$method] Forbidden [certificate not provided]: $message")
+      respond(Forbidden(ErrorResponses.CERTIFICATE_INVALID))
+  }
+
   def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
@@ -79,9 +91,8 @@ trait MatchingController extends BaseController {
   def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(e) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
-      respond(InternalServerError)
+      respond(InternalServerError(ErrorResponses.UNKNOWN_ERROR))
   }
-
 
   def success(method: String): PartialFunction[BirthResponse, Future[Result]] = {
     case BirthSuccessResponse(js) =>
@@ -94,6 +105,8 @@ trait MatchingController extends BaseController {
     notFoundException(method),
     badRequestException(method),
     badGatewayException(method),
+    teapotException(method),
+    forbiddenException(method),
     gatewayTimeoutException(method),
     connectionDown(method),
     exception(method),
@@ -118,7 +131,7 @@ trait MatchingController extends BaseController {
             handle("getReference").apply(_)
           )
         case _ =>
-          respond(BadRequest)
+          respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }
 
@@ -139,7 +152,7 @@ trait MatchingController extends BaseController {
             handle("getDetails").apply(_)
           )
         case _ =>
-          respond(BadRequest)
+          respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }
 
