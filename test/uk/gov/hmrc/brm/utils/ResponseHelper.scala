@@ -37,7 +37,7 @@ object ResponseHelper {
     Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
   )
 
-  val serviceUnavailable: BirthResponse = BirthErrorResponse(
+  val serviceUnavailableResponse : BirthResponse = BirthErrorResponse(
     Upstream5xxResponse("", SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE)
   )
 

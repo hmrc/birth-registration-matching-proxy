@@ -85,7 +85,7 @@ trait MatchingController extends BaseController {
   def connectionDown(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
-      respond(ServiceUnavailable(ErrorResponses.CONNECTION_DOWN))
+      respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
   }
 
   def serviceUnavailable(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
