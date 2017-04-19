@@ -148,12 +148,12 @@ trait MatchingController extends BaseController {
 
       implicit val metrics = GRODetailsMetrics
 
-      val firstname = request.body.\("forenames").asOpt[String]
+      val forenames = request.body.\("forenames").asOpt[String]
       val lastname = request.body.\("lastname").asOpt[String]
       val dateofbirth = request.body.\("dateofbirth").asOpt[String]
-      debug(CLASS_NAME, "details", s"firstName $firstname, lastName: $lastname, dateOfBirth: $dateofbirth")
+      debug(CLASS_NAME, "details", s"forenames $forenames, lastName: $lastname, dateOfBirth: $dateofbirth")
 
-      (firstname, lastname, dateofbirth) match {
+      (forenames, lastname, dateofbirth) match {
         case (Some(f), Some(l), Some(d)) =>
           groConnector.get(f, l, d).flatMap[Result](
             handle("getDetails").apply(_)
