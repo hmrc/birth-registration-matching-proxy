@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.utils
 
 object KeyHolder {
 
-  private var keyForRequest : String = null
+  private var keyForRequest : String = ""
 
    def geKey():String = {
     keyForRequest

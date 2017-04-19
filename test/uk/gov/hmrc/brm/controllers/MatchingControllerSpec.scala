@@ -184,7 +184,18 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result).toString shouldBe ErrorResponses.NOT_FOUND.toString
         }
 
-        "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
+        "return SERVICE_UNAVAILABLE  when GRO returns Upstream5xxResponse Service Unavailable" in {
+          when(MockController.groConnector.get(mockEq(reference))(Matchers.any(), Matchers.any())).thenReturn(serviceUnavailableResponse)
+
+          val request = referenceRequest(reference)
+          val result = await(MockController.reference.apply(request))
+
+          status(result) shouldBe SERVICE_UNAVAILABLE
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
+        }
+
+        "return INTERNAL_SERVER_ERROR when GRO is down" in {
           when(MockController.groConnector.get(mockEq(reference))(Matchers.any(), Matchers.any())).thenReturn(internalServerErrorResponse)
 
           val request = referenceRequest(reference)
@@ -332,7 +343,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
         }
 
-        "return InternalServerError when GRO returns Upstream5xxResponse InternalServerError" in {
+        "return INTERNAL_SERVER_ERROR when GRO returns Upstream5xxResponse InternalServerError ie GRO is down." in {
           val forenames = "adam"
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
@@ -341,6 +352,19 @@ class MatchingControllerSpec extends UnitSpec
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
+          contentType(result).get shouldBe "application/json"
+          bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
+        }
+
+        "return SERVICE_UNAVAILABLE when GRO returns Upstream5xxResponse Service Unavailable" in {
+          val forenames = "adam"
+          val lastname = "conder"
+          val dateofbirth = "2016-10-10"
+
+          when(MockController.groConnector.get(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(Matchers.any(), Matchers.any())).thenReturn(serviceUnavailableResponse)
+          val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
+          val result = await(MockController.details.apply(request))
+          status(result) shouldBe SERVICE_UNAVAILABLE
           contentType(result).get shouldBe "application/json"
           bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
         }

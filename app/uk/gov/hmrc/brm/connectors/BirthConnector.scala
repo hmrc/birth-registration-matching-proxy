@@ -71,7 +71,7 @@ trait BirthConnector extends ServicesConfig {
       ResponseParser.parse(response)
   }
 
-  private def GROHeaderCarrier(token: String) = {
+  private def groHeaderCarrier(token: String) = {
     Map(
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
@@ -81,7 +81,7 @@ trait BirthConnector extends ServicesConfig {
   private[BirthConnector] def getChildByReference(reference : String,
                                                   token: AccessToken,
                                                   attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
-    val headers = GROHeaderCarrier(token)
+    val headers = groHeaderCarrier(token)
     metrics.requestCount("request") // increase counter for attempt to gro reference
 
     debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
@@ -97,7 +97,7 @@ trait BirthConnector extends ServicesConfig {
   private[BirthConnector] def getChildByDetails(details: Map[String, String],
                                                 token : AccessToken,
                                                 attempts: Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
-    val headers = GROHeaderCarrier(token)
+    val headers = groHeaderCarrier(token)
     metrics.requestCount("details-request") // increase counter for attempt to gro details
 
     debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers")

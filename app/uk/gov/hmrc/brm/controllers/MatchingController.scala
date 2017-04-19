@@ -88,6 +88,12 @@ trait MatchingController extends BaseController {
       respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
   }
 
+  def serviceUnavailable(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
+    case BirthErrorResponse(Upstream5xxResponse(message, SERVICE_UNAVAILABLE, _)) =>
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Service Unavailable.")
+      respond(ServiceUnavailable(ErrorResponses.CONNECTION_DOWN))
+  }
+
   def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(e) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
@@ -109,6 +115,7 @@ trait MatchingController extends BaseController {
     forbiddenException(method),
     gatewayTimeoutException(method),
     connectionDown(method),
+    serviceUnavailable(method),
     exception(method),
     success(method)
   ).reduce(_ orElse _)
