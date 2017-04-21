@@ -26,6 +26,7 @@ import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.NameFormat
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 
@@ -176,7 +177,7 @@ trait BirthConnector extends ServicesConfig {
   {
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
-        val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
+        val details = Map("forenames" -> NameFormat(forenames), "lastname" -> NameFormat(lastname), "dateofbirth" -> dateofbirth)
         request(details, token)
       case error @BirthErrorResponse(e) =>
         error
