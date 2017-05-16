@@ -26,21 +26,23 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
 import org.scalatestplus.play.OneAppPerSuite
+import org.specs2.mock.mockito.ArgumentCapture
 import play.api.libs.json.JsArray
 import uk.co.bigbeeconsultants.http.HttpClient
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
-import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics, BRMMetrics}
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils}
+import uk.gov.hmrc.brm.metrics.{BRMMetrics, GRODetailsMetrics, GROReferenceMetrics}
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, BaseUnitSpec, CertificateStatus, JsonUtils}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.brm.utils.TestHelperUtil._
 
 import scala.util.{Failure, Success}
 
 
-class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter with WithFakeApplication {
+class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter with WithFakeApplication with BaseUnitSpec {
 
   implicit val hc = HeaderCarrier()
 
@@ -49,10 +51,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
   val mockCertificateStatus = mock[CertificateStatus]
   val mockAuthenticator = mock[Authenticator]
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
-  val headers = Map(
-    "Authorization" -> s"Bearer something",
-    "X-Auth-Downstream-Username" -> "hmrc"
-  )
+
 
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
 
@@ -110,8 +109,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
       implicit val metrics = mock[BRMMetrics]
 
       "throw Upstream4xxResponse for invalid json" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, "[something]")
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventResponseWithStatus (Status.S200_OK,"[something]")
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
@@ -186,7 +185,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
           """
             |"reference": "something"
           """.stripMargin
-        val eventResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, json)
+        val eventResponse = eventResponseWithStatus (Status.S200_OK,json)
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(eventResponse)
@@ -213,7 +212,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthSuccessResponse when authenticator has valid token" in {
         when(mockTokenCache.token).thenReturn(Success("token"))
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("500035710").toString())
+        val eventResponse =  eventSuccessResponse(groResponse("500035710"))
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
         val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthSuccessResponse[_]]
@@ -225,8 +224,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthSuccessResponse when gro responds with 200 for reference" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"), headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, groResponse("500035710").toString())
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventSuccessResponse(groResponse("500035710"))
 
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(authResponse)
@@ -240,8 +239,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthErrorResponse 4xx when gro returns 404" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S404_NotFound, MediaType.APPLICATION_JSON, groResponse("NoMatch").toString())
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventResponseWithStatus (Status.S404_NotFound,groResponse("NoMatch").toString())
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any()))
@@ -256,8 +255,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthErrorResponse 4xx when gro returns BadRequest" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S400_BadRequest, MediaType.APPLICATION_JSON, "")
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventResponseWithStatus (Status.S400_BadRequest,"")
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any()))
@@ -271,9 +270,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthErrorResponse 5xx when gro returns InternalServerError" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
-        val eventResponse = Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventResponseWithStatus (Status.S500_InternalServerError,"")
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(authResponse)
@@ -287,7 +285,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthErrorResponse 5xx when all attempts fail for reference lookup (SocketTimeoutException)" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
@@ -302,7 +300,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       "BirthErrorResponse 5xx when Exception is thrown for reference lookup" in {
         implicit val metrics = GROReferenceMetrics
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None), Status.S200_OK, MediaType.APPLICATION_JSON, authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
@@ -326,26 +324,47 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
         val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName&dateofbirth=$dateOfBirth")
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099/oauth/login"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse =  eventSuccessResponse(groResponse("2006-11-12_smith_adam"))
 
-        val eventResponse = Response.apply(
-          Request.get(url,
-            headers = Headers.apply(headers)),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          groResponse("2006-11-12_smith_adam").toString())
+        val argumentCapture = new ArgumentCapture[URL]
 
         when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any())).thenReturn(eventResponse)
+
+
 
         val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result shouldBe a[BirthSuccessResponse[_]]
         result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
         GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-details-request-count").getCount shouldBe 1
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
+
+      }
+
+
+      "BirthSuccessResponse when gro details responds with 200 with single record when requst has special character." in {
+        implicit val metrics = GRODetailsMetrics
+        val firstName = "Adàm TËST"
+        val lastName = "SMÏTH"
+        val dateOfBirth = "2006-11-12"
+
+        val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName&dateofbirth=$dateOfBirth")
+
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse =  eventSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
+
+        val argumentCapture = new ArgumentCapture[URL]
+        when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any())).thenReturn(eventResponse)
+
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
+        result shouldBe a[BirthSuccessResponse[_]]
+        result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
+        result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
+
       }
 
       "BirthSuccessResponse with [] empty response for no records found" in {
@@ -356,28 +375,20 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
         val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName&dateofbirth=$dateOfBirth")
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse =  eventSuccessResponse(groResponse("NoMatch"))
 
-        val eventResponse = Response.apply(
-          Request.get(url,
-            headers = Headers.apply(headers)
-          ),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          groResponse("NoMatch").toString())
-
+        val argumentCapture = new ArgumentCapture[URL]
         when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(authResponse)
-        when(MockBirthConnector.http.get(Matchers.any(), Matchers.any()))
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any()))
           .thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result shouldBe a[BirthSuccessResponse[_]]
         result shouldBe BirthSuccessResponse(groResponse("NoMatch"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
@@ -388,10 +399,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
         val url = new URL(s"http://localhost:8099/api/v0/birth?lastname=$lastName&dateofbirth=$dateOfBirth")
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
 
         val eventResponse = Response.apply(
           Request.get(url,
@@ -400,13 +408,14 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
           Status.S400_BadRequest,
           MediaType.apply("text/plain; charset=UTF-8"),
           "forenames or forename1 is required")
-
+        val argumentCapture = new ArgumentCapture[URL]
         when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any())).thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream4xxResponse]
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
@@ -417,10 +426,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
         val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&dateofbirth=$dateOfBirth")
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
 
         val eventResponse = Response.apply(
           Request.get(url,
@@ -429,13 +435,14 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
           Status.S400_BadRequest,
           MediaType.apply("text/plain; charset=UTF-8"),
           "Must provide lastname parameter")
-
+        val argumentCapture = new ArgumentCapture[URL]
         when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any())).thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream4xxResponse]
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
@@ -446,11 +453,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
         val url = new URL(s"http://localhost:8099/api/v0/birth?forenames=$firstName&lastname=$lastName")
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
-
+        val authResponse = authSuccessResponse(authRecord)
         val eventResponse = Response.apply(
           Request.get(url,
             headers = Headers.apply(headers)
@@ -458,14 +461,15 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
           Status.S400_BadRequest,
           MediaType.apply("text/plain; charset=UTF-8"),
           "Must provide date of birth parameter")
-
+        val argumentCapture = new ArgumentCapture[URL]
         when(MockBirthConnector.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-        when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
+        when(MockBirthConnector.http.get(argumentCapture.capture, Matchers.any())).thenReturn(eventResponse)
 
         val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream4xxResponse]
+        argumentCapture.value.getQuery shouldBe getUrlEncodeString(firstName,lastName,dateOfBirth)
       }
 
       "BirthErrorResponse when GRO returns 5xx" in {
@@ -474,16 +478,8 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
         val lastName = "smith"
         val dateOfBirth = "2010-10-06"
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
-
-        val eventResponse = Response.apply(
-          Request.get(new URL("http://localhost:8099"),
-            headers = Headers.apply(headers)),
-          Status.S500_InternalServerError,
-          MediaType.APPLICATION_JSON, "")
+        val authResponse = authSuccessResponse(authRecord)
+        val eventResponse = eventResponseWithStatus (Status.S500_InternalServerError,"")
 
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
@@ -501,11 +497,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
         val lastName = "smith"
         val dateOfBirth = "2010-10-06"
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
-
+        val authResponse = authSuccessResponse(authRecord)
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenThrow(new IOException(""))
 
@@ -522,10 +514,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
         val lastName = "smith"
         val dateOfBirth = "2010-10-06"
 
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None),
-          Status.S200_OK,
-          MediaType.APPLICATION_JSON,
-          authRecord.toString())
+        val authResponse = authSuccessResponse(authRecord)
 
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenThrow(new SocketTimeoutException(""))
