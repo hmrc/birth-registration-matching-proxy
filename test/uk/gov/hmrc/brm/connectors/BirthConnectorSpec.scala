@@ -60,7 +60,6 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
     override val authenticator = mockAuthenticator
     override val username = "test-user"
     override val endpoint = "test-endpoint"
-    override val version = "1.0"
     override val encoder = Encoder
     override val delayTime = 5000
     override val delayAttempts = 3
@@ -81,8 +80,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
     override val authenticator = MockAuthenticator
     override val delayTime = 1
     override val delayAttempts = 3
-    override val version = GROConnectorConfiguration.version
-    override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
+    override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth"
     override val username = GROConnectorConfiguration.username
     override val encoder = Encoder
   }

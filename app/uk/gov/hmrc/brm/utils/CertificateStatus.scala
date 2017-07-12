@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.utils
 
 import org.joda.time._
 import org.joda.time.format.PeriodFormatterBuilder
+import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 
@@ -25,20 +26,11 @@ trait CertificateStatus extends ServicesConfig {
 
   protected val CLASS_NAME: String = this.getClass.getCanonicalName
 
-  val privateKeystore_Key = "birth-registration-matching.privateKeystore"
+  lazy val privateKeystore = GROConnectorConfiguration.tlsPrivateKeystore
 
-  lazy val privateKeystore = getConfString(privateKeystore_Key,
-    throw new RuntimeException("[Configuration][NotFound] privateKeystore"))
+  lazy val privateKeystoreKey = GROConnectorConfiguration.tlsPrivateKeystoreKey
 
-  val privateKeystoreKey_Key = "birth-registration-matching.privateKeystoreKey"
-
-  lazy val privateKeystoreKey = getConfString(privateKeystoreKey_Key,
-    throw new RuntimeException("[Configuration][NotFound] privateKeystoreKey"))
-
-  val certificateExpiryDate_Key = "birth-registration-matching.certificateExpiryDate"
-
-  lazy val certificateExpiryDate = getConfString(certificateExpiryDate_Key,
-    throw new RuntimeException("[Configuration][NotFound] certificateExpiryDate"))
+  lazy val certificateExpiryDate = GROConnectorConfiguration.certificateExpiryDate
 
   lazy val formatDate =
     new PeriodFormatterBuilder()
