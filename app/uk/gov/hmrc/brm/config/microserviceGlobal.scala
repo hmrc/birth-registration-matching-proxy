@@ -34,8 +34,8 @@ object ControllerConfiguration extends ControllerConfig {
 
 object GROConnectorConfiguration extends ServicesConfig {
 
-  private lazy val tlsConfigPath = "birth-registration-matching.gro.v1.tls."
-  private lazy val authenticationConfigPath = "birth-registration-matching.gro.v1.authentication."
+  private val tlsConfigPath = "birth-registration-matching.gro.tls"
+  private val authenticationConfigPath = "birth-registration-matching.gro.v1.authentication"
 
   def message(key:String):String = {
     s"[Configuration][NotFound] birth-registration-matching.$key"
@@ -43,21 +43,21 @@ object GROConnectorConfiguration extends ServicesConfig {
 
   lazy val serviceUrl = baseUrl("birth-registration-matching")
 
-  lazy val username = getConfString(authenticationConfigPath + "username",throw new RuntimeException(message("username")))
-  lazy val password = getConfString(authenticationConfigPath + "key", throw new RuntimeException(message("key")))
-  lazy val delayAttemptInMilliseconds : DelayTime = getConfInt(authenticationConfigPath + "delayAttemptInMilliseconds",
+  lazy val username = getConfString(s"$authenticationConfigPath.username",throw new RuntimeException(message("username")))
+  lazy val password = getConfString(s"$authenticationConfigPath.key", throw new RuntimeException(message("key")))
+  lazy val delayAttemptInMilliseconds : DelayTime = getConfInt(s"birth-registration-matching.gro.delayAttemptInMilliseconds",
     throw new RuntimeException(message("delayAttemptInMilliseconds")))
-  lazy val delayAttempts : DelayAttempts = getConfInt(authenticationConfigPath + "delayAttempts",
+  lazy val delayAttempts : DelayAttempts = getConfInt(s"birth-registration-matching.gro.delayAttempts",
     throw new RuntimeException(s"[Configuration][NotFound] ${authenticationConfigPath}delayAttempts"))
 
-  lazy val tlsPrivateKeystore = getConfString(tlsConfigPath + "privateKeystore", throw new RuntimeException(message("privateKeystore")))
-  lazy val tlsPrivateKeystoreKey = getConfString(tlsConfigPath + "privateKeystoreKey", throw new RuntimeException(message("privateKeystoreKey")))
-  lazy val certificateExpiryDate = getConfString(tlsConfigPath + "certificateExpiryDate", throw new RuntimeException(message("certificateExpiryDate")))
-  lazy val allowHostNameMismatch = getConfBool(tlsConfigPath + "allowHostnameMismatch", throw new RuntimeException(message("allowHostnameMismatch")))
-  lazy val tlsVersion = getConfString(tlsConfigPath + "tlsVersion", throw new RuntimeException(message("tlsVersion")))
-  lazy val tlsEnabled = getConfBool(tlsConfigPath + "tlsEnabled", throw new RuntimeException(message("tlsEnabled")))
-  lazy val connectionTimeout = getConfInt(tlsConfigPath + "connectionTimeout",throw new RuntimeException(message("connectionTimeout")))
-  lazy val readTimeout = getConfInt(tlsConfigPath + "readTimeout",throw new RuntimeException(message("readTimeout")))
+  lazy val tlsPrivateKeystore = getConfString(s"$tlsConfigPath.privateKeystore", throw new RuntimeException(message("privateKeystore")))
+  lazy val tlsPrivateKeystoreKey = getConfString(s"$tlsConfigPath.privateKeystoreKey", throw new RuntimeException(message("privateKeystoreKey")))
+  lazy val certificateExpiryDate = getConfString(s"$tlsConfigPath.certificateExpiryDate", throw new RuntimeException(message("certificateExpiryDate")))
+  lazy val allowHostNameMismatch = getConfBool(s"$tlsConfigPath.allowHostnameMismatch", throw new RuntimeException(message("allowHostnameMismatch")))
+  lazy val tlsVersion = getConfString(s"$tlsConfigPath.tlsVersion", throw new RuntimeException(message("tlsVersion")))
+  lazy val tlsEnabled = getConfBool(s"$tlsConfigPath.tlsEnabled", throw new RuntimeException(message("tlsEnabled")))
+  lazy val connectionTimeout = getConfInt(s"$tlsConfigPath.connectionTimeout",throw new RuntimeException(message("connectionTimeout")))
+  lazy val readTimeout = getConfInt(s"$tlsConfigPath.readTimeout",throw new RuntimeException(message("readTimeout")))
 
    def  blockedBodyWords =   Play.current.configuration.getStringSeq(s"$rootServices.birth-registration-matching.features.audit.excludedWords")
    def disableAuditingLogging = getConfBool("birth-registration-matching.features.audit.disableAuditingLogging", true)
