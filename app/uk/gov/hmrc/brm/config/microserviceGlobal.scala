@@ -35,7 +35,7 @@ object ControllerConfiguration extends ControllerConfig {
 object GROConnectorConfiguration extends ServicesConfig {
 
   private val tlsConfigPath = "birth-registration-matching.gro.tls"
-  private val authenticationConfigPath = "birth-registration-matching.gro.authentication.v1"
+  private val authenticationConfigPath = "birth-registration-matching.gro.authentication.v2"
 
   def message(key:String):String = {
     s"[Configuration][NotFound] birth-registration-matching.$key"
@@ -45,6 +45,11 @@ object GROConnectorConfiguration extends ServicesConfig {
 
   lazy val username = getConfString(s"$authenticationConfigPath.username",throw new RuntimeException(message("username")))
   lazy val password = getConfString(s"$authenticationConfigPath.key", throw new RuntimeException(message("key")))
+  lazy val clientID = getConfString(s"$authenticationConfigPath.clientID",throw new RuntimeException(message("clientID")))
+  lazy val clientSecret = getConfString(s"$authenticationConfigPath.clientSecret", throw new RuntimeException(message("clientSecret")))
+  lazy val grantType = getConfString(s"$authenticationConfigPath.grantType", throw new RuntimeException(message("grantType")))
+
+  lazy val authenticationUri = getConfString(s"$authenticationConfigPath.uri", throw new RuntimeException(message("uri")))
   lazy val delayAttemptInMilliseconds : DelayTime = getConfInt(s"birth-registration-matching.gro.http.delayAttemptInMilliseconds",
     throw new RuntimeException(message("delayAttemptInMilliseconds")))
   lazy val delayAttempts : DelayAttempts = getConfInt(s"birth-registration-matching.gro.http.delayAttempts",

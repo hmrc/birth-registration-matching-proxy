@@ -18,53 +18,53 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import uk.co.bigbeeconsultants.http.header.Headers
+import uk.co.bigbeeconsultants.http.header.MediaType
 import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{Attempts, DelayAttempts, DelayTime}
-import uk.gov.hmrc.brm.metrics.{GROReferenceMetrics, BRMMetrics}
-import uk.gov.hmrc.brm.tls.{HttpClientFactory, TLSFactory}
+import uk.gov.hmrc.brm.metrics.BRMMetrics
+import uk.gov.hmrc.brm.tls.HttpClientFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-/**
- * Created by adamconder on 14/11/2016.
- */
-
 class Authenticator(username : String,
                     password : String,
+                    clientID: String,
+                    clientSecret: String,
+                    grantType: String,
                     endpoint : String,
                     val http: HttpClient,
                     val tokenCache : AccessTokenRepository,
                     delayTime : DelayTime,
-                    delayAttempts : DelayAttempts) {
+                    delayAttempts : DelayAttempts,
+                    mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")) {
 
   private[Authenticator] val CLASS_NAME : String = this.getClass.getCanonicalName
 
   private[Authenticator] def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val credentials: Map[String, String] = Map(
       "username" -> username,
-      "password" -> password
+      "password" -> password,
+      "client_id" -> clientID,
+      "client_secret" -> clientSecret,
+      "grant_type" -> grantType
     )
 
-    debug(CLASS_NAME, "requestAuth", s"$endpoint credentials: $credentials")
-    info(CLASS_NAME, "requestAuth", s"requesting authentication token $endpoint")
+    debug(CLASS_NAME, "authenticate", s"$endpoint credentials: $credentials")
+    info(CLASS_NAME, "authenticate", s"requesting authentication token $endpoint")
 
-    metrics.requestCount("authentication") // gro-authentication-count
+    metrics.requestCount("authentication")
 
     val startTime = metrics.startTimer()
-    // request new access token
+
     val response = http.post(
       url = endpoint,
-      body = Some(RequestBody.apply(credentials)),
-      requestHeaders = Headers.apply(
-        Map("Content-Type" -> "application/x-www-form-urlencoded")
-      )
+      body = Some(RequestBody.apply(credentials, mediaType))
     )
 
     metrics.endTimer(startTime, "authentication-timer")
@@ -81,7 +81,6 @@ class Authenticator(username : String,
           val token = body.\("access_token").as[String]
           val seconds = body.\("expires_in").as[Int]
 
-          // save the new token
           tokenCache.saveToken(token, tokenCache.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
@@ -114,7 +113,6 @@ class Authenticator(username : String,
 
   def token()(implicit metrics : BRMMetrics) : BirthResponse = {
     if(!CertificateStatus.certificateStatus()) {
-      // return an BirthErrorResponse as TLS certificate has expired
       error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
     } else {
@@ -125,7 +123,6 @@ class Authenticator(username : String,
           BirthAccessTokenResponse(cache)
         case Failure(expired) =>
           info(CLASS_NAME, "token", s"access_token has expired $expired")
-          //get new auth token
           requestNewToken()
       }
     }
@@ -137,7 +134,6 @@ class Authenticator(username : String,
 /**
  * Authenticator factory
  */
-
 object Authenticator {
 
   def apply() : Authenticator = {
@@ -145,7 +141,10 @@ object Authenticator {
     val httpClient = HttpClientFactory.apply()
     val username = GROConnectorConfiguration.username
     val password = GROConnectorConfiguration.password
-    val endpoint = s"${GROConnectorConfiguration.serviceUrl}/oauth/login"
+    val clientID = GROConnectorConfiguration.clientID
+    val clientSecret = GROConnectorConfiguration.clientSecret
+    val grantType = GROConnectorConfiguration.grantType
+    val endpoint = GROConnectorConfiguration.serviceUrl + GROConnectorConfiguration.authenticationUri
     val tokenRepo = new AccessTokenRepository
     val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
     val delayAttempts = GROConnectorConfiguration.delayAttempts
@@ -153,6 +152,9 @@ object Authenticator {
     new Authenticator(
       username,
       password,
+      clientID,
+      clientSecret,
+      grantType,
       endpoint,
       httpClient,
       tokenRepo,
