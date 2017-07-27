@@ -50,6 +50,8 @@ object GROConnectorConfiguration extends ServicesConfig {
   lazy val grantType = getConfString(s"$authenticationConfigPath.grantType", throw new RuntimeException(message("grantType")))
 
   lazy val authenticationUri = getConfString(s"$authenticationConfigPath.uri", throw new RuntimeException(message("uri")))
+  lazy val authenticationHost = getConfString(s"$authenticationConfigPath.host", throw new RuntimeException(message("authenticationhost")))
+
   lazy val delayAttemptInMilliseconds : DelayTime = getConfInt(s"birth-registration-matching.gro.http.delayAttemptInMilliseconds",
     throw new RuntimeException(message("delayAttemptInMilliseconds")))
   lazy val delayAttempts : DelayAttempts = getConfInt(s"birth-registration-matching.gro.http.delayAttempts",

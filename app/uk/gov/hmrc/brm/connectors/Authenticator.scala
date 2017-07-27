@@ -144,7 +144,7 @@ object Authenticator {
     val clientID = GROConnectorConfiguration.clientID
     val clientSecret = GROConnectorConfiguration.clientSecret
     val grantType = GROConnectorConfiguration.grantType
-    val endpoint = GROConnectorConfiguration.serviceUrl + GROConnectorConfiguration.authenticationUri
+    val endpoint = GROConnectorConfiguration.authenticationHost + GROConnectorConfiguration.authenticationUri
     val tokenRepo = new AccessTokenRepository
     val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
     val delayAttempts = GROConnectorConfiguration.delayAttempts
