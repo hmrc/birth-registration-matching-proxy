@@ -42,8 +42,7 @@ object GROEnglandAndWalesConnector extends BirthConnector {
   override val authenticator = Authenticator.apply()
   override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
   override val delayAttempts = GROConnectorConfiguration.delayAttempts
-  override val version = GROConnectorConfiguration.version
-  override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
+  override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth"
   override val username = GROConnectorConfiguration.username
   override val encoder = Encoder
 }
@@ -52,7 +51,6 @@ trait BirthConnector extends ServicesConfig {
 
   private val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  protected val version: String
   protected val endpoint : String
 
   protected val username : String

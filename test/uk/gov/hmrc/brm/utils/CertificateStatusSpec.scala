@@ -17,7 +17,6 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time.LocalDate
-import uk.gov.hmrc.brm.utils.CertificateStatus
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
@@ -36,23 +35,23 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
 
   val mockCertificateStatusInvalidConfKey = new CertificateStatus {
 
-    override val privateKeystore_Key = "birth-registration-matching.privateKeystoreINVALID"
+    override lazy val privateKeystore = "birth-registration-matching.privateKeystoreINVALID"
 
-    override val privateKeystoreKey_Key = "birth-registration-matching.privateKeystoreKeyINVALID"
+    override lazy val privateKeystoreKey = "birth-registration-matching.privateKeystoreKeyINVALID"
 
-    override val certificateExpiryDate_Key = "birth-registration-matching.certificateExpiryDateINVALID"
+    override lazy val certificateExpiryDate = "birth-registration-matching.certificateExpiryDateINVALID"
   }
 
   " CertificateStatus" should {
 
     "contain privateKeystore" in {
       val privateKeystore = CertificateStatus.privateKeystore
-      privateKeystore should not be null
+      privateKeystore should not be empty
     }
 
     "contain privateKeystoreKey" in {
       val privateKeystoreKey = CertificateStatus.privateKeystoreKey
-      privateKeystoreKey should not be null
+      privateKeystoreKey should not be empty
     }
 
     "throw RuntimeException if privateKeystore config doesn't exist" in {
@@ -81,7 +80,7 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
 
     "contain a value" in {
       val certificateExpiryDate = CertificateStatus.certificateExpiryDate
-      certificateExpiryDate should not be null
+      certificateExpiryDate should not be empty
     }
   }
 

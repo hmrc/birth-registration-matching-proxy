@@ -25,7 +25,6 @@ import org.mockito.Matchers.{eq => mockEq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
-import org.scalatestplus.play.OneAppPerSuite
 import org.specs2.mock.mockito.ArgumentCapture
 import play.api.libs.json.JsArray
 import uk.co.bigbeeconsultants.http.HttpClient
@@ -34,10 +33,10 @@ import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.metrics.{BRMMetrics, GRODetailsMetrics, GROReferenceMetrics}
+import uk.gov.hmrc.brm.utils.TestHelperUtil._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, BaseUnitSpec, CertificateStatus, JsonUtils}
 import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
-import uk.gov.hmrc.brm.utils.TestHelperUtil._
 
 import scala.util.{Failure, Success}
 
@@ -52,7 +51,6 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
   val mockAuthenticator = mock[Authenticator]
   val authRecord = JsonUtils.getJsonFromFile("gro/auth")
 
-
   def groResponse(reference: String) = JsonUtils.getJsonFromFile(s"gro/$reference")
 
   object MockBirthConnectorTestConfig extends BirthConnector {
@@ -60,7 +58,6 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
     override val authenticator = mockAuthenticator
     override val username = "test-user"
     override val endpoint = "test-endpoint"
-    override val version = "1.0"
     override val encoder = Encoder
     override val delayTime = 5000
     override val delayAttempts = 3
@@ -69,7 +66,10 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
   object MockAuthenticator extends Authenticator(
     username = GROConnectorConfiguration.username,
     password = GROConnectorConfiguration.password,
-    endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth",
+    clientID = GROConnectorConfiguration.clientID,
+    clientSecret = GROConnectorConfiguration.clientSecret,
+    grantType = GROConnectorConfiguration.grantType,
+    endpoint = GROConnectorConfiguration.serviceUrl + GROConnectorConfiguration.authenticationUri,
     http = mockHttpClient,
     tokenCache = mockTokenCache,
     delayTime = 1,
@@ -81,8 +81,7 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
     override val authenticator = MockAuthenticator
     override val delayTime = 1
     override val delayAttempts = 3
-    override val version = GROConnectorConfiguration.version
-    override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/$version/events/birth"
+    override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth"
     override val username = GROConnectorConfiguration.username
     override val encoder = Encoder
   }
@@ -90,6 +89,24 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
   before(
     reset(mockHttpClient)
   )
+
+  trait AuthenticationFixture {
+
+    implicit val metrics = mock[BRMMetrics]
+
+    when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
+
+    def buildResponse(authRecord: String, status: Status, mediaType: MediaType): Response = {
+      Response.apply(
+        Request.post(new URL("http://localhost:8099"), None),
+        status, mediaType, authRecord
+      )
+    }
+
+    def result = {
+      await(MockBirthConnector.get("500035710"))
+    }
+  }
 
   "BirthConnector" when {
 
@@ -105,22 +122,15 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
     "parsing json" should {
 
-
-      implicit val metrics = mock[BRMMetrics]
-
-      "throw Upstream4xxResponse for invalid json" in {
+      "throw Upstream5xxResponse for invalid json" in new AuthenticationFixture {
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventResponseWithStatus (Status.S200_OK,"[something]")
 
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.get("500035710"))
-
         val birthErrorResponse = result.asInstanceOf[BirthErrorResponse]
         birthErrorResponse.cause.isInstanceOf[Upstream5xxResponse] shouldBe true
-
       }
     }
 
@@ -128,94 +138,71 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
 
       implicit val metrics = mock[BRMMetrics]
 
-      "BirthErrorResponse of 4xx when authentication returns BadRequest" in {
-        val authResponse = Response.apply(
-          Request.post(new URL("http://localhost:8099/oauth/login"), None),
-          Status.S400_BadRequest, MediaType.APPLICATION_JSON, ""
-        )
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
+      "return 4xx when authentication returns BadRequest" in new AuthenticationFixture {
+        val authResponse = buildResponse("", Status.S400_BadRequest, MediaType.APPLICATION_JSON)
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-
-        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream4xxResponse]
       }
 
-      "BirthErrorResponse when authentication returns 5xx" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
+      "return 5xx when authentication returns 5xx" in new AuthenticationFixture {
+        val authResponse = buildResponse("", Status.S500_InternalServerError, MediaType.APPLICATION_JSON)
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-
-        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream5xxResponse]
-
       }
 
-      "BirthErrorResponse when certificate has expired" in {
+      "return exception when certificate has expired" in new AuthenticationFixture {
         // Force LocalDate to something other than now
         val date = new DateTime(2050: Int, 9: Int, 15: Int, 5: Int, 10: Int, 10: Int)
         DateTimeUtils.setCurrentMillisFixed(date.getMillis)
 
-        val result = await(MockBirthConnector.get("500035710"))
-
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
-
 
         DateTimeUtils.setCurrentMillisSystem()
       }
 
-      "BirthErrorResponse when authentication cache has no access token" in {
-        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S200_OK, MediaType.APPLICATION_JSON, "")
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
+      "return exception when authentication cache has no access token" in new AuthenticationFixture {
+        val authResponse = buildResponse("", Status.S200_OK, MediaType.APPLICATION_JSON)
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
-
-        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
-
       }
 
-      "BirthErrorResponse when authentication returns exception" in {
+      "return exception when authentication returns exception" in new AuthenticationFixture {
         val json =
           """
             |"reference": "something"
           """.stripMargin
         val eventResponse = eventResponseWithStatus (Status.S200_OK,json)
 
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(eventResponse)
 
-        val result = await(MockBirthConnector.get("500035710"))
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
       }
 
-      "BirthErrorResponse 5xx when all attempts fail for authentication (SocketTimeoutException)" in {
+      "BirthErrorResponse 5xx when all attempts fail for authentication (SocketTimeoutException)" in new AuthenticationFixture {
         when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new SocketTimeoutException(""))
-        val result = await(MockBirthConnector.get("500035710"))
+        await(MockBirthConnector.get("500035710"))
         verify(mockHttpClient, times(3)).post(Matchers.any(), Matchers.any(), Matchers.any())
       }
 
-      "BirthErrorResponse when Exception is thrown for authentication" in {
+      "BirthErrorResponse when Exception is thrown for authentication" in new AuthenticationFixture {
         when(mockHttpClient.post(Matchers.any(), Matchers.any(), Matchers.any())).thenThrow(new IOException(""))
-        val result = await(MockBirthConnector.get("500035710"))
-
+        val response = await(MockBirthConnector.get("500035710"))
         verify(mockHttpClient, times(1)).post(Matchers.any(), Matchers.any(), Matchers.any())
-        result shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream5xxResponse]
+        response shouldBe a[BirthErrorResponse]
+        response.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream5xxResponse]
       }
 
-      "BirthSuccessResponse when authenticator has valid token" in {
+      "BirthSuccessResponse when authenticator has valid token" in new AuthenticationFixture {
         when(mockTokenCache.token).thenReturn(Success("token"))
         val eventResponse =  eventSuccessResponse(groResponse("500035710"))
         when(MockBirthConnector.http.get(Matchers.any(), Matchers.any())).thenReturn(eventResponse)
-        val result = await(MockBirthConnector.get("500035710"))
-        result shouldBe a[BirthSuccessResponse[_]]
+        val response = await(MockBirthConnector.get("500035710"))
+        response shouldBe a[BirthSuccessResponse[_]]
       }
 
     }

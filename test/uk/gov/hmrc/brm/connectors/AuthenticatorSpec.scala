@@ -52,7 +52,7 @@ class AuthenticatorSpec extends UnitSpec with WithFakeApplication {
         val authenticator = Authenticator.apply()
         val dateTime = new DateTime()
         DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
-        var expiryTime = authenticator.tokenCache.newExpiry(100)
+        val expiryTime = authenticator.tokenCache.newExpiry(100)
         //expiry time shd be less by 60 sec.
         Seconds.secondsBetween(dateTime, expiryTime).getSeconds shouldBe 40
         DateTimeUtils.setCurrentMillisSystem()

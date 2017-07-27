@@ -106,7 +106,7 @@ trait TLSFactory {
 object TLSFactory extends TLSFactory {
   override val connectionTimeout = GROConnectorConfiguration.connectionTimeout
   override val readTimeout = GROConnectorConfiguration.readTimeout
-  override val allowHostNameMismatch = GROConnectorConfiguration.hostname
+  override val allowHostNameMismatch = GROConnectorConfiguration.allowHostNameMismatch
   override val tlsMode = GROConnectorConfiguration.tlsVersion
   override val keystoreBase64 = GROConnectorConfiguration.tlsPrivateKeystore
   override val keystoreKeyBase64 = GROConnectorConfiguration.tlsPrivateKeystoreKey
