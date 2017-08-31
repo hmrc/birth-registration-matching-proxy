@@ -29,6 +29,7 @@ object ResponseHandler {
   private val CLASS_NAME : String = this.getClass.getCanonicalName
 
   def handle(response: Response, attempts : Attempts)(f : Response => BirthResponse, metrics : BRMMetrics) = {
+
     debug(CLASS_NAME, "handle",s"$response")
     info(CLASS_NAME, "handle", s"response received after $attempts attempt(s)")
 

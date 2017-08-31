@@ -25,7 +25,7 @@ import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
 
@@ -115,17 +115,25 @@ trait BirthConnector extends ServicesConfig {
   private def request(reference: String, token: AccessToken)(implicit metrics : BRMMetrics) : BirthResponse = {
     @tailrec
     def referenceHelper(attempts: Attempts) : BirthResponse = {
+      info(CLASS_NAME, "request", s"attempting to find record by reference, attempt: $attempts")
+
       Try(getChildByReference(reference, token, attempts)) match {
-        case Success((response, _)) => response
+        case Success((response, _)) =>
+          info(CLASS_NAME, "request", s"found record by reference")
+          response
         case Failure(exception) =>
           exception match {
             case e : SocketTimeoutException =>
               if (attempts < delayAttempts) {
                 ErrorHandler.wait(delayTime)
                 referenceHelper(attempts + 1)
-              } else { ErrorHandler.error(exception.getMessage) }
+              } else {
+                error(CLASS_NAME, "request", s"socket timeout exception when loading record by reference")
+                ErrorHandler.error(e.getMessage)
+              }
             case e : Exception =>
-              ErrorHandler.error(exception.getMessage)
+              error(CLASS_NAME, "request", s"failed to load record by reference $e")
+              ErrorHandler.error(e.getMessage)
           }
       }
     }
@@ -139,17 +147,25 @@ trait BirthConnector extends ServicesConfig {
   private def request(details: Map[String, String], token: AccessToken)(implicit metrics : BRMMetrics) : BirthResponse = {
     @tailrec
     def detailsHelper(attempts: Attempts) : BirthResponse = {
+      info(CLASS_NAME, "request", s"attempting to find record(s) by details, attempt $attempts")
+
       Try(getChildByDetails(details, token, attempts)) match {
-        case Success((response, _)) => response
+        case Success((response, _)) =>
+          info(CLASS_NAME, "request", s"found record(s) by details")
+          response
         case Failure(exception) =>
           exception match {
             case e : SocketTimeoutException =>
               if (attempts < delayAttempts) {
                 ErrorHandler.wait(delayTime)
                 detailsHelper(attempts + 1)
-              } else { ErrorHandler.error(exception.getMessage) }
+              } else {
+                error(CLASS_NAME, "request", s"socket timeout exception when loading record(s) by details")
+                ErrorHandler.error(e.getMessage)
+              }
             case e : Exception =>
-              ErrorHandler.error(exception.getMessage)
+              error(CLASS_NAME, "request", s"failed to load record by details $e")
+              ErrorHandler.error(e.getMessage)
           }
       }
     }
@@ -162,9 +178,11 @@ trait BirthConnector extends ServicesConfig {
   {
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
+        info(CLASS_NAME, "getReference", s"valid access token obtained")
         request(reference, token)
-      case error @BirthErrorResponse(e) =>
-        error
+      case e @BirthErrorResponse(_) =>
+        error(CLASS_NAME, "getReference", s"Failed to obtain access token: $e")
+        e
     }
     Future.successful(json)
   }
@@ -174,10 +192,12 @@ trait BirthConnector extends ServicesConfig {
   {
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
+        info(CLASS_NAME, "getDetails", s"valid access token obtained")
         val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
         request(details, token)
-      case error @BirthErrorResponse(e) =>
-        error
+      case e @BirthErrorResponse(_) =>
+        error(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
+        e
     }
     Future.successful(json)
   }

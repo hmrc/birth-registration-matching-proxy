@@ -84,7 +84,8 @@ class Authenticator(username : String,
           tokenCache.saveToken(token, tokenCache.newExpiry(seconds))
 
           BirthAccessTokenResponse(token)
-        case e @ BirthErrorResponse(error) =>
+        case e @ BirthErrorResponse(_) =>
+          error(CLASS_NAME, "saveAccessToken", "failed to parse response")
           e
       }
   }
@@ -100,9 +101,13 @@ class Authenticator(username : String,
               if (attempts < delayAttempts) {
                 ErrorHandler.wait(delayTime)
                 authHelper(attempts + 1)
-              } else { ErrorHandler.error(exception.getMessage) }
+              } else {
+                error(CLASS_NAME, "requestNewToken", "socket timeout exception, stop obtaining a new token")
+                ErrorHandler.error(e.getMessage)
+              }
             case e : Exception =>
-              ErrorHandler.error(exception.getMessage)
+              error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: ${e.getMessage}")
+              ErrorHandler.error(e.getMessage)
           }
       }
     }

@@ -48,7 +48,7 @@ trait MatchingController extends BaseController {
 
   def notFoundException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
-      info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found")
+      info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found: $message")
       respond(NotFound(ErrorResponses.NOT_FOUND))
   }
 
@@ -84,13 +84,13 @@ trait MatchingController extends BaseController {
 
   def connectionDown(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
-      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down")
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down: $message")
       respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
   }
 
   def serviceUnavailable(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream5xxResponse(message, SERVICE_UNAVAILABLE, _)) =>
-      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Service Unavailable.")
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Service Unavailable: $message")
       respond(ServiceUnavailable(ErrorResponses.CONNECTION_DOWN))
   }
 
@@ -129,9 +129,12 @@ trait MatchingController extends BaseController {
     implicit request =>
       setKey(request)
 
+      info(CLASS_NAME, s"reference", s"Reference request received")
+
       implicit val metrics = GROReferenceMetrics
 
       val reference = request.body.\("reference").asOpt[String]
+      
       reference match {
         case Some(r) =>
           groConnector.get(r).flatMap[Result](
@@ -146,11 +149,14 @@ trait MatchingController extends BaseController {
     implicit request =>
       setKey(request)
 
+      info(CLASS_NAME, s"reference", s"Details request received")
+
       implicit val metrics = GRODetailsMetrics
 
       val forenames = request.body.\("forenames").asOpt[String]
       val lastname = request.body.\("lastname").asOpt[String]
       val dateofbirth = request.body.\("dateofbirth").asOpt[String]
+
       debug(CLASS_NAME, "details", s"forenames $forenames, lastName: $lastname, dateOfBirth: $dateofbirth")
 
       (forenames, lastname, dateofbirth) match {
