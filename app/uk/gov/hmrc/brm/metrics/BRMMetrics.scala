@@ -23,15 +23,12 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 
 trait BRMMetrics extends MicroserviceMetrics {
 
-  BrmLogger.info(this.getClass.toString, "[constructor]", "metrics instantiated")
-
   val prefix: String
 
   def httpResponseCodeStatus(code: Int): Unit =
     metrics.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
   def requestCount(key: String = "request"): Unit = {
-    BrmLogger.info(this.getClass.toString, "requestCount", s"$prefix-$key-count")
     metrics.defaultRegistry.counter(s"$prefix-$key-count").inc()
   }
 
