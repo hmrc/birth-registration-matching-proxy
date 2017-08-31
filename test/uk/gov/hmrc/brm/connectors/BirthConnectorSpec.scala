@@ -512,6 +512,23 @@ class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream5xxResponse]
       }
+
+      "return a BirthErrorResponse when token has expired and unable to obtain a new token" in {
+        implicit val metrics = GRODetailsMetrics
+        val firstName = "adam"
+        val lastName = "smith"
+        val dateOfBirth = "2010-10-06"
+
+        val authResponse = Response.apply(Request.post(new URL("http://localhost:8099"), None), Status.S500_InternalServerError, MediaType.APPLICATION_JSON, "")
+
+        when(MockBirthConnector.authenticator.tokenCache.token).thenReturn(Failure(new RuntimeException))
+        when(MockBirthConnector.authenticator.http.post(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(authResponse)
+
+        val result = await(MockBirthConnector.get(firstName, lastName, dateOfBirth))
+
+        result shouldBe a[BirthErrorResponse]
+        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[Upstream5xxResponse]
+      }
     }
   }
 }
