@@ -16,15 +16,17 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.net.SocketTimeoutException
+import java.net.{PasswordAuthentication, SocketTimeoutException}
 
 import uk.co.bigbeeconsultants.http.header.Headers
 import uk.co.bigbeeconsultants.http.response.Response
+import uk.co.bigbeeconsultants.http.util.Base64
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http._
@@ -73,7 +75,7 @@ trait BirthConnector extends ServicesConfig {
     Map(
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
-    )
+    ) ++ ProxyAuthenticator.setProxyAuthHeader()
   }
 
   private[BirthConnector] def getChildByReference(reference : String,

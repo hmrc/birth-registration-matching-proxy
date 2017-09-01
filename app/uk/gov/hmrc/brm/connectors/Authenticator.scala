@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import uk.co.bigbeeconsultants.http.header.MediaType
+import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
@@ -64,7 +64,8 @@ class Authenticator(username : String,
 
     val response = http.post(
       url = endpoint,
-      body = Some(RequestBody.apply(credentials, mediaType))
+      body = Some(RequestBody.apply(credentials, mediaType)),
+      requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader())
     )
 
     metrics.endTimer(startTime, "authentication-timer")
