@@ -32,6 +32,12 @@ object ControllerConfiguration extends ControllerConfig {
   lazy val controllerConfigs = Play.current.configuration.underlying.as[Config]("controllers")
 }
 
+object ProxyConfiguration extends ServicesConfig {
+  lazy val username : String = getConfString(s"proxy.http.proxyUser",throw new RuntimeException("unable to load proxy user"))
+  lazy val password : String = getConfString(s"proxy.http.proxyPassword",throw new RuntimeException("unable to load proxy password"))
+  def required : Boolean = getConfBool(s"proxy.required", throw new RuntimeException("unable to determine if proxy is required"))
+}
+
 object GROConnectorConfiguration extends ServicesConfig {
 
   private val tlsConfigPath = "birth-registration-matching.gro.tls"

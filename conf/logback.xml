@@ -63,11 +63,12 @@
     <logger name="uk.co.bigbeeconsultants.http" level="ERROR">
         <appender-ref ref="STDOUT" />
     </logger>
+
     <logger name="sun.net.www.protocol.http" level="ERROR">
         <appender-ref ref="STDOUT" />
     </logger>
 
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="FILE"/>
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="ACCESS_LOG_FILE"/>

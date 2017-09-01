@@ -73,7 +73,7 @@ trait BirthConnector extends ServicesConfig {
     Map(
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
-    )
+    ) ++ ProxyAuthenticator.setProxyAuthHeader()
   }
 
   private[BirthConnector] def getChildByReference(reference : String,
