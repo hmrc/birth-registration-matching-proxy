@@ -28,14 +28,14 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 object ProxyAuthenticator extends ProxyAuthenticator {
   override protected val username: String = ProxyConfiguration.username
   override protected val password: String = ProxyConfiguration.password
-  override protected val required: Boolean = ProxyConfiguration.required
+  override protected def required: Boolean = ProxyConfiguration.required
 }
 
 trait ProxyAuthenticator {
 
   protected val username : String
   protected val password : String
-  protected val required : Boolean
+  protected def required : Boolean
 
   def setProxyAuthHeader() : Map[String, String] = {
     if (required) {
