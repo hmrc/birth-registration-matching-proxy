@@ -97,7 +97,8 @@ trait TLSFactory {
       connectTimeout = connectionTimeout,
       readTimeout = readTimeout,
       sslSocketFactory = sslSocketFactory,
-      hostnameVerifier = hostnameVerifier
+      hostnameVerifier = hostnameVerifier,
+      proxy = None // Do not provide a proxy object as these are set via system properties -Dhttp.proxyHost etc
     )
   }
 
