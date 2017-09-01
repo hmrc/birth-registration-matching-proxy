@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import play.mvc.Http.HeaderNames
 import uk.co.bigbeeconsultants.http.util.Base64
 import uk.gov.hmrc.brm.config.ProxyConfiguration
+import uk.gov.hmrc.brm.utils.BrmLogger
 
 /**
   * Created by mew on 01/09/2017.
@@ -27,16 +28,24 @@ import uk.gov.hmrc.brm.config.ProxyConfiguration
 object ProxyAuthenticator extends ProxyAuthenticator {
   override protected val username: String = ProxyConfiguration.username
   override protected val password: String = ProxyConfiguration.password
+  override protected val required: Boolean = ProxyConfiguration.required
 }
 
 trait ProxyAuthenticator {
 
   protected val username : String
   protected val password : String
+  protected val required : Boolean
 
-  def setProxyAuthHeader() = {
-    val encoded : String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
-    Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
+  def setProxyAuthHeader() : Map[String, String] = {
+    if (required) {
+      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
+      val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
+      Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
+    } else {
+      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
+      Map()
+    }
   }
 
 }
