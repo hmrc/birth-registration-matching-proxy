@@ -44,6 +44,8 @@ class Authenticator(username : String,
                     delayAttempts : DelayAttempts,
                     mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")) {
 
+
+
   private[Authenticator] val CLASS_NAME : String = this.getClass.getCanonicalName
 
   private[Authenticator] def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
@@ -64,8 +66,8 @@ class Authenticator(username : String,
 
     val response = http.post(
       url = endpoint,
-      body = Some(RequestBody.apply(credentials, mediaType)),
-      requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader())
+      body = Some(RequestBody.apply(credentials, mediaType))
+//      , requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader())
     )
 
     metrics.endTimer(startTime, "authentication-timer")

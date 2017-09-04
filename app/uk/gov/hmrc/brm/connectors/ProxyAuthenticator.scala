@@ -26,26 +26,27 @@ import uk.gov.hmrc.brm.utils.BrmLogger
   */
 
 object ProxyAuthenticator extends ProxyAuthenticator {
-  override protected val username: String = ProxyConfiguration.username
-  override protected val password: String = ProxyConfiguration.password
-  override protected def required: Boolean = ProxyConfiguration.required
+  // override protected val username: String = ProxyConfiguration.username
+  // override protected val password: String = ProxyConfiguration.password
+  // override protected def required: Boolean = ProxyConfiguration.required
 }
 
 trait ProxyAuthenticator {
 
-  protected val username : String
-  protected val password : String
-  protected def required : Boolean
+//  protected val username: String
+//  protected val password: String
+//
+//  protected def required: Boolean
 
-  def setProxyAuthHeader() : Map[String, String] = {
-    if (required) {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
-      val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
-      Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
-    } else {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
-      Map()
-    }
-  }
+  //  def setProxyAuthHeader() : Map[String, String] = {
+  //    if (required) {
+  //      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
+  //      val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
+  //      Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
+  //    } else {
+  //      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
+  //      Map()
+  //    }
+  //  }
 
 }

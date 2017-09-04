@@ -47,18 +47,18 @@ class ProxyAuthenticatorSpec extends UnitSpec with OneAppPerTest {
       .build()
   }
 
-  "ProxyAuthenticator" should {
-
-    "return a Map of proxy headers when required" taggedAs Tag("enabled") in {
-      val headers = ProxyAuthenticator.setProxyAuthHeader()
-      headers.keys should contain("Proxy-Authorization")
-    }
-
-    "return an empty Map when not required" in {
-      val headers = ProxyAuthenticator.setProxyAuthHeader()
-      headers.keys should not contain "Proxy-Authorization"
-    }
-
-  }
+//  "ProxyAuthenticator" should {
+//
+//    "return a Map of proxy headers when required" taggedAs Tag("enabled") ignore {
+//      val headers = ProxyAuthenticator.setProxyAuthHeader()
+//      headers.keys should contain("Proxy-Authorization")
+//    }
+//
+//    "return an empty Map when not required" ignore {
+//      val headers = ProxyAuthenticator.setProxyAuthHeader()
+//      headers.keys should not contain "Proxy-Authorization"
+//    }
+//
+//  }
 
 }
