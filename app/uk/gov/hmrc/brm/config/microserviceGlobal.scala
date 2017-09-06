@@ -33,8 +33,10 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object ProxyConfiguration extends ServicesConfig {
-  lazy val username : String = getConfString(s"proxy.http.proxyUser",throw new RuntimeException("unable to load proxy user"))
-  lazy val password : String = getConfString(s"proxy.http.proxyPassword",throw new RuntimeException("unable to load proxy password"))
+  lazy val username : String = getConfString(s"proxy.http.user",throw new RuntimeException("unable to load proxy user"))
+  lazy val password : String = getConfString(s"proxy.http.password",throw new RuntimeException("unable to load proxy password"))
+  lazy val hostname : String = getConfString(s"proxy.http.hostname",throw new RuntimeException("unable to load proxy hostname"))
+  lazy val port : Int = getConfInt(s"proxy.http.port",throw new RuntimeException("unable to load proxy port"))
   def required : Boolean = getConfBool(s"proxy.required", throw new RuntimeException("unable to determine if proxy is required"))
 }
 

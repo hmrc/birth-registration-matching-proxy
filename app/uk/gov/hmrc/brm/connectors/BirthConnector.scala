@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.net.{InetSocketAddress, Proxy, SocketTimeoutException}
+import java.net.SocketTimeoutException
 
 import uk.co.bigbeeconsultants.http.header.Headers
 import uk.co.bigbeeconsultants.http.response.Response
@@ -55,17 +55,7 @@ trait BirthConnector extends ServicesConfig {
 
   protected val username: String
 
-  val proxyAddress = new InetSocketAddress("outbound-proxy-vip", 3128)
-  val proxyConfig = new Proxy(Proxy.Type.HTTP, proxyAddress)
-  //TODO: Key name?!
-  /*val proxyCredentials = new Credential("username", "password")
-  val credentialSuite = new CredentialSuite(Map("" ->proxyCredentials))*/
-
-  protected val http: HttpClient = new HttpClient(Config(
-    proxy = Some(proxyConfig)
-    //    , credentials = credentialSuite)
-  )
-  )
+  protected def http: HttpClient
 
   protected val encoder: Encoder
 
@@ -83,7 +73,7 @@ trait BirthConnector extends ServicesConfig {
     Map(
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
-    ) //++ ProxyAuthenticator.setProxyAuthHeader()
+    ) ++ ProxyAuthenticator.setProxyAuthHeader
   }
 
   private[BirthConnector] def getChildByReference(reference: String,
@@ -96,7 +86,9 @@ trait BirthConnector extends ServicesConfig {
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
 
     val startTime = metrics.startTimer()
+
     val response = http.get(s"$endpoint/$reference", Headers.apply(headers))
+
     metrics.endTimer(startTime, "reference-match-timer")
 
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
@@ -124,25 +116,6 @@ trait BirthConnector extends ServicesConfig {
   }
 
   private def request(reference: String, token: AccessToken)(implicit metrics: BRMMetrics): BirthResponse = {
-
-    /*java.net.Authenticator.setDefault(new java.net.Authenticator() {
-      @Override
-      protected java.net.PasswordAuthentication getPasswordAuthentication() {
-        if (getRequestorType() == RequestorType.PROXY) {
-          val prot: String = getRequestingProtocol().toLowerCase();
-          val host: String = System.getProperty(prot + ".proxyHost", "");
-          val port: String= System.getProperty(prot + ".proxyPort", "80");
-          val user: String= System.getProperty(prot + ".proxyUser", "");
-          val password: String= System.getProperty(prot + ".proxyPassword", "");
-          if (getRequestingHost().equalsIgnoreCase(host)) {
-            if (Integer.parseInt(port) == getRequestingPort()) {
-              return new PasswordAuthentication(user, password.toCharArray());
-            }
-          }
-        }
-        return
-      }
-    })*/
 
     @tailrec
     def referenceHelper(attempts: Attempts): BirthResponse = {
