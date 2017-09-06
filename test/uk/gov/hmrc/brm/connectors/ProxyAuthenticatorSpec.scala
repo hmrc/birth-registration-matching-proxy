@@ -21,6 +21,7 @@ import org.scalatestplus.play.OneAppPerTest
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import uk.gov.hmrc.play.test.UnitSpec
+import java.net.{Proxy}
 
 /**
   * Created by mew on 01/09/2017.
@@ -50,13 +51,23 @@ class ProxyAuthenticatorSpec extends UnitSpec with OneAppPerTest {
   "ProxyAuthenticator" should {
 
     "return a Map of proxy headers when required" taggedAs Tag("enabled") in {
-      val headers = ProxyAuthenticator.setProxyAuthHeader()
+      val headers = ProxyAuthenticator.setProxyAuthHeader
       headers.keys should contain("Proxy-Authorization")
     }
 
     "return an empty Map when not required" in {
-      val headers = ProxyAuthenticator.setProxyAuthHeader()
+      val headers = ProxyAuthenticator.setProxyAuthHeader
       headers.keys should not contain "Proxy-Authorization"
+    }
+
+    "return a Proxy object when required" taggedAs Tag("enabled") in {
+      val proxy = ProxyAuthenticator.setProxyHost
+      proxy.get shouldBe a[Proxy]
+    }
+
+    "return None when a proxy isn't required" in {
+      val proxy = ProxyAuthenticator.setProxyHost
+      proxy shouldBe None
     }
 
   }

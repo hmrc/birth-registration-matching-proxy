@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets
 
 import uk.co.bigbeeconsultants.http.Config
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.connectors.ProxyAuthenticator
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 trait TLSFactory {
@@ -98,7 +99,7 @@ trait TLSFactory {
       readTimeout = readTimeout,
       sslSocketFactory = sslSocketFactory,
       hostnameVerifier = hostnameVerifier,
-      proxy = None // Do not provide a proxy object as these are set via system properties -Dhttp.proxyHost etc
+      proxy = ProxyAuthenticator.setProxyHost
     )
   }
 
