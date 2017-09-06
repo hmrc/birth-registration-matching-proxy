@@ -44,7 +44,14 @@ trait ProxyAuthenticator {
   def setProxyAuthHeader: Map[String, String] = {
     if (required) {
       BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
+
+      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"u - $username")
+      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"p - $password")
+
       val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
+
+      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"encoded header - $encoded")
+
       Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
     } else {
       BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
@@ -54,11 +61,19 @@ trait ProxyAuthenticator {
 
   def setProxyHost = {
     if (required) {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting proxy object")
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "setting proxy object")
       val proxyAddress = new InetSocketAddress(hostname, port)
-      Some(new Proxy(Proxy.Type.HTTP, proxyAddress))
+
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", s"hostname - $hostname")
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", s"port - $port")
+
+      val proxy: Proxy = new Proxy(Proxy.Type.HTTP, proxyAddress)
+
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", s"proxy - ${proxy.toString}")
+
+      Some(proxy)
     } else {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting proxy object")
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "not setting proxy object")
       None
     }
 
