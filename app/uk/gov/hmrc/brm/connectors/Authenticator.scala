@@ -67,7 +67,7 @@ class Authenticator(username : String,
     val response = http.post(
       url = endpoint,
       body = Some(RequestBody.apply(credentials, mediaType))
-      , requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader)
+//      , requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader)
     )
 
     metrics.endTimer(startTime, "authentication-timer")
