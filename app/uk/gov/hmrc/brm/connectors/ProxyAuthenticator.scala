@@ -18,8 +18,6 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.{InetSocketAddress, PasswordAuthentication, Proxy}
 
-import play.mvc.Http.HeaderNames
-import uk.co.bigbeeconsultants.http.util.Base64
 import uk.gov.hmrc.brm.config.ProxyConfiguration
 import uk.gov.hmrc.brm.utils.BrmLogger
 
@@ -42,7 +40,7 @@ trait ProxyAuthenticator {
   protected def required: Boolean
 
   // $COVERAGE-OFF$
-  private object ProxyAuthenticator extends java.net.Authenticator {
+  object ProxyAuthenticator extends java.net.Authenticator {
 
     override def getPasswordAuthentication: PasswordAuthentication = {
       BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"sending credentials")
@@ -52,11 +50,11 @@ trait ProxyAuthenticator {
   }
 
   def configureProxyAuthenticator = {
-    BrmLogger.debug("ProxyAuthenticator", "configureProxyAuthenticator", s"configuring proxy authenticator $username : $password")
-    java.net.Authenticator.setDefault(ProxyAuthenticator)
+    if(required) {
+      BrmLogger.debug("ProxyAuthenticator", "configureProxyAuthenticator", s"configuring proxy authenticator $username : $password")
+      java.net.Authenticator.setDefault(ProxyAuthenticator)
+    }
   }
-
-  if(required) configureProxyAuthenticator
   // $COVERAGE-ON$
 
 //  def setProxyAuthHeader: Map[String, String] = {
