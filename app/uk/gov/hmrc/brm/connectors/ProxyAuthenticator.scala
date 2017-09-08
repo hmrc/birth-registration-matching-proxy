@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.net.{InetSocketAddress, Proxy}
+import java.net.{InetSocketAddress, PasswordAuthentication, Proxy}
 
 import play.mvc.Http.HeaderNames
 import uk.co.bigbeeconsultants.http.util.Base64
@@ -25,7 +25,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 
 object ProxyAuthenticator extends ProxyAuthenticator {
   override protected val username: String = ProxyConfiguration.username
-  override protected val password: String = new String(Base64.decode(ProxyConfiguration.password))
+  override protected val password: String = ProxyConfiguration.password
   override protected val hostname: String = ProxyConfiguration.hostname
   override protected val port: Int = ProxyConfiguration.port
 
@@ -41,23 +41,41 @@ trait ProxyAuthenticator {
 
   protected def required: Boolean
 
-  def setProxyAuthHeader: Map[String, String] = {
-    if (required) {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
+  private object ProxyAuthenticator extends java.net.Authenticator {
 
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"u - $username")
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"p - $password")
-
-      val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
-
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"encoded header - $encoded")
-
-      Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
-    } else {
-      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
-      Map()
+    override def getPasswordAuthentication: PasswordAuthentication = {
+      BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"$username : $password")
+      new PasswordAuthentication(username, password.toCharArray)
     }
+
   }
+
+  def configureProxyAuthenticator = {
+    java.net.Authenticator.setDefault(ProxyAuthenticator)
+  }
+
+  if(required) configureProxyAuthenticator
+
+//  def setProxyAuthHeader: Map[String, String] = {
+//    if (required) {
+//      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "setting header")
+//
+//      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"u - $username")
+//      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"p - $password")
+//
+//      val encoded: String = new String(Base64.encodeBytes(s"$username:$password".getBytes))
+//
+//      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", s"encoded header - $encoded")
+//
+//      Map(HeaderNames.PROXY_AUTHORIZATION -> s"Basic $encoded")
+//
+//
+//
+//    } else {
+//      BrmLogger.info("ProxyAuthenticator", "setProxyAuthHeader", "not setting header")
+//      Map()
+//    }
+//  }
 
   def setProxyHost = {
     if (required) {
