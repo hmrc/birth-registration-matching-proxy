@@ -25,7 +25,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 
 object ProxyAuthenticator extends ProxyAuthenticator {
   override protected val username: String = ProxyConfiguration.username
-  override protected val password: String = ProxyConfiguration.password
+  override protected val password: String = new String(Base64.decode(ProxyConfiguration.password))
   override protected val hostname: String = ProxyConfiguration.hostname
   override protected val port: Int = ProxyConfiguration.port
 
