@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
+import uk.co.bigbeeconsultants.http.header.MediaType
 import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
@@ -120,6 +120,10 @@ class Authenticator(username : String,
 
 
   def token()(implicit metrics : BRMMetrics) : BirthResponse = {
+
+    // configure authenticator
+    ProxyAuthenticator.configureProxyAuthenticator
+
     if(!CertificateStatus.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
