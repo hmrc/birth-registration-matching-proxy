@@ -40,7 +40,7 @@ trait ProxyAuthenticator {
   protected def required: Boolean
 
   // $COVERAGE-OFF$
-  object ProxyAuthenticator extends java.net.Authenticator {
+  class ProxyAuthenticator extends java.net.Authenticator {
 
     override def getPasswordAuthentication: PasswordAuthentication = {
       BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"sending credentials")
@@ -52,7 +52,7 @@ trait ProxyAuthenticator {
   def configureProxyAuthenticator = {
     if(required) {
       BrmLogger.debug("ProxyAuthenticator", "configureProxyAuthenticator", s"configuring proxy authenticator $username : $password")
-      java.net.Authenticator.setDefault(ProxyAuthenticator)
+      java.net.Authenticator.setDefault(new ProxyAuthenticator)
     }
   }
   // $COVERAGE-ON$
