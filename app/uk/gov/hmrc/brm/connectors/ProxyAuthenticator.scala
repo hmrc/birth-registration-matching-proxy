@@ -41,20 +41,23 @@ trait ProxyAuthenticator {
 
   protected def required: Boolean
 
+  // $COVERAGE-OFF$
   private object ProxyAuthenticator extends java.net.Authenticator {
 
     override def getPasswordAuthentication: PasswordAuthentication = {
-      BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"$username : $password")
+      BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"sending credentials")
       new PasswordAuthentication(username, password.toCharArray)
     }
 
   }
 
   def configureProxyAuthenticator = {
+    BrmLogger.debug("ProxyAuthenticator", "configureProxyAuthenticator", s"configuring proxy authenticator $username : $password")
     java.net.Authenticator.setDefault(ProxyAuthenticator)
   }
 
   if(required) configureProxyAuthenticator
+  // $COVERAGE-ON$
 
 //  def setProxyAuthHeader: Map[String, String] = {
 //    if (required) {
