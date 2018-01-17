@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,11 @@ import uk.gov.hmrc.play.http._
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import uk.gov.hmrc.http.HeaderCarrier
+
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.ExecutionContext
 
 /**
   * GROEnglandAndWalesConnector
@@ -57,6 +62,8 @@ trait BirthConnector extends ServicesConfig {
 
   protected def http: HttpClient
 
+  //  protected def http: CoreGet
+
   protected val encoder: Encoder
 
   val authenticator: Authenticator
@@ -79,7 +86,7 @@ trait BirthConnector extends ServicesConfig {
 
   private[BirthConnector] def getChildByReference(reference: String,
                                                   token: AccessToken,
-                                                  attempts: Attempts)(implicit metrics: BRMMetrics): (BirthResponse, Attempts) = {
+                                                  attempts: Attempts)(implicit metrics: BRMMetrics, ec: ExecutionContext): (BirthResponse, Attempts) = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount("request") // increase counter for attempt to gro reference
 
@@ -97,7 +104,7 @@ trait BirthConnector extends ServicesConfig {
 
   private[BirthConnector] def getChildByDetails(details: Map[String, String],
                                                 token: AccessToken,
-                                                attempts: Attempts)(implicit metrics: BRMMetrics): (BirthResponse, Attempts) = {
+                                                attempts: Attempts)(implicit metrics: BRMMetrics, ec: ExecutionContext): (BirthResponse, Attempts) = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount("details-request") // increase counter for attempt to gro details
 

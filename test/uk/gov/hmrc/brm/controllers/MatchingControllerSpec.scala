@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 HM Revenue & Customs
+ * Copyright 2018 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,12 @@ import play.api.libs.json._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.play.http.{HeaderCarrier, JsValidationException}
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import uk.gov.hmrc.brm.utils.JsonUtils
 import uk.gov.hmrc.brm.utils.ResponseHelper._
 
 import scala.concurrent.Future
+import uk.gov.hmrc.http.{ HeaderCarrier, JsValidationException }
 
 class MatchingControllerSpec extends UnitSpec
   with WithFakeApplication
@@ -130,7 +130,7 @@ class MatchingControllerSpec extends UnitSpec
   }
 
   val jsValidationExceptionResponse: BirthResponse = BirthErrorResponse(
-    new JsValidationException("", "", getClass, Seq())
+    new JsValidationException("", "", getClass, "")
   )
 
   object MockController extends MatchingController {
