@@ -22,10 +22,10 @@ import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{HttpStatus, KeyHolder}
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.Future
+import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
 
 
 object MatchingController extends MatchingController {

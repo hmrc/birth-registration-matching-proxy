@@ -35,10 +35,11 @@ import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.metrics.{BRMMetrics, GRODetailsMetrics, GROReferenceMetrics}
 import uk.gov.hmrc.brm.utils.TestHelperUtil._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, BaseUnitSpec, CertificateStatus, JsonUtils}
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, _}
+import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 import scala.util.{Failure, Success}
+import uk.gov.hmrc.http.{ HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse }
 
 
 class BirthConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfter with WithFakeApplication with BaseUnitSpec {

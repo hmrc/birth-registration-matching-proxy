@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.utils
 
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.connectors.{BirthErrorResponse, BirthResponse}
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
 
 object ResponseHelper {
 

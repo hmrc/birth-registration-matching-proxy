@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status._
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
 
 /**
  * Created by adamconder on 14/11/2016.
