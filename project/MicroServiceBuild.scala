@@ -17,10 +17,10 @@ object MicroServiceBuild extends Build with MicroService {
 private object AppDependencies {
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "6.15.0"
+  private val microserviceBootstrapVersion = "6.18.0"
   private val playUrlBindersVersion = "2.1.0"
-  private val domainVersion = "5.1.0"
-  private val hmrcTestVersion = "2.3.0"
+  private val domainVersion = "5.2.0"
+  private val hmrcTestVersion = "3.0.0"
   private val mockito = "1.9.5"
   private val specs2 = "2.3.13"
 
@@ -39,11 +39,11 @@ private object AppDependencies {
     def apply() = new TestDependencies {
       override lazy val test = Seq(
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "2.2.6" % scope,
+        "org.scalatest" %% "scalatest" % "3.0.1" % scope,
         "org.pegdown" % "pegdown" % "1.5.0" % scope,
         "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
         "org.mockito" % "mockito-all" % mockito,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1",
+        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0",
         "org.specs2" % "specs2_2.10" % specs2
       )
     }.test
@@ -56,10 +56,10 @@ private object AppDependencies {
 
       override lazy val test = Seq(
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "2.2.6" % scope,
+        "org.scalatest" %% "scalatest" % "3.0.1" % scope,
         "org.pegdown" % "pegdown" % "1.5.0" % scope,
         "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1",
+        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0",
         "org.specs2" % "specs2_2.10" % specs2
       )
     }.test
