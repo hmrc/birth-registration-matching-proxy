@@ -9,7 +9,7 @@ import sbt._
 trait MicroService {
 
   import uk.gov.hmrc._
-  import DefaultBuildSettings._
+  import DefaultBuildSettings.{defaultSettings, scalaSettings, targetJvm, addTestReportOption}
   import TestPhases._
   import play.sbt.routes.RoutesKeys.routesGenerator
 
