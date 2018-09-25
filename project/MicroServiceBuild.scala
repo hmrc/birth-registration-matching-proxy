@@ -1,5 +1,5 @@
 import sbt._
-import uk.gov.hmrc.SbtAutoBuildPlugin
+import uk.gov.hmrc.{SbtArtifactory, SbtAutoBuildPlugin}
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin
 import uk.gov.hmrc.versioning.SbtGitVersioning
 
@@ -8,7 +8,7 @@ object MicroServiceBuild extends Build with MicroService {
   val appName = "birth-registration-matching-proxy"
 
   override lazy val plugins: Seq[Plugins] = Seq(
-    SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin
+    SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory
   )
 
   override lazy val appDependencies: Seq[ModuleID] = AppDependencies()
@@ -17,10 +17,10 @@ object MicroServiceBuild extends Build with MicroService {
 private object AppDependencies {
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "8.2.0"
+  private val microserviceBootstrapVersion = "8.3.0"
   private val playUrlBindersVersion = "2.1.0"
   private val domainVersion = "5.2.0"
-  private val hmrcTestVersion = "3.0.0"
+  private val hmrcTestVersion = "3.1.0"
   private val mockito = "1.9.5"
   private val specs2 = "2.3.13"
 

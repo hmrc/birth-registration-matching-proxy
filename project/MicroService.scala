@@ -12,6 +12,10 @@ trait MicroService {
   import DefaultBuildSettings.{defaultSettings, scalaSettings, targetJvm, addTestReportOption}
   import TestPhases._
   import play.sbt.routes.RoutesKeys.routesGenerator
+  import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
+  import uk.gov.hmrc.SbtAutoBuildPlugin
+  import uk.gov.hmrc.versioning.SbtGitVersioning
+  import uk.gov.hmrc.SbtArtifactory
 
   val appName: String
 
@@ -36,6 +40,7 @@ trait MicroService {
     .settings(scoverageSettings: _*)
     .settings(scalaSettings: _*)
     .settings(publishingSettings: _*)
+    .settings(majorVersion := 1)
     .settings(defaultSettings(): _*)
     .settings(
       targetJvm := "jvm-1.8",
