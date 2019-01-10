@@ -52,9 +52,13 @@ object GROEnglandAndWalesConnector extends BirthConnector {
 
 trait BirthConnector extends ServicesConfig {
 
+  // $COVERAGE-OFF$
+
   override protected def mode: Mode = Play.current.mode
 
   override protected def runModeConfiguration: Configuration = Play.current.configuration
+
+  // $COVERAGE-ON$
 
   private val CLASS_NAME: String = this.getClass.getCanonicalName
 

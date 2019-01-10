@@ -26,9 +26,13 @@ import uk.gov.hmrc.play.config.ServicesConfig
 
 trait CertificateStatus extends ServicesConfig {
 
+  // $COVERAGE-OFF$
+
   override protected def mode: Mode = Play.current.mode
 
   override protected def runModeConfiguration: Configuration = Play.current.configuration
+
+  // $COVERAGE-ON$
 
   protected val CLASS_NAME: String = this.getClass.getCanonicalName
 
