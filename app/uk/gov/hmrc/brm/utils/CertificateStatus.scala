@@ -18,11 +18,17 @@ package uk.gov.hmrc.brm.utils
 
 import org.joda.time._
 import org.joda.time.format.PeriodFormatterBuilder
+import play.api.{Configuration, Play}
+import play.api.Mode.Mode
 import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.play.config.ServicesConfig
 
 trait CertificateStatus extends ServicesConfig {
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
 
   protected val CLASS_NAME: String = this.getClass.getCanonicalName
 
