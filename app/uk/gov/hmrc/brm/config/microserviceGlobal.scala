@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package uk.gov.hmrc.brm.config
 
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
+import play.api.Mode.Mode
 import play.api.{Application, Configuration, Play}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayAttempts, DelayTime}
 import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode, ServicesConfig}
 import uk.gov.hmrc.play.microservice.bootstrap.{DefaultMicroserviceGlobal, MicroserviceFilters}
-import net.ceedubs.ficus.Ficus._
-import uk.gov.hmrc.play.microservice.filters.{ AuditFilter, LoggingFilter, MicroserviceFilterSupport }
+import uk.gov.hmrc.play.microservice.filters.{AuditFilter, LoggingFilter, MicroserviceFilterSupport}
 
 
 object ControllerConfiguration extends ControllerConfig {
@@ -31,6 +31,11 @@ object ControllerConfiguration extends ControllerConfig {
 }
 
 object ProxyConfiguration extends ServicesConfig {
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
+
   lazy val username : String = getConfString(s"proxy.http.user",throw new RuntimeException("unable to load proxy user"))
   lazy val password : String = getConfString(s"proxy.http.password",throw new RuntimeException("unable to load proxy password"))
   lazy val hostname : String = getConfString(s"proxy.http.hostname",throw new RuntimeException("unable to load proxy hostname"))
@@ -39,6 +44,10 @@ object ProxyConfiguration extends ServicesConfig {
 }
 
 object GROConnectorConfiguration extends ServicesConfig {
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
 
   private val tlsConfigPath = "birth-registration-matching.gro.tls"
   private val authenticationConfigPath = "birth-registration-matching.gro.authentication.v2"
@@ -80,6 +89,8 @@ object GROConnectorConfiguration extends ServicesConfig {
 object MicroserviceAuditFilter extends AuditFilter with AppName with MicroserviceFilterSupport{
   override val auditConnector = MicroserviceAuditConnector
   override def controllerNeedsAuditing(controllerName: String) = ControllerConfiguration.paramsForController(controllerName).needsAuditing
+
+  override protected def appNameConfiguration: Configuration = Play.current.configuration
 }
 
 object MicroserviceLoggingFilter extends LoggingFilter with MicroserviceFilterSupport {
@@ -96,4 +107,8 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Mi
   override val microserviceAuditFilter = MicroserviceAuditFilter
 
   override val authFilter = None
+
+  override protected def mode: Mode = Play.current.mode
+
+  override protected def runModeConfiguration: Configuration = Play.current.configuration
 }
