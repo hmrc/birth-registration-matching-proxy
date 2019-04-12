@@ -27,6 +27,7 @@ import uk.gov.hmrc.brm.config.GROConnectorConfiguration
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.config.ServicesConfig
@@ -68,8 +69,6 @@ trait BirthConnector extends ServicesConfig {
 
   protected def http: HttpClient
 
-  //  protected def http: CoreGet
-
   protected val encoder: Encoder
 
   val authenticator: Authenticator
@@ -87,7 +86,6 @@ trait BirthConnector extends ServicesConfig {
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
     )
-//    ++ ProxyAuthenticator.setProxyAuthHeader
   }
 
   private[BirthConnector] def getChildByReference(reference: String,
@@ -104,6 +102,8 @@ trait BirthConnector extends ServicesConfig {
     val response = http.get(s"$endpoint/$reference", Headers.apply(headers))
 
     metrics.endTimer(startTime, "reference-match-timer")
+
+    BrmLogger.debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response")
 
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
   }
@@ -124,6 +124,8 @@ trait BirthConnector extends ServicesConfig {
     debug(CLASS_NAME, "getChildByDetails", s"query: $url")
 
     val response = http.get(url, Headers.apply(headers))
+
+    BrmLogger.debug(s"[BirthConnector][getChildByDetails][HttpResponse][Debug] $response")
 
     metrics.endTimer(startTime, "details-match-timer")
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
