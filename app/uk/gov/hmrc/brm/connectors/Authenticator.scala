@@ -124,7 +124,7 @@ class Authenticator(username : String,
     // configure authenticator
     ProxyAuthenticator.configureProxyAuthenticator
 
-    if(!CertificateStatus.certificateStatus()) {
+    if(CertificateStatus.tlsEnabled && !CertificateStatus.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
     } else {
