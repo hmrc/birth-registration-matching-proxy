@@ -124,10 +124,12 @@ class Authenticator(username : String,
     // configure authenticator
     ProxyAuthenticator.configureProxyAuthenticator
 
+    // $COVERAGE-OFF$
     if(GROConnectorConfiguration.tlsEnabled && !CertificateStatus.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
     } else {
+      // $COVERAGE-ON$
       tokenCache.token match {
         case Success(cache) =>
           info(CLASS_NAME, "token", s"access_token has not expired")
