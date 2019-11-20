@@ -206,7 +206,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result).toString shouldBe ErrorResponses.CONNECTION_DOWN.toString
         }
 
-        "return InternalServerError when GRO returns Upstream5xxResponse BadGateway" in {
+        "return Bad_Gateway when GRO returns Upstream5xxResponse BadGateway" in {
           when(MockController.groConnector.get(mockEq(reference))(Matchers.any(), Matchers.any())).thenReturn(badGatewayResponse)
 
           val request = referenceRequest(reference)
@@ -214,7 +214,7 @@ class MatchingControllerSpec extends UnitSpec
 
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return BadGateway when invalid reference number is provided" in {
@@ -223,7 +223,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return InternalServerError when invalid json is returned" in {
@@ -243,7 +243,7 @@ class MatchingControllerSpec extends UnitSpec
           bodyOf(result).toString shouldBe ErrorResponses.TEAPOT.toString
         }
 
-        "return InternalServerError when GRO times out" in {
+        "return gateway_timeout when GRO times out" in {
           when(MockController.groConnector.get(mockEq("ass1212sqw"))(Matchers.any(), Matchers.any())).thenReturn(gatewayTimeoutResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
@@ -379,7 +379,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return BadGateway when forenames is not provided" in {
@@ -392,7 +392,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return BadGateway when lastname is not provided" in {
@@ -405,7 +405,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return BadGateway when dateofbirth is not provided" in {
@@ -418,7 +418,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return BadGateway when dateofbirth is invalid format" in {
@@ -431,7 +431,7 @@ class MatchingControllerSpec extends UnitSpec
           val result = await(MockController.details.apply(request))
           status(result) shouldBe BAD_GATEWAY
           contentType(result).get shouldBe "application/json"
-          bodyOf(result).toString shouldBe ErrorResponses.BAD_REQUEST.toString
+          bodyOf(result).toString shouldBe ErrorResponses.BAD_GATEWAY.toString
         }
 
         "return InternalServerError when invalid json is returned" in {
