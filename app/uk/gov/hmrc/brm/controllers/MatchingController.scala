@@ -55,7 +55,7 @@ trait MatchingController extends BaseController {
   def badRequestException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] BadRequest: $message")
-      respond(BadGateway(ErrorResponses.BAD_GATEWAY))
+      respond(BadRequest(ErrorResponses.BAD_REQUEST))
   }
 
   def teapotException(method : String) : PartialFunction[BirthResponse, Future[Result]] = {
