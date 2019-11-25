@@ -38,5 +38,6 @@ object ErrorResponses {
   val GATEWAY_TIMEOUT = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
   val CERTIFICATE_INVALID = error("INVALID_CERTIFICATE", "TLS certificate was either not provided or was invalid")
   val UNKNOWN_ERROR = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
+  val BAD_GATEWAY = error("BAD_GATEWAY", "GRO returned bad gateway")
 
 }
