@@ -16,9 +16,7 @@
 
 package uk.gov.hmrc.brm.utils
 
-/**
-  * Created by mew on 06/04/2017.
-  */
+
 object HttpStatus {
 
   val TEAPOT = 418

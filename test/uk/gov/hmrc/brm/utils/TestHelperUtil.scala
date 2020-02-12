@@ -18,9 +18,7 @@ package uk.gov.hmrc.brm.utils
 
 import uk.gov.hmrc.brm.connectors.Encoder
 
-/**
-  * Created by user on 16/05/17.
-  */
+
 object TestHelperUtil {
 
 

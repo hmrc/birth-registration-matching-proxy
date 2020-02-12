@@ -18,11 +18,12 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
+import javax.inject.Inject
 import uk.co.bigbeeconsultants.http.header.MediaType
 import uk.co.bigbeeconsultants.http.request.RequestBody
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
-import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{Attempts, DelayAttempts, DelayTime}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
@@ -32,23 +33,28 @@ import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-class Authenticator(username : String,
-                    password : String,
-                    clientID: String,
-                    clientSecret: String,
-                    grantType: String,
-                    endpoint : String,
-                    val http: HttpClient,
-                    val tokenCache : AccessTokenRepository,
-                    delayTime : DelayTime,
-                    delayAttempts : DelayAttempts,
-                    mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")) {
 
+class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
+                              groConfig: GroAppConfig,
+                              httpClientFactory: HttpClientFactory,
+                              proxyAuthenticator: ProxyAuthenticator,
+                              certificateStatus: CertificateStatus) {
 
+  val username : String = groConfig.groUsername
+  val password : String = groConfig.groPassword
+  val clientID: String = groConfig.groClientID
+  val clientSecret: String = groConfig.groClientSecret
+  val grantType: String = groConfig.groGrantType
+  val endpoint : String = groConfig.authenticationServiceUrl + groConfig.authenticationUri
+  val http: HttpClient = httpClientFactory.apply()
+  val tokenCache : AccessTokenRepository = new AccessTokenRepository
+  val delayTime : DelayTime = groConfig.delayAttemptInMilliseconds
+  val delayAttempts : DelayAttempts = groConfig.delayAttempts
+  val mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")
 
-  private[Authenticator] val CLASS_NAME : String = this.getClass.getCanonicalName
+  private val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  private[Authenticator] def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
+  private def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val credentials: Map[String, String] = Map(
       "username" -> username,
       "password" -> password,
@@ -75,7 +81,7 @@ class Authenticator(username : String,
     ResponseHandler.handle(response, attempts)(saveAccessToken, metrics)
   }
 
-  private[Authenticator] val saveAccessToken: PartialFunction[Response, BirthResponse] = {
+  private val saveAccessToken: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
       info(CLASS_NAME, "saveAccessToken", "parsing response from authentication")
       ResponseParser.parse(response) match {
@@ -114,18 +120,18 @@ class Authenticator(username : String,
           }
       }
     }
-
     authHelper(1)
   }
-
 
   def token()(implicit metrics : BRMMetrics) : BirthResponse = {
 
     // configure authenticator
-    ProxyAuthenticator.configureProxyAuthenticator
+    proxyAuthenticator.configureProxyAuthenticator()
+
+    val status = certificateStatus
 
     // $COVERAGE-OFF$
-    if(GROConnectorConfiguration.tlsEnabled && !CertificateStatus.certificateStatus()) {
+    if(groConfig.tlsEnabled && !status.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       ErrorHandler.error("TLS Certificate expired")
     } else {
@@ -140,41 +146,6 @@ class Authenticator(username : String,
           requestNewToken()
       }
     }
-
-  }
-
-}
-
-/**
- * Authenticator factory
- */
-object Authenticator {
-
-  def apply() : Authenticator = {
-
-    val httpClient = HttpClientFactory.apply()
-    val username = GROConnectorConfiguration.username
-    val password = GROConnectorConfiguration.password
-    val clientID = GROConnectorConfiguration.clientID
-    val clientSecret = GROConnectorConfiguration.clientSecret
-    val grantType = GROConnectorConfiguration.grantType
-    val endpoint = GROConnectorConfiguration.authenticationServiceUrl + GROConnectorConfiguration.authenticationUri
-    val tokenRepo = new AccessTokenRepository
-    val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
-    val delayAttempts = GROConnectorConfiguration.delayAttempts
-
-    new Authenticator(
-      username,
-      password,
-      clientID,
-      clientSecret,
-      grantType,
-      endpoint,
-      httpClient,
-      tokenRepo,
-      delayTime,
-      delayAttempts
-    )
   }
 
 }

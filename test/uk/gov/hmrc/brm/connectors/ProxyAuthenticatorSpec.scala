@@ -16,60 +16,39 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.scalatest.{Tag, TestData}
-import org.scalatestplus.play.OneAppPerTest
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
-import uk.gov.hmrc.play.test.UnitSpec
-import java.net.{Proxy}
+import java.net.Proxy
 
-/**
-  * Created by mew on 01/09/2017.
-  */
-class ProxyAuthenticatorSpec extends UnitSpec with OneAppPerTest {
+import uk.gov.hmrc.brm.TestFixture
 
-  lazy val required: Map[String, _] = Map(
-    "microservice.services.proxy.required" -> true
-  )
 
-  lazy val notRequired: Map[String, _] = Map(
-    "microservice.services.proxy.required" -> false
-  )
-
-  override def newAppForTest(testData: TestData) : Application = {
-    val config : Map[String, _] = if (testData.tags.contains("enabled")) {
-      required
-    } else {
-      notRequired
-    }
-
-    new GuiceApplicationBuilder()
-      .configure(config)
-      .build()
-  }
+class ProxyAuthenticatorSpec extends TestFixture {
 
   "ProxyAuthenticator" should {
 
-//    "return a Map of proxy headers when required" taggedAs Tag("enabled") in {
-//      val headers = ProxyAuthenticator.setProxyAuthHeader
-//      headers.keys should contain("Proxy-Authorization")
-//    }
-//
-//    "return an empty Map when not required" in {
-//      val headers = ProxyAuthenticator.setProxyAuthHeader
-//      headers.keys should not contain "Proxy-Authorization"
-//    }
+    //    "return a Map of proxy headers when required" taggedAs Tag("enabled") in {
+    //      val headers = ProxyAuthenticator.setProxyAuthHeader
+    //      headers.keys should contain("Proxy-Authorization")
+    //    }
+    //
+    //    "return an empty Map when not required" in {
+    //      val headers = ProxyAuthenticator.setProxyAuthHeader
+    //      headers.keys should not contain "Proxy-Authorization"
+    //    }
 
-    "return a Proxy object when required" taggedAs Tag("enabled") in {
-      val proxy = ProxyAuthenticator.setProxyHost
+    "return a Proxy object when required is true" in {
+      val testConnector: ProxyAuthenticator = new ProxyAuthenticator(testProxyConfig) {
+        override def required: Boolean = true
+      }
+      val proxy = testConnector.setProxyHost()
       proxy.get shouldBe a[Proxy]
     }
 
     "return None when a proxy isn't required" in {
-      val proxy = ProxyAuthenticator.setProxyHost
+      val testConnector: ProxyAuthenticator = new ProxyAuthenticator(testProxyConfig)
+
+      val proxy = testConnector.setProxyHost()
       proxy shouldBe None
     }
 
   }
-
 }

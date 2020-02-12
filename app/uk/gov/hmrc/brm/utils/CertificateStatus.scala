@@ -16,33 +16,21 @@
 
 package uk.gov.hmrc.brm.utils
 
+import javax.inject.Inject
 import org.joda.time._
-import org.joda.time.format.PeriodFormatterBuilder
-import play.api.{Configuration, Play}
-import play.api.Mode.Mode
-import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import org.joda.time.format.{PeriodFormatter, PeriodFormatterBuilder}
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.play.config.ServicesConfig
 
-trait CertificateStatus extends ServicesConfig {
-
-  // $COVERAGE-OFF$
-
-  override protected def mode: Mode = Play.current.mode
-
-  override protected def runModeConfiguration: Configuration = Play.current.configuration
-
-  // $COVERAGE-ON$
+class CertificateStatus @Inject()(val proxyConfig: ProxyAppConfig, val groConfig: GroAppConfig) {
 
   protected val CLASS_NAME: String = this.getClass.getCanonicalName
 
-  lazy val privateKeystore = GROConnectorConfiguration.tlsPrivateKeystore
+  lazy val privateKeystore: String = groConfig.tlsPrivateKeystore
+  lazy val privateKeystoreKey: String = groConfig.tlsPrivateKeystoreKey
+  lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
 
-  lazy val privateKeystoreKey = GROConnectorConfiguration.tlsPrivateKeystoreKey
-
-  lazy val certificateExpiryDate = GROConnectorConfiguration.certificateExpiryDate
-
-  lazy val formatDate =
+  lazy val formatDate: PeriodFormatter =
     new PeriodFormatterBuilder()
       .appendYears()
       .appendSuffix(" year", " years")
@@ -65,27 +53,27 @@ trait CertificateStatus extends ServicesConfig {
   }
 
   private val expiresToday : PartialFunction[Int, Unit] = {
-    case (0) =>
+    case 0 =>
       error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY ($certificateExpiryDate)")
   }
 
   private def expiresWithin60Days(message: String) : PartialFunction[Int, Unit] = {
-    case (d) if d > 0 && d <= 60 =>
+    case d if d > 0 && d <= 60 =>
       error(CLASS_NAME, "logCertificate", s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $message ($certificateExpiryDate)")
   }
 
   private def expiresWithin90Days(message: String) : PartialFunction[Int, Unit] = {
-    case (d) if d > 60 && d <= 90 =>
+    case d if d > 60 && d <= 90 =>
       warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
   }
 
   private def expiresAfter90Days(message: String) : PartialFunction[Int, Unit] = {
-    case (d) if d > 90 =>
+    case d if d > 90 =>
       info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $message ($certificateExpiryDate)")
   }
 
   private def expired(message: String) : PartialFunction[Int, Unit] = {
-    case (_) =>
+    case _ =>
       error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
   }
 
@@ -105,5 +93,3 @@ trait CertificateStatus extends ServicesConfig {
   }
 
 }
-
-object CertificateStatus extends CertificateStatus

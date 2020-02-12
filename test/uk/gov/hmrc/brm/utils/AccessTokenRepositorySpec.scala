@@ -17,17 +17,11 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
-import org.scalatest.BeforeAndAfter
-import uk.gov.hmrc.brm.utils.AccessTokenRepository
-import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.brm.TestFixture
 
-class AccessTokenRepositorySpec extends UnitSpec with BeforeAndAfter {
+class AccessTokenRepositorySpec extends TestFixture {
 
-  var accessTokenRepository = new AccessTokenRepository
-
-  before {
-     accessTokenRepository = new AccessTokenRepository
-  }
+  val accessTokenRepository = new AccessTokenRepository
 
   "AccessTokenRepository" when {
 
@@ -45,6 +39,7 @@ class AccessTokenRepositorySpec extends UnitSpec with BeforeAndAfter {
 
     "hasExpired" should {
       "return true when no value is set " in {
+        val accessTokenRepository = new AccessTokenRepository
          accessTokenRepository.hasExpired shouldBe true
       }
     }

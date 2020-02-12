@@ -21,9 +21,7 @@ import uk.gov.hmrc.brm.connectors.ConnectorTypes.Attempts
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 object ResponseHandler {
 
   private val CLASS_NAME : String = this.getClass.getCanonicalName

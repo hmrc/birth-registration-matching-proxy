@@ -16,29 +16,30 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import play.api.libs.json.JsArray
+
+import javax.inject.{Inject, Singleton}
+import play.api.libs.json.{JsArray, JsValue}
 import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
-import uk.gov.hmrc.brm.metrics.{GRODetailsMetrics, GROReferenceMetrics}
+import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{HttpStatus, KeyHolder}
-import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.http.{Upstream4xxResponse, Upstream5xxResponse}
+import play.api.mvc.ControllerComponents
+import uk.gov.hmrc.brm.config.ProxyAppConfig
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
-import scala.concurrent.Future
-import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
+import scala.concurrent.{ExecutionContext, Future}
 
-
-object MatchingController extends MatchingController {
-  override val groConnector = GROEnglandAndWalesConnector
-}
-
-trait MatchingController extends BaseController {
+@Singleton
+class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector,
+                                   cc: ControllerComponents,
+                                   proxConfig: ProxyAppConfig,
+                                   implicit val metrics: BRMMetrics) extends BackendController(cc) {
 
   val CLASS_NAME : String = this.getClass.getCanonicalName
 
-  import scala.concurrent.ExecutionContext.Implicits.global
-
-  val groConnector: BirthConnector
+  implicit val ec: ExecutionContext = cc.executionContext
 
   private def respond(response: Result): Future[Result] = {
     Future.successful(
@@ -107,7 +108,7 @@ trait MatchingController extends BaseController {
       respond(Ok(js))
   }
 
-  def handle(method: String) = Seq(
+  def handle(method: String): PartialFunction[BirthResponse, Future[Result]] = Seq(
     notFoundException(method),
     badRequestException(method),
     badGatewayException(method),
@@ -120,21 +121,19 @@ trait MatchingController extends BaseController {
     success(method)
   ).reduce(_ orElse _)
 
-  private def setKey(request : Request[_]) = {
+  private def setKey(request : Request[_]): Unit = {
     val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
     KeyHolder.setKey(brmKey)
   }
 
-  def reference = Action.async(parse.json) {
+  def reference: Action[JsValue] = Action.async(parse.json) {
     implicit request =>
       setKey(request)
 
       info(CLASS_NAME, s"reference", s"Reference request received")
 
-      implicit val metrics = GROReferenceMetrics
-
       val reference = request.body.\("reference").asOpt[String]
-      
+
       reference match {
         case Some(r) =>
           groConnector.get(r).flatMap[Result](
@@ -145,13 +144,11 @@ trait MatchingController extends BaseController {
       }
   }
 
-  def details() = Action.async(parse.json) {
+  def details(): Action[JsValue] = Action.async(parse.json) {
     implicit request =>
       setKey(request)
 
       info(CLASS_NAME, s"reference", s"Details request received")
-
-      implicit val metrics = GRODetailsMetrics
 
       val forenames = request.body.\("forenames").asOpt[String]
       val lastname = request.body.\("lastname").asOpt[String]

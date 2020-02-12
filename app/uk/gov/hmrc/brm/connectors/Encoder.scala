@@ -20,9 +20,7 @@ import java.net.URLEncoder
 
 import uk.gov.hmrc.brm.utils.BrmLogger
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 trait Encoder {
 
   def encode(params: Map[String,String]) : String

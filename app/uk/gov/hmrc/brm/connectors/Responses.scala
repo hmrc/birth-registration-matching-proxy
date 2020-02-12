@@ -19,9 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import play.api.libs.json.JsValue
 import uk.gov.hmrc.brm.connectors.ConnectorTypes._
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 sealed trait BirthResponse
 
 case class BirthAccessTokenResponse(token : AccessToken) extends BirthResponse

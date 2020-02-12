@@ -17,23 +17,25 @@
 package uk.gov.hmrc.brm.connectors
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.brm.TestFixture
+import uk.gov.hmrc.brm.tls.HttpClientFactory
+import uk.gov.hmrc.brm.utils.CertificateStatus
 
 import scala.util.Success
 
-/**
-  * Created by adamconder on 14/11/2016.
-  */
-class AuthenticatorSpec extends UnitSpec with WithFakeApplication {
+
+class AuthenticatorSpec extends TestFixture {
+
+  val testAuthenticator =
+    new Authenticator(testProxyConfig, testGroConfig, mock[HttpClientFactory], mock[ProxyAuthenticator], mock[CertificateStatus])
 
   "Authenticator" when {
 
     "creating an instance of cache" should {
 
       "return false for having a token" in {
-        val authenticator = Authenticator.apply()
-        authenticator.tokenCache.hasToken shouldBe false
-        authenticator.tokenCache.hasExpired shouldBe true
+        testAuthenticator.tokenCache.hasToken shouldBe false
+        testAuthenticator.tokenCache.hasExpired shouldBe true
       }
 
     }
@@ -41,18 +43,16 @@ class AuthenticatorSpec extends UnitSpec with WithFakeApplication {
     "saving a new token" should {
 
       "insert a token" in {
-        val authenticator = Authenticator.apply()
-        authenticator.tokenCache.saveToken("new token", DateTime.now.plusDays(2))
-        authenticator.tokenCache.hasToken shouldBe true
-        authenticator.tokenCache.hasExpired shouldBe false
-        authenticator.tokenCache.token shouldBe Success("new token")
+        testAuthenticator.tokenCache.saveToken("new token", DateTime.now.plusDays(2))
+        testAuthenticator.tokenCache.hasToken shouldBe true
+        testAuthenticator.tokenCache.hasExpired shouldBe false
+        testAuthenticator.tokenCache.token shouldBe Success("new token")
       }
 
       "generate new expiry" in {
-        val authenticator = Authenticator.apply()
         val dateTime = new DateTime()
         DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
-        val expiryTime = authenticator.tokenCache.newExpiry(100)
+        val expiryTime = testAuthenticator.tokenCache.newExpiry(100)
         //expiry time shd be less by 60 sec.
         Seconds.secondsBetween(dateTime, expiryTime).getSeconds shouldBe 40
         DateTimeUtils.setCurrentMillisSystem()
