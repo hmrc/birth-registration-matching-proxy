@@ -1,21 +1,19 @@
-import play.routes.compiler.StaticRoutesGenerator
+import play.routes.compiler.InjectedRoutesGenerator
 import sbt.Keys._
 import sbt.Tests.{Group, SubProcess}
-import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
-import scoverage.ScoverageSbtPlugin
 import sbt._
+import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 
 trait MicroService {
+
+  import scoverage.ScoverageKeys
 
   import uk.gov.hmrc._
   import DefaultBuildSettings.{defaultSettings, scalaSettings, targetJvm, addTestReportOption}
   import TestPhases._
   import play.sbt.routes.RoutesKeys.routesGenerator
   import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
-  import uk.gov.hmrc.SbtAutoBuildPlugin
-  import uk.gov.hmrc.versioning.SbtGitVersioning
-  import uk.gov.hmrc.SbtArtifactory
 
   val appName: String
 
@@ -23,16 +21,16 @@ trait MicroService {
   lazy val plugins : Seq[Plugins] = Seq(play.sbt.PlayScala)
   lazy val playSettings : Seq[Setting[_]] = Seq.empty
 
-  lazy val scoverageSettings = {
-  import ScoverageSbtPlugin._
 
-  Seq(
-    ScoverageKeys.coverageExcludedPackages := "<empty>;uk.gov.hmrc.brm.config.*;uk.gov.hmrc.brm.tls.*;testOnlyDoNotUseInAppConf.*;uk.gov.hmrc.brm.views.*;prod.*;uk.gov.hmrc.BuildInfo.*;app.Routes.*;",
-    ScoverageKeys.coverageMinimum := 100,
-    ScoverageKeys.coverageFailOnMinimum := true,
-    ScoverageKeys.coverageHighlighting := true
-  )
-}
+  lazy val scoverageSettings = {
+    Seq(
+      ScoverageKeys.coverageExcludedPackages :=
+        "<empty>;uk.gov.hmrc.brm.config.*;uk.gov.hmrc.brm.tls.*;testOnlyDoNotUseInAppConf.*;uk.gov.hmrc.brm.views.*;prod.*;uk.gov.hmrc.BuildInfo.*;app.Routes.*;",
+      ScoverageKeys.coverageMinimum := 100,
+      ScoverageKeys.coverageFailOnMinimum := true,
+      ScoverageKeys.coverageHighlighting := true
+    )
+  }
 
   lazy val microservice = Project(appName, file("."))
     .enablePlugins(Seq(play.sbt.PlayScala) ++ plugins : _*)
@@ -50,7 +48,7 @@ trait MicroService {
       fork in Test := false,
       retrieveManaged := true,
       evictionWarningOptions in update := EvictionWarningOptions.default.withWarnScalaVersionEviction(false),
-      routesGenerator := StaticRoutesGenerator
+      routesGenerator := InjectedRoutesGenerator
     )
     .configs(IntegrationTest)
     .settings(inConfig(IntegrationTest)(Defaults.itSettings): _*)
@@ -68,7 +66,7 @@ trait MicroService {
 
 private object TestPhases {
 
-  def oneForkedJvmPerTest(tests: Seq[TestDefinition]) =
+  def oneForkedJvmPerTest(tests: Seq[TestDefinition]): Seq[Group] =
     tests map {
       test => new Group(test.name, Seq(test), SubProcess(ForkOptions(runJVMOptions = Seq("-Dtest.name=" + test.name))))
     }

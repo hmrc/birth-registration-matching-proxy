@@ -20,9 +20,7 @@ import play.api.libs.json.Json
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 object ResponseParser {
 
   private val CLASS_NAME : String = this.getClass.getCanonicalName

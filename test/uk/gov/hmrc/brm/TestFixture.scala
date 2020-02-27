@@ -16,21 +16,20 @@
 
 package uk.gov.hmrc.brm
 
-import org.scalatest.Suite
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.FakeApplication
-import uk.gov.hmrc.play.test.WithFakeApplication
+import org.scalatest.BeforeAndAfter
+import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
+import uk.gov.hmrc.brm.utils.BaseUnitSpec
+import uk.gov.hmrc.play.test.UnitSpec
 
-trait BRMFakeApplication extends WithFakeApplication {
-  this: Suite =>
+import scala.reflect.ClassTag
 
-  val config: Map[String, _] = Map(
-    "Test.microservice.services.auth.host" -> "localhost",
-    "Test.microservice.services.auth.port" -> "8500"
-  )
+trait TestFixture extends UnitSpec with MockitoSugar with BeforeAndAfter with GuiceOneAppPerSuite with BaseUnitSpec {
 
-  override lazy val fakeApplication = GuiceApplicationBuilder(
-    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
-  ).configure(config)
-    .build()
+  def real[T: ClassTag]: T = app.injector.instanceOf[T]
+
+  val testProxyConfig: ProxyAppConfig = real[ProxyAppConfig]
+  val testGroConfig: GroAppConfig = real[GroAppConfig]
+
 }

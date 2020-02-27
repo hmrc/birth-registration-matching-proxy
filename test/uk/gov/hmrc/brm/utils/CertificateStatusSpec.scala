@@ -17,23 +17,25 @@
 package uk.gov.hmrc.brm.utils
 
 import org.joda.time.LocalDate
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.brm.TestFixture
 
-class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
+class CertificateStatusSpec extends TestFixture {
 
-  val mockCertificateStatusInvalidExpiryDate = new CertificateStatus {
+  val mockCertificateStatus = new CertificateStatus(testProxyConfig, testGroConfig)
+
+  val mockCertificateStatusInvalidExpiryDate = new CertificateStatus(testProxyConfig, testGroConfig) {
     override lazy val certificateExpiryDate: String = "2012-02-19"
   }
 
-  val mockCertificateStatusValidExpiryDate = new CertificateStatus {
+  val mockCertificateStatusValidExpiryDate = new CertificateStatus(testProxyConfig, testGroConfig) {
     override lazy val certificateExpiryDate: String = "2040-02-19"
   }
 
-  val mockCertificateStatus20160219 = new CertificateStatus {
+  val mockCertificateStatus20160219 = new CertificateStatus(testProxyConfig, testGroConfig) {
     override lazy val certificateExpiryDate: String = "2016-02-19"
   }
 
-  val mockCertificateStatusInvalidConfKey = new CertificateStatus {
+  val mockCertificateStatusInvalidConfKey = new CertificateStatus(testProxyConfig, testGroConfig) {
 
     override lazy val privateKeystore = "birth-registration-matching.privateKeystoreINVALID"
 
@@ -45,12 +47,12 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
   " CertificateStatus" should {
 
     "contain privateKeystore" in {
-      val privateKeystore = CertificateStatus.privateKeystore
+      val privateKeystore = mockCertificateStatus.privateKeystore
       privateKeystore should not be empty
     }
 
     "contain privateKeystoreKey" in {
-      val privateKeystoreKey = CertificateStatus.privateKeystoreKey
+      val privateKeystoreKey = mockCertificateStatus.privateKeystoreKey
       privateKeystoreKey should not be empty
     }
 
@@ -79,7 +81,7 @@ class CertificateStatusSpec extends UnitSpec with WithFakeApplication {
   "certificateExpiryDate" should {
 
     "contain a value" in {
-      val certificateExpiryDate = CertificateStatus.certificateExpiryDate
+      val certificateExpiryDate = mockCertificateStatus.certificateExpiryDate
       certificateExpiryDate should not be empty
     }
   }

@@ -16,54 +16,54 @@
 
 package uk.gov.hmrc.brm.metrics
 
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import uk.gov.hmrc.brm.TestFixture
 
-class MetricsSpec extends UnitSpec with WithFakeApplication {
+class MetricsSpec extends TestFixture {
 
-  "Metrics" when {
+  val testMetrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+
+  "Metrics" should {
 
     "making requests to authentication" should {
 
       "measure response time for authentication request" in {
-        val startTimer = GROReferenceMetrics.startTimer()
-        GROReferenceMetrics.endTimer(startTimer, "authentication-timer")
-        GROReferenceMetrics.metrics.defaultRegistry.timer(s"${GROReferenceMetrics.prefix}-authentication-timer").getCount should not be 0
+        val startTimer = testMetrics.startTimer()
+        testMetrics.endTimer(startTimer, "authentication-timer")
+        testMetrics.defaultRegistry.timer(s"${testMetrics.prefix}-authentication-timer").getCount should not be 0
       }
-
     }
 
     "making requests to reference" should {
 
       "initialise Metrics instance" in {
-        GROReferenceMetrics shouldBe a[BRMMetrics]
-        GROReferenceMetrics.prefix shouldBe "gro"
+        testMetrics shouldBe a[BRMMetrics]
+        testMetrics.prefix shouldBe "gro"
       }
 
       "measure response time for match request" in {
-        val startTimer = GROReferenceMetrics.startTimer()
-        GROReferenceMetrics.endTimer(startTimer, "reference-match-timer")
-        GROReferenceMetrics.metrics.defaultRegistry.timer("gro-reference-match-timer").getCount should not be 0
+        val startTimer = testMetrics.startTimer()
+        testMetrics.endTimer(startTimer, "reference-match-timer")
+        testMetrics.defaultRegistry.timer("gro-reference-match-timer").getCount should not be 0
       }
 
       "increment count for http response code 200" in {
-        GROReferenceMetrics.httpResponseCodeStatus(200: Int)
-        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-200").getCount shouldBe 1
+        testMetrics.httpResponseCodeStatus(200: Int)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-200").getCount shouldBe 1
       }
 
       "increment count for http response code 400" in {
-
-        GROReferenceMetrics.httpResponseCodeStatus(400: Int)
-        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-400").getCount shouldBe 1
+        testMetrics.httpResponseCodeStatus(400: Int)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-400").getCount shouldBe 1
       }
 
       "increment count for http response code 500" in {
-        GROReferenceMetrics.httpResponseCodeStatus(500: Int)
-        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-http-response-code-500").getCount shouldBe 1
+        testMetrics.httpResponseCodeStatus(500: Int)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-500").getCount shouldBe 1
       }
 
       "increment count for request to proxy" in {
-        GROReferenceMetrics.requestCount()
-        GROReferenceMetrics.metrics.defaultRegistry.counter(s"${GROReferenceMetrics.prefix}-request-count").getCount shouldBe 1
+        testMetrics.requestCount()
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-request-count").getCount shouldBe 1
       }
 
     }
@@ -71,35 +71,39 @@ class MetricsSpec extends UnitSpec with WithFakeApplication {
     "making requests to details" should {
 
       "initialise Metrics instance" in {
-        GRODetailsMetrics shouldBe a[BRMMetrics]
-        GRODetailsMetrics.prefix shouldBe "gro"
+        testMetrics shouldBe a[BRMMetrics]
+        testMetrics.prefix shouldBe "gro"
       }
 
       "measure response time for match request" in {
-        val startTimer = GRODetailsMetrics.startTimer()
-        GRODetailsMetrics.endTimer(startTimer, "details-match-timer")
-        GRODetailsMetrics.metrics.defaultRegistry.timer("gro-details-match-timer").getCount should not be 0
+        val startTimer = testMetrics.startTimer()
+        testMetrics.endTimer(startTimer, "details-match-timer")
+        testMetrics.defaultRegistry.timer("gro-details-match-timer").getCount should not be 0
       }
 
       "increment count for http response code 200" in {
-        GRODetailsMetrics.httpResponseCodeStatus(200: Int)
-        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-200").getCount should not be 0
+        testMetrics.httpResponseCodeStatus(200: Int)
+        printf(testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-200").getCount.toString)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-200").getCount should not be 0
       }
 
       "increment count for http response code 400" in {
-        GRODetailsMetrics.httpResponseCodeStatus(400: Int)
-        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-400").getCount should not be 0
+        testMetrics.httpResponseCodeStatus(400: Int)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-400").getCount should not be 0
       }
 
       "increment count for http response code 500" in {
-        GRODetailsMetrics.httpResponseCodeStatus(500: Int)
-        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-http-response-code-500").getCount should not be 0
+        testMetrics.httpResponseCodeStatus(500: Int)
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-http-response-code-500").getCount should not be 0
       }
 
       "increment count for request to proxy" in {
-        GRODetailsMetrics.requestCount("details-request")
-        GRODetailsMetrics.metrics.defaultRegistry.counter(s"${GRODetailsMetrics.prefix}-details-request-count").getCount should not be 0
+        testMetrics.requestCount("details-request")
+        testMetrics.defaultRegistry.counter(s"${testMetrics.prefix}-details-request-count").getCount should not be 0
       }
+
     }
+
   }
+
 }

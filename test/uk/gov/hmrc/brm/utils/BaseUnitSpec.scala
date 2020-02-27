@@ -22,12 +22,10 @@ import play.api.libs.json.JsValue
 import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
 import uk.co.bigbeeconsultants.http.request.Request
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
-import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.brm.connectors.Encoder
 
-/**
-  * Created by user on 16/05/17.
-  */
-trait BaseUnitSpec extends UnitSpec {
+
+trait BaseUnitSpec {
 
   val headers = Map(
     "Authorization" -> s"Bearer something",
@@ -49,6 +47,15 @@ trait BaseUnitSpec extends UnitSpec {
   def eventSuccessResponse(eventResponse :JsValue ):Response = {
     Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"),
       headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, eventResponse.toString())
+  }
+
+  def getUrlEncodeString(firstName:String, lastname : String, dateOfBirth:String):String = {
+    val details =  Map(
+      "forenames" -> firstName,
+      "lastname" -> lastname,
+      "dateofbirth" -> dateOfBirth
+    )
+    Encoder.encode(details)
   }
 
 

@@ -7,61 +7,32 @@ object MicroServiceBuild extends Build with MicroService {
 
   val appName = "birth-registration-matching-proxy"
 
+  override lazy val appDependencies: Seq[ModuleID] = AppDependencies()
+
   override lazy val plugins: Seq[Plugins] = Seq(
     SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory
   )
-
-  override lazy val appDependencies: Seq[ModuleID] = AppDependencies()
 }
 
 private object AppDependencies {
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "10.6.0"
-  private val domainVersion = "5.3.0"
-  private val hmrcTestVersion = "3.3.0"
-  private val mockito = "1.9.5"
-  private val specs2 = "2.3.13"
-
   val compile = Seq(
-    "uk.gov.hmrc" %% "microservice-bootstrap" % microserviceBootstrapVersion,
-    "uk.gov.hmrc" %% "domain" % domainVersion
+    "uk.gov.hmrc" %% "bootstrap-play-26" % "1.3.0",
+    "uk.gov.hmrc" %% "domain" % "5.6.0-play-26"
   )
 
-  trait TestDependencies {
-    lazy val scope: String = "test"
-    lazy val test : Seq[ModuleID] = ???
-  }
+  lazy val scope: String = "test"
 
-  object Test {
-    def apply() = new TestDependencies {
-      override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "3.0.1" % scope,
-        "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "org.mockito" % "mockito-all" % mockito,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0",
-        "org.specs2" % "specs2_2.10" % specs2
-      )
-    }.test
-  }
+  val test: Seq[ModuleID] = Seq(
+    "uk.gov.hmrc" %% "hmrctest" % "3.9.0-play-26" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+    "org.pegdown" % "pegdown" % "1.6.0" % "test",
+    "com.typesafe.play" %% "play-test" % PlayVersion.current % "test",
+    "org.mockito" % "mockito-core" % "3.2.4",
+    "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.1",
+    "org.specs2" % "specs2_2.10" % "2.3.13"
+    )
 
-  object IntegrationTest {
-    def apply() = new TestDependencies {
-
-      override lazy val scope: String = "it"
-
-      override lazy val test = Seq(
-        "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "3.0.1" % scope,
-        "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0",
-        "org.specs2" % "specs2_2.10" % specs2
-      )
-    }.test
-  }
-
-  def apply() = compile ++ Test() ++ IntegrationTest()
+  def apply(): Seq[ModuleID] = compile ++ test
 }

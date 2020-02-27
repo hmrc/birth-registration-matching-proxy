@@ -18,38 +18,28 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.{InetSocketAddress, PasswordAuthentication, Proxy}
 
-import uk.gov.hmrc.brm.config.ProxyConfiguration
+import javax.inject.Inject
+import uk.gov.hmrc.brm.config.ProxyAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger
 
-object ProxyAuthenticator extends ProxyAuthenticator {
-  override protected val username: String = ProxyConfiguration.username
-  override protected val password: String = ProxyConfiguration.password
-  override protected val hostname: String = ProxyConfiguration.hostname
-  override protected val port: Int = ProxyConfiguration.port
 
-  override protected def required: Boolean = ProxyConfiguration.required
-}
+class ProxyAuthenticator @Inject()(proxyConfig: ProxyAppConfig) {
 
-trait ProxyAuthenticator {
-
-  protected val username: String
-  protected val password: String
-  protected val hostname: String
-  protected val port: Int
-
-  protected def required: Boolean
+  val username: String = proxyConfig.proxyUsername
+  val password: String = proxyConfig.proxyPassword
+  val hostname: String = proxyConfig.proxyHostname
+  val port: String = proxyConfig.proxyPort
+  def required: Boolean = proxyConfig.proxyRequired
 
   // $COVERAGE-OFF$
   class ProxyAuthenticator extends java.net.Authenticator {
-
     override def getPasswordAuthentication: PasswordAuthentication = {
       BrmLogger.info("ProxyAuthenticator", "getPasswordAuthentication", s"sending credentials")
       new PasswordAuthentication(username, password.toCharArray)
     }
-
   }
 
-  def configureProxyAuthenticator = {
+  def configureProxyAuthenticator(): Unit = {
     if(required) {
       java.net.Authenticator.setDefault(new ProxyAuthenticator)
     }
@@ -57,18 +47,16 @@ trait ProxyAuthenticator {
   // $COVERAGE-ON$
 
 
-  def setProxyHost = {
+  def setProxyHost(): Option[Proxy] = {
     if (required) {
-      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "setting proxy object")
-      val proxyAddress = new InetSocketAddress(hostname, port)
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "successfully setting proxy")
+      val proxyAddress = new InetSocketAddress(hostname, port.toInt)
       val proxy: Proxy = new Proxy(Proxy.Type.HTTP, proxyAddress)
 
       Some(proxy)
     } else {
-      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "not setting proxy object")
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "not setting proxy")
       None
     }
-
   }
-
 }

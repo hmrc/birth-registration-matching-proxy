@@ -18,9 +18,7 @@ package uk.gov.hmrc.brm.controllers
 
 import play.api.libs.json.Json
 
-/**
- * Created by adamconder on 10/11/2016.
- */
+
 object ErrorResponses {
 
   private def error(code: String, message: String) = Json.parse(

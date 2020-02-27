@@ -18,12 +18,15 @@ package uk.gov.hmrc.brm.tls
 
 import java.nio.charset.StandardCharsets
 
+import javax.inject.Inject
 import uk.co.bigbeeconsultants.http.Config
-import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 import uk.gov.hmrc.brm.connectors.ProxyAuthenticator
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
-trait TLSFactory {
+class TLSFactory @Inject()(groConfig: GroAppConfig,
+                           proxyConfig: ProxyAppConfig,
+                           proxyAuthenticator: ProxyAuthenticator) {
 
   import java.io.ByteArrayInputStream
   import java.security.cert.X509Certificate
@@ -31,29 +34,29 @@ trait TLSFactory {
   import java.util.Base64
   import javax.net.ssl._
 
-  protected val connectionTimeout : Int
-  protected val readTimeout : Int
-  protected val keystoreBase64 : String
-  protected val keystoreKeyBase64 : String
-  protected val tlsMode : String
-  protected val allowHostNameMismatch : Boolean
+  val connectionTimeout: Int = groConfig.connectionTimeout
+  val readTimeout: Int = groConfig.readTimeout
+  val allowHostNameMismatch: Boolean = groConfig.allowHostNameMismatch
+  val tlsMode: String = groConfig.tlsVersion
+  val keystoreBase64: String = groConfig.tlsPrivateKeystore
+  val keystoreKeyBase64: String = groConfig.tlsPrivateKeystoreKey
+  val tlsEnabled: Boolean = groConfig.tlsEnabled
+
   val CLASS_NAME : String = this.getClass.getCanonicalName
 
   object DumbTrustManager extends X509TrustManager {
     def getAcceptedIssuers: Array[X509Certificate] = null
-
     def checkClientTrusted(certs: Array[X509Certificate], authType: String) {}
-
     def checkServerTrusted(certs: Array[X509Certificate], authType: String) {}
   }
 
   class SimpleHostnameVerifier(allowMismatch: Boolean) extends HostnameVerifier {
     // During handshaking, if the URL's hostname and the server's identification hostname mismatch,
     // the verification mechanism can call back here to determine whether this connection should be allowed.
-    def verify(hostname: String, session: SSLSession) = allowMismatch
+    def verify(hostname: String, session: SSLSession): Boolean = allowMismatch
   }
 
-  private def hostnameVerifier = {
+  private def hostnameVerifier: Some[SimpleHostnameVerifier] = {
     Some(new SimpleHostnameVerifier(allowHostNameMismatch))
   }
 
@@ -82,11 +85,10 @@ trait TLSFactory {
         error(CLASS_NAME, "getSocketFactory", s"exception when creating SSLSocketFactory: ${e.getMessage}")
         throw e
     }
-
   }
 
-  def getConfig = {
-    val sslSocketFactory = if(GROConnectorConfiguration.tlsEnabled) {
+  def getConfig: Config = {
+    val sslSocketFactory = if(tlsEnabled) {
       info(CLASS_NAME, "getConfig", "TLS Enabled")
       getSocketFactory
     } else {
@@ -99,17 +101,8 @@ trait TLSFactory {
       readTimeout = readTimeout,
       sslSocketFactory = sslSocketFactory,
       hostnameVerifier = hostnameVerifier,
-      proxy = ProxyAuthenticator.setProxyHost
+      proxy = proxyAuthenticator.setProxyHost()
     )
   }
 
-}
-
-object TLSFactory extends TLSFactory {
-  override val connectionTimeout = GROConnectorConfiguration.connectionTimeout
-  override val readTimeout = GROConnectorConfiguration.readTimeout
-  override val allowHostNameMismatch = GROConnectorConfiguration.allowHostNameMismatch
-  override val tlsMode = GROConnectorConfiguration.tlsVersion
-  override val keystoreBase64 = GROConnectorConfiguration.tlsPrivateKeystore
-  override val keystoreKeyBase64 = GROConnectorConfiguration.tlsPrivateKeystoreKey
 }

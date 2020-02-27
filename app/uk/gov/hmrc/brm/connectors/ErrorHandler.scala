@@ -21,9 +21,7 @@ import uk.co.bigbeeconsultants.http.response.Response
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 object ErrorHandler {
 
   def wait(delay: Int) = {

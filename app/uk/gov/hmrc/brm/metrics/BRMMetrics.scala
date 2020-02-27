@@ -18,35 +18,34 @@ package uk.gov.hmrc.brm.metrics
 
 import java.util.concurrent.TimeUnit
 
-import uk.gov.hmrc.play.graphite.MicroserviceMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger
+import com.codahale.metrics.{MetricRegistry, SharedMetricRegistries}
+import javax.inject.Inject
+import uk.gov.hmrc.brm.config.ProxyAppConfig
 
-trait BRMMetrics extends MicroserviceMetrics {
 
-  val prefix: String
+class BRMMetrics @Inject()(proxyConfig: ProxyAppConfig) {
+
+  def prefix: String = "gro"
+
+  def defaultRegistry: MetricRegistry = SharedMetricRegistries
+    .getOrCreate("birth-registration-matching-proxy")
 
   def httpResponseCodeStatus(code: Int): Unit =
-    metrics.defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
+    defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
   def requestCount(key: String = "request"): Unit = {
-    metrics.defaultRegistry.counter(s"$prefix-$key-count").inc()
+    defaultRegistry.counter(s"$prefix-$key-count").inc()
   }
 
-  def time(diff: Long, unit: TimeUnit, key: String) =
-    metrics.defaultRegistry.timer(s"$prefix-$key").update(diff, unit)
+  def time(diff: Long, unit: TimeUnit, key: String): Unit = {
+    val name = s"$prefix-$key"
+    defaultRegistry.timer(name).update(diff, unit)
+  }
 
   def startTimer(): Long = System.currentTimeMillis()
 
-  def endTimer(start: Long, key: String = "timer") = {
+  def endTimer(start: Long, key: String = "timer"): Unit = {
     val end = System.currentTimeMillis() - start
     time(end, TimeUnit.MILLISECONDS, key)
   }
-}
-
-object GROReferenceMetrics extends BRMMetrics {
-  override val prefix = "gro"
-}
-
-object GRODetailsMetrics extends BRMMetrics {
-  override val prefix = "gro"
 }

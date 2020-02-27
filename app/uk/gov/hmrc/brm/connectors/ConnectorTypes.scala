@@ -16,9 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-/**
- * Created by adamconder on 14/11/2016.
- */
+
 object ConnectorTypes {
 
   type Attempts = Int

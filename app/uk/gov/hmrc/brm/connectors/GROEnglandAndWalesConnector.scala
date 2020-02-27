@@ -18,81 +18,55 @@ package uk.gov.hmrc.brm.connectors
 
 import java.net.SocketTimeoutException
 
-import play.api.Mode.Mode
-import play.api.{Configuration, Play}
+import javax.inject.Inject
 import uk.co.bigbeeconsultants.http.header.Headers
 import uk.co.bigbeeconsultants.http.response.Response
 import uk.co.bigbeeconsultants.http.{HttpClient, _}
-import uk.gov.hmrc.brm.config.GROConnectorConfiguration
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.{AccessToken, Attempts}
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.tls.HttpClientFactory
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.config.ServicesConfig
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-/**
-  * GROEnglandAndWalesConnector
-  */
 
-object GROEnglandAndWalesConnector extends BirthConnector {
-  override val http = HttpClientFactory.apply()
-  override val authenticator = Authenticator.apply()
-  override val delayTime = GROConnectorConfiguration.delayAttemptInMilliseconds
-  override val delayAttempts = GROConnectorConfiguration.delayAttempts
-  override val endpoint = s"${GROConnectorConfiguration.serviceUrl}/api/v0/events/birth"
-  override val username = GROConnectorConfiguration.username
-  override val encoder = Encoder
-}
+class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
+                                            proxyConfig: ProxyAppConfig,
+                                            httpClientFactory: HttpClientFactory,
+                                            val authenticator: Authenticator) {
 
-trait BirthConnector extends ServicesConfig {
+  private val CLASS_NAME: String = this.getClass.getName
 
-  // $COVERAGE-OFF$
-
-  override protected def mode: Mode = Play.current.mode
-
-  override protected def runModeConfiguration: Configuration = Play.current.configuration
-
-  // $COVERAGE-ON$
-
-  private val CLASS_NAME: String = this.getClass.getCanonicalName
-
-  protected val endpoint: String
-
-  protected val username: String
-
-  protected def http: HttpClient
-
-  protected val encoder: Encoder
-
-  val authenticator: Authenticator
-
-  protected val delayTime: Int
-  protected val delayAttempts: Int
+  val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
+  val username: String = groConfig.groUsername
+  val http: HttpClient = httpClientFactory.apply()
+  val encoder: Encoder = Encoder
+  val delayTime: Int = groConfig.delayAttemptInMilliseconds
+  val delayAttempts: Int = groConfig.delayAttempts
 
   protected val extractJson: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
       ResponseParser.parse(response)
   }
 
-  private def groHeaderCarrier(token: String) = {
+  private def groHeaderCarrier(token: String): Map[AccessToken, String] = {
     Map(
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
     )
   }
 
-  private[BirthConnector] def getChildByReference(reference: String,
+  private[GROEnglandAndWalesConnector] def getChildByReference(reference: String,
                                                   token: AccessToken,
                                                   attempts: Attempts)(implicit metrics: BRMMetrics, ec: ExecutionContext): (BirthResponse, Attempts) = {
     val headers = groHeaderCarrier(token)
-    metrics.requestCount("request") // increase counter for attempt to gro reference
+    metrics.requestCount() // increase counter for attempt to gro reference
 
     debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint, attempt $attempts")
@@ -108,7 +82,7 @@ trait BirthConnector extends ServicesConfig {
     ResponseHandler.handle(response, attempts)(extractJson, metrics)
   }
 
-  private[BirthConnector] def getChildByDetails(details: Map[String, String],
+  private[GROEnglandAndWalesConnector] def getChildByDetails(details: Map[String, String],
                                                 token: AccessToken,
                                                 attempts: Attempts)(implicit metrics: BRMMetrics, ec: ExecutionContext): (BirthResponse, Attempts) = {
     val headers = groHeaderCarrier(token)
@@ -157,7 +131,6 @@ trait BirthConnector extends ServicesConfig {
           }
       }
     }
-
     referenceHelper(1)
   }
 
@@ -189,7 +162,6 @@ trait BirthConnector extends ServicesConfig {
           }
       }
     }
-
     detailsHelper(1)
   }
 

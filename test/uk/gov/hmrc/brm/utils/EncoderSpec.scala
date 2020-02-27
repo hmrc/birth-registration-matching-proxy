@@ -19,9 +19,7 @@ package uk.gov.hmrc.brm.utils
 import uk.gov.hmrc.brm.connectors.Encoder
 import uk.gov.hmrc.play.test.UnitSpec
 
-/**
-  * Created by adamconder on 14/11/2016.
-  */
+
 class EncoderSpec extends UnitSpec {
 
   "Encoder" should {

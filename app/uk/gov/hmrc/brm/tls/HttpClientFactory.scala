@@ -16,14 +16,16 @@
 
 package uk.gov.hmrc.brm.tls
 
+import javax.inject.{Inject, Singleton}
 import uk.co.bigbeeconsultants.http.HttpClient
+import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 
-/**
-  * Created by adamconder on 15/11/2016.
-  */
-object HttpClientFactory {
+@Singleton
+class HttpClientFactory @Inject()(groAppConfig: GroAppConfig,
+                                  proxyConfig: ProxyAppConfig,
+                                  tlsFactory: TLSFactory) {
 
-  private val config = TLSFactory.getConfig
+  private val config = tlsFactory.getConfig
 
   def apply() : HttpClient = {
     new HttpClient(config)
