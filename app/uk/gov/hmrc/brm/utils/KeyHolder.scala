@@ -20,7 +20,7 @@ object KeyHolder {
 
   private var keyForRequest : String = ""
 
-   def geKey():String = {
+   def getKey():String = {
     keyForRequest
   }
 

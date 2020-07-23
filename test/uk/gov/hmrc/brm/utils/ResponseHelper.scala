@@ -30,7 +30,7 @@ object ResponseHelper {
   )
 
   val teapotException : BirthResponse = BirthErrorResponse(
-    Upstream4xxResponse("", HttpStatus.TEAPOT, HttpStatus.TEAPOT)
+    Upstream4xxResponse("", IM_A_TEAPOT, IM_A_TEAPOT)
   )
 
   val internalServerErrorResponse: BirthResponse = BirthErrorResponse(

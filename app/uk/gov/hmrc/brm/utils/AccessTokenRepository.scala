@@ -27,7 +27,7 @@ class AccessTokenRepository {
   private var _token : Option[AccessToken] = None
   private var _expiry : Option[DateTime] = None
   private val _expireSecondsDiff = 60 //1 min
-  private val CLASS_NAME = this.getClass.getCanonicalName
+  private val CLASS_NAME = this.getClass.getSimpleName
 
   private val expiredTokenException  = new RuntimeException(s"access_token expired")
 

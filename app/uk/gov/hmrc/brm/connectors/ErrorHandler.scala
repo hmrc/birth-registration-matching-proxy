@@ -26,14 +26,12 @@ object ErrorHandler {
 
   def wait(delay: Int) = {
     val tick = System.currentTimeMillis() + delay
-    info("ErrorHandler", "wait", "waiting before making next request")
+    info("ErrorHandler", "wait", s"waiting $delay milliseconds before making next request")
     do {} while (System.currentTimeMillis() < tick)
   }
 
 
   def error(response: Response) = {
-    info("ErrorHandler", "error", s"isServerError: ${response.status.isServerError}")
-
     val upstream = if (response.status.isServerError) {
       Upstream5xxResponse(
         s"[ErrorHandler][${response.status.toString}]",
@@ -52,7 +50,7 @@ object ErrorHandler {
   def error(message : String) = {
     BirthErrorResponse(
       Upstream5xxResponse(
-        s"[ErrorHandler][InternalServerError][$message]",
+        s"[ErrorHandler][InternalServerError] $message",
         INTERNAL_SERVER_ERROR,
         INTERNAL_SERVER_ERROR)
     )

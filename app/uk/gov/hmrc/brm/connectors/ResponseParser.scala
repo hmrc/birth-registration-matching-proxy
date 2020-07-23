@@ -18,12 +18,13 @@ package uk.gov.hmrc.brm.connectors
 
 import play.api.libs.json.Json
 import uk.co.bigbeeconsultants.http.response.{Response, Status}
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 
 object ResponseParser {
 
-  private val CLASS_NAME : String = this.getClass.getCanonicalName
+  private val CLASS_NAME : String = this.getClass.getSimpleName
 
   def parse(response: Response) : BirthResponse = {
     info(CLASS_NAME, "parse", "parsing json")
@@ -34,7 +35,7 @@ object ResponseParser {
       BirthSuccessResponse(json)
     } catch {
       case e: Exception =>
-        warn(CLASS_NAME, "parse", "unable to parse json")
+        BrmLogger.error(CLASS_NAME, "parse", s"unable to parse json: $e")
         // from 200 t0 500 or override somehow?
         val error = response.copy(status = Status.S500_InternalServerError)
         ErrorHandler.error(error)

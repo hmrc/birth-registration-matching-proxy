@@ -49,7 +49,7 @@ class ProxyAuthenticator @Inject()(proxyConfig: ProxyAppConfig) {
 
   def setProxyHost(): Option[Proxy] = {
     if (required) {
-      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "successfully setting proxy")
+      BrmLogger.info("ProxyAuthenticator", "setProxyHost", "setting proxy")
       val proxyAddress = new InetSocketAddress(hostname, port.toInt)
       val proxy: Proxy = new Proxy(Proxy.Type.HTTP, proxyAddress)
 

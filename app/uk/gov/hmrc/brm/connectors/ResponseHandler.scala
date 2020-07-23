@@ -24,24 +24,26 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 
 object ResponseHandler {
 
-  private val CLASS_NAME : String = this.getClass.getCanonicalName
+  private val CLASS_NAME : String = this.getClass.getSimpleName
 
   def handle(response: Response, attempts : Attempts)(f : Response => BirthResponse, metrics : BRMMetrics) = {
 
-    debug(CLASS_NAME, "handle",s"$response")
     info(CLASS_NAME, "handle", s"response received after $attempts attempt(s)")
 
     metrics.httpResponseCodeStatus(response.status.code)
 
     response.status match {
       case Status.S200_OK =>
-        info(CLASS_NAME, "handleResponse", s"[200] Success, attempt $attempts")
+        info(CLASS_NAME, "handle", s"[200] Success, attempt $attempts")
         (f(response), attempts)
-      case e @ x if x.isClientError =>
-        info(CLASS_NAME, "handleResponse", s"[${e.code}}}] ${e.category}: attempt $attempts")
+      case e: Status if e.code >= 400 && e.code <= 499 =>
+        info(CLASS_NAME, "handle", s"[${e.code}]: attempt $attempts")
         (ErrorHandler.error(response), attempts)
-      case e : Status =>
-        error(CLASS_NAME, "handleResponse", s"[${e.category}}] InternalServerError: attempt $attempts")
+      case e: Status if e.code >= 500 && e.code <= 599 =>
+        warn(CLASS_NAME, "handle", s"[${e.code}] InternalServerError: attempt $attempts")
+        (ErrorHandler.error(response), attempts)
+      case e: Status =>
+        error(CLASS_NAME, "handle", s"[${e.code}] Unexpected response: attempt $attempts")
         (ErrorHandler.error(response), attempts)
     }
   }

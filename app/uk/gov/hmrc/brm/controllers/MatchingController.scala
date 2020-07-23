@@ -23,7 +23,7 @@ import play.api.mvc.{Action, Request, Result}
 import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.{HttpStatus, KeyHolder}
+import uk.gov.hmrc.brm.utils.KeyHolder
 import uk.gov.hmrc.http.{Upstream4xxResponse, Upstream5xxResponse}
 import play.api.mvc.ControllerComponents
 import uk.gov.hmrc.brm.config.ProxyAppConfig
@@ -37,7 +37,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
                                    proxConfig: ProxyAppConfig,
                                    implicit val metrics: BRMMetrics) extends BackendController(cc) {
 
-  val CLASS_NAME : String = this.getClass.getCanonicalName
+  val CLASS_NAME : String = this.getClass.getSimpleName
 
   implicit val ec: ExecutionContext = cc.executionContext
 
@@ -60,7 +60,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
   }
 
   def teapotException(method : String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream4xxResponse(message, HttpStatus.TEAPOT, _, _)) =>
+    case BirthErrorResponse(Upstream4xxResponse(message, IM_A_TEAPOT, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] TeaPot: $message")
       respond(Forbidden(ErrorResponses.TEAPOT))
   }
@@ -97,7 +97,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
 
   def exception(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
     case BirthErrorResponse(e) =>
-      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: ${e.getMessage}")
+      error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Unknown exception: $e")
       respond(InternalServerError(ErrorResponses.UNKNOWN_ERROR))
   }
 
@@ -108,7 +108,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
       respond(Ok(js))
   }
 
-  def handle(method: String): PartialFunction[BirthResponse, Future[Result]] = Seq(
+  def handleException(method: String): PartialFunction[BirthResponse, Future[Result]] = Seq(
     notFoundException(method),
     badRequestException(method),
     badGatewayException(method),
@@ -136,10 +136,11 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
 
       reference match {
         case Some(r) =>
-          groConnector.get(r).flatMap[Result](
-            handle("getReference").apply(_)
+          groConnector.getReference(r).flatMap[Result](
+            handleException("getReference").apply(_)
           )
         case _ =>
+          warn(CLASS_NAME, "reference", "Reference not found")
           respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }
@@ -158,10 +159,11 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
 
       (forenames, lastname, dateofbirth) match {
         case (Some(f), Some(l), Some(d)) =>
-          groConnector.get(f, l, d).flatMap[Result](
-            handle("getDetails").apply(_)
+          groConnector.getDetails(f, l, d).flatMap[Result](
+            handleException("getDetails").apply(_)
           )
         case _ =>
+          warn(CLASS_NAME, "reference", "Details not found")
           respond(BadRequest(ErrorResponses.BAD_REQUEST))
       }
   }

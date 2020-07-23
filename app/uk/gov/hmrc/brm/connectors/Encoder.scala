@@ -31,7 +31,7 @@ object Encoder extends Encoder {
 
   def encode(params : Map[String, String]) : String = {
     val query = params.map(pair => pair._1 + "=" + URLEncoder.encode(pair._2, "UTF-8")).mkString("&")
-    BrmLogger.debug(this.getClass.getCanonicalName, "encode", s"params: $query")
+    BrmLogger.debug(this.getClass.getSimpleName, "encode", s"params: $query")
     query
   }
 
