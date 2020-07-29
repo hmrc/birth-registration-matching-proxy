@@ -24,7 +24,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 
 class CertificateStatus @Inject()(val proxyConfig: ProxyAppConfig, val groConfig: GroAppConfig) {
 
-  protected val CLASS_NAME: String = this.getClass.getCanonicalName
+  protected val CLASS_NAME: String = this.getClass.getSimpleName
 
   lazy val privateKeystore: String = groConfig.tlsPrivateKeystore
   lazy val privateKeystoreKey: String = groConfig.tlsPrivateKeystoreKey

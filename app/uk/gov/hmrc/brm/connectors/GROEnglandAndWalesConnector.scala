@@ -41,7 +41,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
                                             httpClientFactory: HttpClientFactory,
                                             val authenticator: Authenticator) {
 
-  private val CLASS_NAME: String = this.getClass.getName
+  private val CLASS_NAME: String = this.getClass.getSimpleName
 
   val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
   val username: String = groConfig.groUsername
@@ -109,11 +109,11 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     @tailrec
     def referenceHelper(attempts: Attempts): BirthResponse = {
-      info(CLASS_NAME, "request", s"attempting to find record by reference, attempt: $attempts")
+      info(CLASS_NAME, "request", s"[referenceHelper] attempting to find record by reference, attempt: $attempts")
 
       Try(getChildByReference(reference, token, attempts)) match {
         case Success((response, _)) =>
-          info(CLASS_NAME, "request", s"found record by reference")
+          info(CLASS_NAME, "request", s"[referenceHelper] found record by reference")
           response
         case Failure(exception) =>
           exception match {
@@ -122,11 +122,11 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
                 ErrorHandler.wait(delayTime)
                 referenceHelper(attempts + 1)
               } else {
-                error(CLASS_NAME, "request", s"socket timeout exception when loading record by reference")
+                error(CLASS_NAME, "request", s"[referenceHelper] socket timeout exception when loading record by reference")
                 ErrorHandler.error(e.getMessage)
               }
             case e: Exception =>
-              error(CLASS_NAME, "request", s"failed to load record by reference $e")
+              error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
               ErrorHandler.error(e.getMessage)
           }
       }
@@ -140,11 +140,11 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
   private def request(details: Map[String, String], token: AccessToken)(implicit metrics: BRMMetrics): BirthResponse = {
     @tailrec
     def detailsHelper(attempts: Attempts): BirthResponse = {
-      info(CLASS_NAME, "request", s"attempting to find record(s) by details, attempt $attempts")
+      info(CLASS_NAME, "request", s"[detailsHelper] attempting to find record(s) by details, attempt $attempts")
 
       Try(getChildByDetails(details, token, attempts)) match {
         case Success((response, _)) =>
-          info(CLASS_NAME, "request", s"found record(s) by details")
+          info(CLASS_NAME, "request", s"[detailsHelper] found record(s) by details")
           response
         case Failure(exception) =>
           exception match {
@@ -153,11 +153,11 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
                 ErrorHandler.wait(delayTime)
                 detailsHelper(attempts + 1)
               } else {
-                error(CLASS_NAME, "request", s"socket timeout exception when loading record(s) by details")
+                error(CLASS_NAME, "request", s"[detailsHelper] socket timeout exception when loading record(s) by details")
                 ErrorHandler.error(e.getMessage)
               }
             case e: Exception =>
-              error(CLASS_NAME, "request", s"failed to load record by details $e")
+              error(CLASS_NAME, "request", s"[detailsHelper] failed to load record by details: unknown exception: $e")
               ErrorHandler.error(e.getMessage)
           }
       }
@@ -165,28 +165,28 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
     detailsHelper(1)
   }
 
-  def get(reference: String)
-         (implicit hc: HeaderCarrier, metrics: BRMMetrics): Future[BirthResponse] = {
+  def getReference(reference: String)
+                  (implicit hc: HeaderCarrier, metrics: BRMMetrics): Future[BirthResponse] = {
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getReference", s"valid access token obtained")
         request(reference, token)
       case e@BirthErrorResponse(_) =>
-        error(CLASS_NAME, "getReference", s"Failed to obtain access token: $e")
+        warn(CLASS_NAME, "getReference", s"Failed to obtain access token: $e")
         e
     }
     Future.successful(json)
   }
 
-  def get(forenames: String, lastname: String, dateofbirth: String)
-         (implicit hc: HeaderCarrier, metrics: BRMMetrics): Future[BirthResponse] = {
+  def getDetails(forenames: String, lastname: String, dateofbirth: String)
+                (implicit hc: HeaderCarrier, metrics: BRMMetrics): Future[BirthResponse] = {
     val json = authenticator.token match {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getDetails", s"valid access token obtained")
         val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
         request(details, token)
       case e@BirthErrorResponse(_) =>
-        error(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
+        warn(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
         e
     }
     Future.successful(json)

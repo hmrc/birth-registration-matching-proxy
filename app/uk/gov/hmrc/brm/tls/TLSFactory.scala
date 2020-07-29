@@ -42,7 +42,7 @@ class TLSFactory @Inject()(groConfig: GroAppConfig,
   val keystoreKeyBase64: String = groConfig.tlsPrivateKeystoreKey
   val tlsEnabled: Boolean = groConfig.tlsEnabled
 
-  val CLASS_NAME : String = this.getClass.getCanonicalName
+  val CLASS_NAME : String = this.getClass.getSimpleName
 
   object DumbTrustManager extends X509TrustManager {
     def getAcceptedIssuers: Array[X509Certificate] = null
@@ -92,7 +92,7 @@ class TLSFactory @Inject()(groConfig: GroAppConfig,
       info(CLASS_NAME, "getConfig", "TLS Enabled")
       getSocketFactory
     } else {
-      error(CLASS_NAME, "getConfig", "TLS Disabled")
+      warn(CLASS_NAME, "getConfig", "TLS Disabled")
       None
     }
 

@@ -52,7 +52,7 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
   val delayAttempts : DelayAttempts = groConfig.delayAttempts
   val mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")
 
-  private val CLASS_NAME : String = this.getClass.getCanonicalName
+  private val CLASS_NAME : String = this.getClass.getSimpleName
 
   private def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
     val credentials: Map[String, String] = Map(
@@ -63,7 +63,6 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
       "grant_type" -> grantType
     )
 
-    debug(CLASS_NAME, "authenticate", s"$endpoint credentials: $credentials")
     info(CLASS_NAME, "authenticate", s"requesting authentication token $endpoint")
 
     metrics.requestCount("authentication")
@@ -73,7 +72,6 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
     val response = http.post(
       url = endpoint,
       body = Some(RequestBody.apply(credentials, mediaType))
-//      , requestHeaders = Headers.apply(ProxyAuthenticator.setProxyAuthHeader)
     )
 
     metrics.endTimer(startTime, "authentication-timer")
@@ -81,7 +79,7 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
     ResponseHandler.handle(response, attempts)(saveAccessToken, metrics)
   }
 
-  private val saveAccessToken: PartialFunction[Response, BirthResponse] = {
+  private lazy val saveAccessToken: PartialFunction[Response, BirthResponse] = {
     case response: Response =>
       info(CLASS_NAME, "saveAccessToken", "parsing response from authentication")
       ResponseParser.parse(response) match {
@@ -94,7 +92,7 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
 
           BirthAccessTokenResponse(token)
         case e @ BirthErrorResponse(_) =>
-          error(CLASS_NAME, "saveAccessToken", "failed to parse response")
+          warn(CLASS_NAME, "saveAccessToken", "failed to parse response")
           e
       }
   }
@@ -115,7 +113,7 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
                 ErrorHandler.error(e.getMessage)
               }
             case e : Exception =>
-              error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: ${e.getMessage}")
+              error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $e")
               ErrorHandler.error(e.getMessage)
           }
       }
@@ -138,7 +136,6 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
       // $COVERAGE-ON$
       tokenCache.token match {
         case Success(cache) =>
-          info(CLASS_NAME, "token", s"access_token has not expired")
           debug(CLASS_NAME, "token", s"cached access_token: $cache")
           BirthAccessTokenResponse(cache)
         case Failure(expired) =>
