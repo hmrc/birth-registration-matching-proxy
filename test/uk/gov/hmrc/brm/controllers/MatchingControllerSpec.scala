@@ -32,7 +32,7 @@ import uk.gov.hmrc.brm.utils.JsonUtils
 import uk.gov.hmrc.brm.utils.ResponseHelper._
 import uk.gov.hmrc.http.{HeaderCarrier, JsValidationException}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class MatchingControllerSpec extends TestFixture {
 
@@ -159,7 +159,7 @@ class MatchingControllerSpec extends TestFixture {
         "return 200 for a reference than exists in GRO" in {
           val json = groResponse(reference)
 
-          when(MockController.groConnector.getReference(mockEq[String](reference))(any[HeaderCarrier], any[BRMMetrics])).thenReturn(successResponse(json))
+          when(MockController.groConnector.getReference(mockEq[String](reference))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(successResponse(json))
 
           val request = referenceRequest(reference)
           val result = await(MockController.reference.apply(request))
@@ -176,7 +176,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return 404 for a reference that does not exist in GRO" in {
-          when(MockController.groConnector.getReference(mockEq(invalidReference))(any(), any())).
+          when(MockController.groConnector.getReference(mockEq(invalidReference))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).
             thenReturn(notFoundResponse)
 
           val request = referenceRequest(invalidReference)
@@ -188,7 +188,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return SERVICE_UNAVAILABLE  when GRO returns Upstream5xxResponse Service Unavailable" in {
-          when(MockController.groConnector.getReference(mockEq(reference))(any(), any())).thenReturn(serviceUnavailableResponse)
+          when(MockController.groConnector.getReference(mockEq(reference))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(serviceUnavailableResponse)
 
           val request = referenceRequest(reference)
           val result = await(MockController.reference.apply(request))
@@ -199,7 +199,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return INTERNAL_SERVER_ERROR when GRO is down" in {
-          when(MockController.groConnector.getReference(mockEq(reference))(any(), any())).thenReturn(internalServerErrorResponse)
+          when(MockController.groConnector.getReference(mockEq(reference))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(internalServerErrorResponse)
 
           val request = referenceRequest(reference)
           val result = await(MockController.reference.apply(request))
@@ -210,7 +210,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return Bad_Gateway when GRO returns Upstream5xxResponse BadGateway" in {
-          when(MockController.groConnector.getReference(mockEq(reference))(any(), any())).thenReturn(badGatewayResponse)
+          when(MockController.groConnector.getReference(mockEq(reference))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badGatewayResponse)
 
           val request = referenceRequest(reference)
           val result = await(MockController.reference.apply(request))
@@ -221,7 +221,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return BadRequest when invalid reference number is provided" in {
-          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any(), any())).thenReturn(badRequestResponse)
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badRequestResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe BAD_REQUEST
@@ -230,7 +230,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return InternalServerError when invalid json is returned" in {
-          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any(), any())).thenReturn(jsValidationExceptionResponse)
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(jsValidationExceptionResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
@@ -238,7 +238,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return 403 Forbidden when GRO responds with 418 teapot" in {
-          when(MockController.groConnector.getReference(mockEq("SELECT ALL --"))(any(), any())).thenReturn(teapotException)
+          when(MockController.groConnector.getReference(mockEq("SELECT ALL --"))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(teapotException)
           val request = referenceRequest("SELECT ALL --")
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe FORBIDDEN
@@ -247,7 +247,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return gateway_timeout when GRO times out" in {
-          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any(), any())).thenReturn(gatewayTimeoutResponse)
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(gatewayTimeoutResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
@@ -256,7 +256,7 @@ class MatchingControllerSpec extends TestFixture {
         }
 
         "return 403 Forbidden when GRO returns Forbidden" in {
-          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any(), any())).thenReturn(forbiddenResponse)
+          when(MockController.groConnector.getReference(mockEq("ass1212sqw"))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(forbiddenResponse)
           val request = referenceRequest("ass1212sqw")
           val result = await(MockController.reference.apply(request))
           status(result) shouldBe FORBIDDEN
@@ -274,7 +274,7 @@ class MatchingControllerSpec extends TestFixture {
           val dateofbirth = "2006-11-12"
 
           val json = groResponse("2006-11-12_smith_adam")
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(successResponse(json))
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
@@ -289,7 +289,7 @@ class MatchingControllerSpec extends TestFixture {
           val dateofbirth = "2006-11-12"
 
           val json = groResponse("2006-11-12_smith_adam-utf-8")
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(successResponse(json))
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
@@ -305,7 +305,8 @@ class MatchingControllerSpec extends TestFixture {
 
           val json = groResponse("NoMatch")
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).
             thenReturn(successResponse(json))
 
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
@@ -351,7 +352,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(internalServerErrorResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(internalServerErrorResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
@@ -364,7 +366,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(serviceUnavailableResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(serviceUnavailableResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe SERVICE_UNAVAILABLE
@@ -377,7 +380,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(badGatewayResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badGatewayResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe BAD_GATEWAY
@@ -390,7 +394,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(badRequestResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe BAD_REQUEST
@@ -403,7 +408,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = ""
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(badRequestResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe BAD_REQUEST
@@ -416,7 +422,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = ""
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(badRequestResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe BAD_REQUEST
@@ -429,7 +436,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "10-10-2016"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(badRequestResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(badRequestResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe BAD_REQUEST
@@ -443,7 +451,8 @@ class MatchingControllerSpec extends TestFixture {
           val dateofbirth = "2016-10-10"
 
           when(MockController.groConnector
-            .getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(jsValidationExceptionResponse)
+            .getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+              any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(jsValidationExceptionResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe INTERNAL_SERVER_ERROR
@@ -456,7 +465,7 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(gatewayTimeoutResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(gatewayTimeoutResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe GATEWAY_TIMEOUT
@@ -469,7 +478,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(teapotException)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(teapotException)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe FORBIDDEN
@@ -482,7 +492,8 @@ class MatchingControllerSpec extends TestFixture {
           val lastname = "conder"
           val dateofbirth = "2016-10-10"
 
-          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(any(), any())).thenReturn(forbiddenResponse)
+          when(MockController.groConnector.getDetails(mockEq(forenames), mockEq(lastname), mockEq(dateofbirth))(
+            any[HeaderCarrier], any[BRMMetrics], any[ExecutionContext])).thenReturn(forbiddenResponse)
           val request = detailsRequest(forenames = forenames, lastname = lastname, dateofbirth = dateofbirth)
           val result = await(MockController.details().apply(request))
           status(result) shouldBe FORBIDDEN
