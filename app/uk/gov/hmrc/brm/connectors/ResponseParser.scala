@@ -16,30 +16,37 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import play.api.http.Status
 import play.api.libs.json.Json
-import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.http.HttpResponse.unapply
+
+import scala.util.{Failure, Success, Try}
 
 
-object ResponseParser {
+class ResponseParser(errorHandler: ErrorHandler) {
 
   private val CLASS_NAME : String = this.getClass.getSimpleName
 
-  def parse(response: Response) : BirthResponse = {
+  def parse(response: HttpResponse) : BirthResponse = {
     info(CLASS_NAME, "parse", "parsing json")
-    try {
-      val bodyText = response.body.asString
+    Try {
+      val bodyText = response.body
       val json = Json.parse(bodyText)
 
       BirthSuccessResponse(json)
-    } catch {
-      case e: Exception =>
-        BrmLogger.error(CLASS_NAME, "parse", s"unable to parse json: $e")
-        // from 200 t0 500 or override somehow?
-        val error = response.copy(status = Status.S500_InternalServerError)
-        ErrorHandler.error(error)
+    } match {
+      case Success(successResponse) => successResponse
+      case Failure(exception) =>
+        BrmLogger.error(CLASS_NAME, "parse", s"unable to parse json: $exception")
+        val originalResponse: (Int, String, Map[String, Seq[String]]) = unapply(response).get
+        val error = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, originalResponse._2, originalResponse._3)
+        errorHandler.error(error)
     }
   }
 
 }
+
+object ResponseParser extends ResponseParser(ErrorHandler)
