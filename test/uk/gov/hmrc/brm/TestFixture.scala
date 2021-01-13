@@ -17,7 +17,7 @@
 package uk.gov.hmrc.brm
 
 import org.scalatest.BeforeAndAfter
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
 import uk.gov.hmrc.brm.utils.BaseUnitSpec

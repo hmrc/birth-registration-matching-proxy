@@ -16,40 +16,36 @@
 
 package uk.gov.hmrc.brm.utils
 
-import java.net.URL
-
+import play.api.http.Status
 import play.api.libs.json.JsValue
-import uk.co.bigbeeconsultants.http.header.{Headers, MediaType}
-import uk.co.bigbeeconsultants.http.request.Request
-import uk.co.bigbeeconsultants.http.response.{Response, Status}
 import uk.gov.hmrc.brm.connectors.Encoder
+import uk.gov.hmrc.http.HttpResponse
 
 
 trait BaseUnitSpec {
 
   val headers = Map(
-    "Authorization" -> s"Bearer something",
-    "X-Auth-Downstream-Username" -> "hmrc"
+    "Authorization" -> Seq(s"Bearer something"),
+    "X-Auth-Downstream-Username" -> Seq("hmrc")
   )
 
-  def authSuccessResponse(authRecord :JsValue ):Response = {
-    Response.apply(Request.post(new URL("http://localhost:8099"), None),
-      Status.S200_OK,
-      MediaType.APPLICATION_JSON,
-      authRecord.toString())
+  def authSuccessResponse(authRecord: JsValue): HttpResponse = {
+    HttpResponse.apply(
+      Status.OK,
+      authRecord.toString()
+      )
   }
 
-  def eventResponseWithStatus(status: Status, eventResponse :String):Response = {
-    Response.apply(Request.get(new URL("http://localhost:8099"), headers = Headers.apply(headers)), status, MediaType.APPLICATION_JSON, eventResponse)
+  def eventResponseWithStatus(status: Int, eventResponse: String): HttpResponse = {
+    HttpResponse.apply(status, eventResponse)
   }
 
 
-  def eventSuccessResponse(eventResponse :JsValue ):Response = {
-    Response.apply(Request.get(new URL("http://localhost:8099/v0/events/birth"),
-      headers = Headers.apply(headers)), Status.S200_OK, MediaType.APPLICATION_JSON, eventResponse.toString())
+  def eventSuccessResponse(eventResponse: JsValue): HttpResponse = {
+    HttpResponse.apply(Status.OK, eventResponse.toString(), headers = headers)
   }
 
-  def getUrlEncodeString(firstName:String, lastname : String, dateOfBirth:String):String = {
+  def getUrlEncodeString(firstName: String, lastname: String, dateOfBirth: String): String = {
     val details =  Map(
       "forenames" -> firstName,
       "lastname" -> lastname,
@@ -58,6 +54,9 @@ trait BaseUnitSpec {
     Encoder.encode(details)
   }
 
+  def getEntireUrl(path: String, firstName: String, lastName: String, dateOfBirth: String): String = {
+    path + getUrlEncodeString(firstName, lastName, dateOfBirth)
+  }
 
 
 }

@@ -16,29 +16,23 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import java.net.SocketTimeoutException
-
-import javax.inject.Inject
-import uk.co.bigbeeconsultants.http.header.MediaType
-import uk.co.bigbeeconsultants.http.request.RequestBody
-import uk.co.bigbeeconsultants.http.response.Response
-import uk.co.bigbeeconsultants.http.{HttpClient, _}
-import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
-import uk.gov.hmrc.brm.connectors.ConnectorTypes.{Attempts, DelayAttempts, DelayTime}
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.tls.HttpClientFactory
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
+import uk.gov.hmrc.http.HttpReads.Implicits
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import javax.inject.Inject
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
-class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
-                              groConfig: GroAppConfig,
-                              httpClientFactory: HttpClientFactory,
+class Authenticator @Inject()(groConfig: GroAppConfig,
                               proxyAuthenticator: ProxyAuthenticator,
-                              certificateStatus: CertificateStatus) {
+                              certificateStatus: CertificateStatus,
+                              val http: HttpClient) {
 
   val username : String = groConfig.groUsername
   val password : String = groConfig.groPassword
@@ -46,15 +40,14 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
   val clientSecret: String = groConfig.groClientSecret
   val grantType: String = groConfig.groGrantType
   val endpoint : String = groConfig.authenticationServiceUrl + groConfig.authenticationUri
-  val http: HttpClient = httpClientFactory.apply()
   val tokenCache : AccessTokenRepository = new AccessTokenRepository
-  val delayTime : DelayTime = groConfig.delayAttemptInMilliseconds
-  val delayAttempts : DelayAttempts = groConfig.delayAttempts
-  val mediaType: MediaType = MediaType.apply("application", "x-www-form-urlencoded").withCharset("ISO-8859-1")
+  val responseHandler: ResponseHandler = new ResponseHandler
+  val errorHandler: ErrorHandler = new ErrorHandler
 
   private val CLASS_NAME : String = this.getClass.getSimpleName
 
-  private def authenticate(attempts : Attempts)(implicit metrics : BRMMetrics) : (BirthResponse, Attempts) = {
+  private def authenticate()(
+    implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
     val credentials: Map[String, String] = Map(
       "username" -> username,
       "password" -> password,
@@ -63,24 +56,28 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
       "grant_type" -> grantType
     )
 
+    val newHc = hc.withExtraHeaders(("Content-Type" -> "application/x-www-form-urlencoded; charset=ISO-8859-1"))
     info(CLASS_NAME, "authenticate", s"requesting authentication token $endpoint")
 
     metrics.requestCount("authentication")
 
     val startTime = metrics.startTimer()
 
-    val response = http.post(
+    val response: Future[HttpResponse] = http.POSTForm[HttpResponse](
       url = endpoint,
-      body = Some(RequestBody.apply(credentials, mediaType))
+      body = credentials.map(cred => cred._1 -> Seq(cred._2))
+    )(rds = Implicits.readRaw,
+      newHc,
+      ec
     )
 
     metrics.endTimer(startTime, "authentication-timer")
 
-    ResponseHandler.handle(response, attempts)(saveAccessToken, metrics)
+    responseHandler.handle(response)(saveAccessToken, metrics)
   }
 
-  private lazy val saveAccessToken: PartialFunction[Response, BirthResponse] = {
-    case response: Response =>
+  private lazy val saveAccessToken: PartialFunction[HttpResponse, BirthResponse] = {
+    case response: HttpResponse =>
       info(CLASS_NAME, "saveAccessToken", "parsing response from authentication")
       ResponseParser.parse(response) match {
         case BirthSuccessResponse(body) =>
@@ -97,31 +94,28 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
       }
   }
 
-  private def requestNewToken()(implicit metrics : BRMMetrics) = {
-    @tailrec
-    def authHelper(attempts: Attempts) : BirthResponse = {
-      Try(authenticate(attempts)) match {
-        case Success((response, _)) => response
-        case Failure(exception) =>
+  private def requestNewToken()(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+      authenticate().map {
+        case BirthErrorResponse(exception) =>
           exception match {
-            case e : SocketTimeoutException =>
-              if (attempts < delayAttempts) {
-                ErrorHandler.wait(delayTime)
-                authHelper(attempts + 1)
-              } else {
-                error(CLASS_NAME, "requestNewToken", "socket timeout exception, stop obtaining a new token")
-                ErrorHandler.error(e.getMessage)
-              }
-            case e : Exception =>
+            case e: GatewayTimeoutException =>
+              error(CLASS_NAME, "requestNewToken", "gateway timeout exception, stop obtaining a new token")
+              errorHandler.error(e.getMessage)
+            case e: BadGatewayException =>
+              error(CLASS_NAME, "requestNewToken", "bad gateway exception, stop obtaining a new token")
+              errorHandler.error(e.getMessage)
+            case e: Exception =>
               error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $e")
-              ErrorHandler.error(e.getMessage)
+              errorHandler.error(e.getMessage)
           }
+        case authenticated =>
+          println("it was aut")
+          println("type is " + authenticated.getClass)
+          authenticated
       }
-    }
-    authHelper(1)
   }
 
-  def token()(implicit metrics : BRMMetrics) : BirthResponse = {
+  def token()(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
 
     // configure authenticator
     proxyAuthenticator.configureProxyAuthenticator()
@@ -131,13 +125,13 @@ class Authenticator @Inject()(proxyConfig: ProxyAppConfig,
     // $COVERAGE-OFF$
     if(groConfig.tlsEnabled && !status.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
-      ErrorHandler.error("TLS Certificate expired")
+      Future.successful(errorHandler.error("TLS Certificate expired"))
     } else {
       // $COVERAGE-ON$
       tokenCache.token match {
         case Success(cache) =>
           debug(CLASS_NAME, "token", s"cached access_token: $cache")
-          BirthAccessTokenResponse(cache)
+          Future.successful(BirthAccessTokenResponse(cache))
         case Failure(expired) =>
           info(CLASS_NAME, "token", s"access_token has expired $expired")
           requestNewToken()
