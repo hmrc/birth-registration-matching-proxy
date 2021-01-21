@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,40 +17,40 @@
 package uk.gov.hmrc.brm.utils
 
 import play.api.test.Helpers._
-import uk.gov.hmrc.brm.connectors.{BirthErrorResponse, BirthResponse}
-import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
+import uk.gov.hmrc.brm.connectors.{Birth4xxErrorResponse, BirthErrorResponse, BirthResponse}
+import uk.gov.hmrc.http.UpstreamErrorResponse
 
 object ResponseHelper {
 
-  val notFoundResponse: BirthResponse = BirthErrorResponse(
-    Upstream4xxResponse("", NOT_FOUND, NOT_FOUND)
+  val notFoundResponse: BirthResponse = Birth4xxErrorResponse(
+    UpstreamErrorResponse("", NOT_FOUND, NOT_FOUND)
   )
   val badRequestResponse: BirthResponse = BirthErrorResponse(
-    Upstream4xxResponse("", BAD_REQUEST, BAD_REQUEST)
+    UpstreamErrorResponse("", BAD_REQUEST, BAD_REQUEST)
   )
 
   val teapotException : BirthResponse = BirthErrorResponse(
-    Upstream4xxResponse("", IM_A_TEAPOT, IM_A_TEAPOT)
+    UpstreamErrorResponse("", IM_A_TEAPOT, IM_A_TEAPOT)
   )
 
   val internalServerErrorResponse: BirthResponse = BirthErrorResponse(
-    Upstream5xxResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
+    UpstreamErrorResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
   )
 
   val serviceUnavailableResponse : BirthResponse = BirthErrorResponse(
-    Upstream5xxResponse("", SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE)
+    UpstreamErrorResponse("", SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE)
   )
 
   val badGatewayResponse: BirthResponse = BirthErrorResponse(
-    Upstream5xxResponse("", BAD_GATEWAY, BAD_GATEWAY)
+    UpstreamErrorResponse("", BAD_GATEWAY, BAD_GATEWAY)
   )
 
   val gatewayTimeoutResponse: BirthResponse = BirthErrorResponse(
-    Upstream5xxResponse("", GATEWAY_TIMEOUT, GATEWAY_TIMEOUT)
+    UpstreamErrorResponse("", GATEWAY_TIMEOUT, GATEWAY_TIMEOUT)
   )
 
   val forbiddenResponse: BirthResponse = BirthErrorResponse(
-    Upstream4xxResponse("", FORBIDDEN, FORBIDDEN)
+    UpstreamErrorResponse("", FORBIDDEN, FORBIDDEN)
   )
 
 }

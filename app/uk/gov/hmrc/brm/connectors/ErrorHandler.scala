@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,39 +17,30 @@
 package uk.gov.hmrc.brm.connectors
 
 import play.api.http.Status._
-import uk.co.bigbeeconsultants.http.response.Response
-import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.http.{ Upstream4xxResponse, Upstream5xxResponse }
+import uk.gov.hmrc.http.{HttpResponse, UpstreamErrorResponse}
 
 
-object ErrorHandler {
+class ErrorHandler {
 
-  def wait(delay: Int) = {
-    val tick = System.currentTimeMillis() + delay
-    info("ErrorHandler", "wait", s"waiting $delay milliseconds before making next request")
-    do {} while (System.currentTimeMillis() < tick)
+  def error(response: HttpResponse): BirthErrorResponse = {
+    BirthErrorResponse(UpstreamErrorResponse(
+      s"[ErrorHandler][${response.status.toString}]",
+      response.status,
+      response.status)
+    )
   }
 
-
-  def error(response: Response) = {
-    val upstream = if (response.status.isServerError) {
-      Upstream5xxResponse(
-        s"[ErrorHandler][${response.status.toString}]",
-        response.status.code,
-        response.status.code)
-    } else {
-      Upstream4xxResponse(
-        s"[ErrorHandler][${response.status.toString}]",
-        response.status.code,
-        response.status.code)
-    }
-
-    BirthErrorResponse(upstream)
+  def errorWithNotFound(response: HttpResponse): Birth4xxErrorResponse = {
+    Birth4xxErrorResponse(UpstreamErrorResponse(
+      s"[ErrorHandler][${response.status.toString}]",
+      response.status,
+      response.status)
+    )
   }
 
-  def error(message : String) = {
+  def error(message: String): BirthErrorResponse = {
     BirthErrorResponse(
-      Upstream5xxResponse(
+      UpstreamErrorResponse(
         s"[ErrorHandler][InternalServerError] $message",
         INTERNAL_SERVER_ERROR,
         INTERNAL_SERVER_ERROR)
@@ -57,3 +48,5 @@ object ErrorHandler {
   }
 
 }
+
+object ErrorHandler extends ErrorHandler

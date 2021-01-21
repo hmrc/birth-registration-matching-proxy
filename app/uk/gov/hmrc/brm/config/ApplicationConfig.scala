@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package uk.gov.hmrc.brm.config
 
-import javax.inject.{Inject, Singleton}
-import play.api.{Configuration, Play}
-import uk.gov.hmrc.brm.connectors.ConnectorTypes.{DelayAttempts, DelayTime}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+
+import javax.inject.{Inject, Singleton}
 
 @Singleton
 class ProxyAppConfig @Inject()(val servicesConfig: ServicesConfig) {
@@ -49,21 +48,12 @@ class GroAppConfig @Inject()(val servicesConfig: ServicesConfig) {
 
   lazy val authenticationUri: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.uri")
 
-  lazy val delayAttemptInMilliseconds: DelayTime =
-    servicesConfig.getInt(s"microservice.services.birth-registration-matching.gro.http.delayAttemptInMilliseconds")
-  lazy val delayAttempts: DelayAttempts = servicesConfig.getInt(s"microservice.services.birth-registration-matching.gro.http.delayAttempts")
-
   lazy val tlsPrivateKeystore: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystore")
   lazy val tlsPrivateKeystoreKey: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystoreKey")
   lazy val certificateExpiryDate: String = servicesConfig.getString(s"$tlsConfigPath.certificateExpiryDate")
   lazy val allowHostNameMismatch: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.allowHostnameMismatch")
   lazy val tlsVersion: String = servicesConfig.getString(s"$tlsConfigPath.tlsVersion")
   lazy val tlsEnabled: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
-  lazy val connectionTimeout: Int = servicesConfig.getInt("microservice.services.birth-registration-matching.gro.http.connectionTimeout")
-  lazy val readTimeout: Int = servicesConfig.getInt("microservice.services.birth-registration-matching.gro.http.readTimeout")
-
-  def blockedBodyWords: Option[Seq[String]] =
-    Option(Play.current.configuration.get[Seq[String]](s"birth-registration-matching.features.audit.excludedWords"))
 
   def disableAuditingLogging: Boolean = servicesConfig.getBoolean("birth-registration-matching.features.audit.disableAuditingLogging")
 }

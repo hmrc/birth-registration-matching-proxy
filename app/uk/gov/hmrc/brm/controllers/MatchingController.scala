@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
   }
 
   def notFoundException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
+    case Birth4xxErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
       info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found: $message")
       respond(NotFound(ErrorResponses.NOT_FOUND))
   }
@@ -72,25 +72,25 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
   }
 
   def badGatewayException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _)) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
       respond(BadGateway(ErrorResponses.BAD_GATEWAY))
   }
 
   def gatewayTimeoutException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _)) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
       respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
   }
 
   def connectionDown(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _)) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _, _)) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Connection to GRO is down: $message")
       respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
   }
 
   def serviceUnavailable(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, SERVICE_UNAVAILABLE, _)) =>
+    case BirthErrorResponse(Upstream5xxResponse(message, SERVICE_UNAVAILABLE, _, _)) =>
       error(CLASS_NAME, "handleException",s"[$method] InternalServerError: Service Unavailable: $message")
       respond(ServiceUnavailable(ErrorResponses.CONNECTION_DOWN))
   }
@@ -149,7 +149,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
     implicit request =>
       setKey(request)
 
-      info(CLASS_NAME, s"reference", s"Details request received")
+      info(CLASS_NAME, s"details", s"Details request received")
 
       val forenames = request.body.\("forenames").asOpt[String]
       val lastname = request.body.\("lastname").asOpt[String]

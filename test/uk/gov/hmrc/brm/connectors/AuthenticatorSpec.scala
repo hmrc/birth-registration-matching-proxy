@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,47 @@
 package uk.gov.hmrc.brm.connectors
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
+import org.mockito.ArgumentMatchers.{any, anyString}
+import org.mockito.Mockito._
+import play.api.http.Status
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.brm.tls.HttpClientFactory
-import uk.gov.hmrc.brm.utils.CertificateStatus
+import uk.gov.hmrc.brm.metrics.BRMMetrics
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 
-import scala.util.Success
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
 class AuthenticatorSpec extends TestFixture {
 
+  val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
+
   val testAuthenticator =
-    new Authenticator(testProxyConfig, testGroConfig, mock[HttpClientFactory], mock[ProxyAuthenticator], mock[CertificateStatus])
+    new Authenticator(testGroConfig, mock[ProxyAuthenticator], mock[CertificateStatus], mockHttpClient)
+
+  val mockResponseHandler: ResponseHandler = mock[ResponseHandler]
+  val mockErrorHandler: ErrorHandler = mock[ErrorHandler]
+  implicit val hc: HeaderCarrier = HeaderCarrier()
+  implicit val metrics: BRMMetrics = mock[BRMMetrics]
+
+  val testAuthenticatorMockResponseHandler: Authenticator =
+    new Authenticator(testGroConfig, mock[ProxyAuthenticator], mock[CertificateStatus], mockHttpClient) {
+      override val responseHandler: ResponseHandler = mockResponseHandler
+      override val errorHandler: ErrorHandler = mockErrorHandler
+      override val tokenCache: AccessTokenRepository = mock[AccessTokenRepository]
+    }
+
+  when(mockHttpClient.POSTForm[HttpResponse](
+    anyString(), any[Map[String, Seq[String]]], any[Seq[(String, String)]])(
+    any[HttpReads[HttpResponse]],
+    any[HeaderCarrier],
+    any[ExecutionContext])).thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
+  doNothing().when(metrics).requestCount(any())
+  when(metrics.startTimer()).thenReturn(1L)
+  doNothing().when(metrics).endTimer(any(), any())
 
   "Authenticator" when {
 
@@ -56,6 +86,45 @@ class AuthenticatorSpec extends TestFixture {
         //expiry time shd be less by 60 sec.
         Seconds.secondsBetween(dateTime, expiryTime).getSeconds shouldBe 40
         DateTimeUtils.setCurrentMillisSystem()
+      }
+
+      "fail if a GatewayTimeoutException is returned by the post" in {
+
+        val toReturn: BirthErrorResponse = BirthErrorResponse(new GatewayTimeoutException("gateway timeout returned"))
+
+        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
+          .thenReturn(Future.successful(BirthErrorResponse(new GatewayTimeoutException("gateway timeout message"))))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+
+        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
+
+      }
+
+      "fail if a BadGatewayException is returned by the post" in {
+
+        val toReturn: BirthErrorResponse = BirthErrorResponse(new BadGatewayException("bad gateway returned"))
+
+        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
+          .thenReturn(Future.successful(BirthErrorResponse(new BadGatewayException("bad gateway message"))))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+
+        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
+
+      }
+
+      "fail if an unexpected exception is returned by the post" in {
+
+        val toReturn: BirthErrorResponse = BirthErrorResponse(new Exception("unknown exception returned"))
+
+        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
+          .thenReturn(Future.successful(BirthErrorResponse(new Exception("unknown exception message"))))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+
+        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
+
       }
 
     }

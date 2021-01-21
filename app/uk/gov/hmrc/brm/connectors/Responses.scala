@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import play.api.libs.json.JsValue
 import uk.gov.hmrc.brm.connectors.ConnectorTypes._
 
 
-sealed trait BirthResponse
+trait BirthResponse
 
-case class BirthAccessTokenResponse(token : AccessToken) extends BirthResponse
+case class BirthAccessTokenResponse(token: AccessToken) extends BirthResponse
 case class BirthSuccessResponse[T <: JsValue](json: T) extends BirthResponse
 case class BirthErrorResponse(cause: Exception) extends BirthResponse
+case class Birth4xxErrorResponse(cause: Exception) extends BirthResponse
