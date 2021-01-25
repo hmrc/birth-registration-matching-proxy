@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm
+package uk.gov.hmrc.brm.config
 
-import org.scalatest.BeforeAndAfter
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import uk.gov.hmrc.brm.config.GroAppConfig
-import uk.gov.hmrc.brm.utils.BaseUnitSpec
-import uk.gov.hmrc.play.test.UnitSpec
+import play.api.inject.{Binding, Module}
+import play.api.{Configuration, Environment}
+import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.reflect.ClassTag
-
-trait TestFixture extends UnitSpec with MockitoSugar with BeforeAndAfter with GuiceOneAppPerSuite with BaseUnitSpec {
-
-  def real[T: ClassTag]: T = app.injector.instanceOf[T]
-
-  val testGroConfig: GroAppConfig = real[GroAppConfig]
+class ModuleBindings extends Module {
+  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = Seq(
+    bind(classOf[HttpClient]).to[ProxyEnabledHttpClient].eagerly()
+  )
 
 }

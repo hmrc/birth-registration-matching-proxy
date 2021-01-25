@@ -25,4 +25,4 @@ trait BirthResponse
 case class BirthAccessTokenResponse(token: AccessToken) extends BirthResponse
 case class BirthSuccessResponse[T <: JsValue](json: T) extends BirthResponse
 case class BirthErrorResponse(cause: Exception) extends BirthResponse
-case class Birth4xxErrorResponse(cause: Exception) extends BirthResponse
+case class Birth404ErrorResponse(cause: Exception) extends BirthResponse

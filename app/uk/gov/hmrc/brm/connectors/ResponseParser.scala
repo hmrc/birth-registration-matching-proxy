@@ -41,8 +41,8 @@ class ResponseParser(errorHandler: ErrorHandler) {
       case Success(successResponse) => successResponse
       case Failure(exception) =>
         BrmLogger.error(CLASS_NAME, "parse", s"unable to parse json: $exception")
-        val originalResponse: (Int, String, Map[String, Seq[String]]) = unapply(response).get
-        val error = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, originalResponse._2, originalResponse._3)
+        val (_, body, headers): (Int, String, Map[String, Seq[String]]) = unapply(response).get
+        val error = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, body, headers)
         errorHandler.error(error)
     }
   }

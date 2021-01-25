@@ -43,7 +43,7 @@ class MatchingControllerSpec extends TestFixture {
   ).build()
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+  implicit val metrics: BRMMetrics = new BRMMetrics
 
 
 
@@ -140,7 +140,7 @@ class MatchingControllerSpec extends TestFixture {
   val stubCC: ControllerComponents = stubControllerComponents()
 
   val MockController: MatchingController =
-    new MatchingController(mock[GROEnglandAndWalesConnector], stubCC, testProxyConfig, mock[BRMMetrics]) {
+    new MatchingController(mock[GROEnglandAndWalesConnector], stubCC, mock[BRMMetrics]) {
     }
 
 

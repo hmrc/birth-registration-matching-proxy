@@ -27,33 +27,34 @@ object ResponseHandler extends ResponseHandler
 
 class ResponseHandler {
 
-  private val CLASS_NAME : String = this.getClass.getSimpleName
+  private val CLASS_NAME: String = this.getClass.getSimpleName
 
   def handle(futureResponse: Future[HttpResponse])(f: HttpResponse => BirthResponse, metrics: BRMMetrics)
-            (implicit ec: ExecutionContext): Future[BirthResponse]=
+            (implicit ec: ExecutionContext): Future[BirthResponse] =
     futureResponse.map { response =>
-    info(CLASS_NAME, "handle", s"response received")
-      debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response")
+      info(CLASS_NAME, "handle", s"response received")
 
-    metrics.httpResponseCodeStatus(response.status)
+      debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response, BODY: ${response.body}")
 
-    response.status match {
-      case Status.OK =>
-        info(CLASS_NAME, "handle", s"[200] Success")
-        f(response)
-      case Status.NOT_FOUND =>
-        info(CLASS_NAME, "handle", s"[404] 404 status response, Not Found")
-        ErrorHandler.errorWithNotFound(response)
-      case status4xx if status4xx >= 400 && status4xx <= 499 =>
-        info(CLASS_NAME, "handle", s"[$status4xx] 4xx status response found")
-        ErrorHandler.error(response)
-      case status5xx if status5xx >= 500 && status5xx <= 599 =>
-        warn(CLASS_NAME, "handle", s"[$status5xx] 5xx status response found,  InternalServerError")
-        ErrorHandler.error(response)
-      case status =>
-        error(CLASS_NAME, "handle", s"[$status] Unexpected response found")
-        ErrorHandler.error(response)
+      metrics.httpResponseCodeStatus(response.status)
+
+      response.status match {
+        case Status.OK =>
+          info(CLASS_NAME, "handle", s"[200] Success")
+          f(response)
+        case Status.NOT_FOUND =>
+          info(CLASS_NAME, "handle", s"[404] 404 status response from LEV, no match")
+          ErrorHandler.errorWithNotFound(response)
+        case status4xx if status4xx >= 400 && status4xx <= 499 =>
+          info(CLASS_NAME, "handle", s"[$status4xx] 4xx status response found")
+          ErrorHandler.error(response)
+        case status5xx if status5xx >= 500 && status5xx <= 599 =>
+          warn(CLASS_NAME, "handle", s"[$status5xx] 5xx status response found,  InternalServerError")
+          ErrorHandler.error(response)
+        case status =>
+          error(CLASS_NAME, "handle", s"[$status] Unexpected response found")
+          ErrorHandler.error(response)
+      }
     }
-  }
 
 }

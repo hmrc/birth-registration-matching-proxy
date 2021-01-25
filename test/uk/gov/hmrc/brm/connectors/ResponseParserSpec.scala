@@ -17,7 +17,7 @@
 package uk.gov.hmrc.brm.connectors
 
 import org.mockito.Mockito._
-import org.mockito.ArgumentMatchers.{any, anyString, refEq}
+import org.mockito.ArgumentMatchers.{any, anyInt, anyString, refEq}
 import play.api.http.Status
 import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.brm.TestFixture
@@ -40,7 +40,7 @@ class ResponseParserSpec extends TestFixture {
       val success = responseParser.parse(response)
 
       success shouldBe BirthSuccessResponse(parsed)
-      verify(mockHandler, never()).error(anyString())
+      verify(mockHandler, never()).error(anyString(), anyInt())
       verify(mockHandler, never()).error(any[HttpResponse])
     }
 

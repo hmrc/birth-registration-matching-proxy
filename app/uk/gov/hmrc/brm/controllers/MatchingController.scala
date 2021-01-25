@@ -26,7 +26,6 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
 import uk.gov.hmrc.http.{Upstream4xxResponse, Upstream5xxResponse}
 import play.api.mvc.ControllerComponents
-import uk.gov.hmrc.brm.config.ProxyAppConfig
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,7 +33,6 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector,
                                    cc: ControllerComponents,
-                                   proxConfig: ProxyAppConfig,
                                    implicit val metrics: BRMMetrics) extends BackendController(cc) {
 
   val CLASS_NAME : String = this.getClass.getSimpleName
@@ -48,7 +46,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
   }
 
   def notFoundException(method: String) : PartialFunction[BirthResponse, Future[Result]] = {
-    case Birth4xxErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
+    case Birth404ErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
       info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found: $message")
       respond(NotFound(ErrorResponses.NOT_FOUND))
   }

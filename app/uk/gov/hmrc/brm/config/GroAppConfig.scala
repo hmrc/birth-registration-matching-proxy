@@ -21,17 +21,6 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class ProxyAppConfig @Inject()(val servicesConfig: ServicesConfig) {
-
-  lazy val proxyUsername: String = servicesConfig.getString("microservice.services.proxy.http.user")
-  lazy val proxyPassword: String = servicesConfig.getString("microservice.services.proxy.http.password")
-  lazy val proxyHostname: String = servicesConfig.getString("microservice.services.proxy.http.hostname")
-  lazy val proxyPort: String = servicesConfig.getString("microservice.services.proxy.http.port")
-
-  def proxyRequired: Boolean = servicesConfig.getBoolean("microservice.services.proxy.required")
-}
-
-@Singleton
 class GroAppConfig @Inject()(val servicesConfig: ServicesConfig) {
 
   private val tlsConfigPath = "microservice.services.birth-registration-matching.gro.tls"
@@ -51,9 +40,5 @@ class GroAppConfig @Inject()(val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystore: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystore")
   lazy val tlsPrivateKeystoreKey: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystoreKey")
   lazy val certificateExpiryDate: String = servicesConfig.getString(s"$tlsConfigPath.certificateExpiryDate")
-  lazy val allowHostNameMismatch: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.allowHostnameMismatch")
-  lazy val tlsVersion: String = servicesConfig.getString(s"$tlsConfigPath.tlsVersion")
   lazy val tlsEnabled: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
-
-  def disableAuditingLogging: Boolean = servicesConfig.getBoolean("birth-registration-matching.features.audit.disableAuditingLogging")
 }
