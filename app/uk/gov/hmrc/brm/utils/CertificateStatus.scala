@@ -16,13 +16,14 @@
 
 package uk.gov.hmrc.brm.utils
 
-import javax.inject.Inject
 import org.joda.time._
 import org.joda.time.format.{PeriodFormatter, PeriodFormatterBuilder}
-import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
-class CertificateStatus @Inject()(val proxyConfig: ProxyAppConfig, val groConfig: GroAppConfig) {
+import javax.inject.Inject
+
+class CertificateStatus @Inject()(val groConfig: GroAppConfig) {
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 

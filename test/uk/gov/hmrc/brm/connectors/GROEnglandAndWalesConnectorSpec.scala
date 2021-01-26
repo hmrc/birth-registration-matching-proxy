@@ -40,7 +40,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
   val mockErrorHandler: ErrorHandler = mock[ErrorHandler]
 
   val mockAuthenticator: Authenticator =
-    new Authenticator(testGroConfig, mock[ProxyAuthenticator], mock[CertificateStatus], mockHttpClient) {
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient) {
       override val tokenCache: AccessTokenRepository = mockTokenCache
       override val responseHandler: ResponseHandler = mockResponseHandler
       override val errorHandler: ErrorHandler = mockErrorHandler
@@ -237,7 +237,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
     "get reference" should {
 
       "BirthSuccessResponse when gro responds with 200 for reference" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse(refNumber))
@@ -258,7 +258,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 4xx when gro returns 404" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventResponseWithStatus(Status.NOT_FOUND, groResponse("NoMatch").toString())
@@ -279,7 +279,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 4xx when gro returns BadRequest" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventResponseWithStatus (Status.BAD_REQUEST,"")
 
@@ -299,7 +299,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 5xx when gro returns InternalServerError" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventResponseWithStatus (Status.INTERNAL_SERVER_ERROR,"")
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
@@ -325,7 +325,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
         val authResponse = authSuccessResponse(authRecord)
         val eventResponse = eventResponseWithStatus (Status.INTERNAL_SERVER_ERROR,"")
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
@@ -350,7 +350,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
     "get details" should {
 
       "BirthSuccessResponse when gro details responds with 200 with single record." in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "adam"
         val lastName = "smith"
@@ -381,7 +381,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
 
       "BirthSuccessResponse when gro details responds with 200 with single record when request has special character." in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "Adàm TËST"
         val lastName = "SMÏTH"
@@ -411,7 +411,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthSuccessResponse with [] empty response for no records found" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "adam"
         val lastName = "smith"
@@ -439,7 +439,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = ""
         val lastName = "smith"
@@ -468,7 +468,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "adam"
         val lastName = ""
@@ -498,7 +498,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "adam"
         val lastName = "smith"
@@ -528,7 +528,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       }
 
       "BirthErrorResponse when GRO returns 5xx" in {
-        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+        implicit val metrics: BRMMetrics = new BRMMetrics
 
         val firstName = "adam"
         val lastName = "smith"
@@ -555,61 +555,6 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
-
-//      "BirthErrorResponse when GRO throws exception" in {
-//        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
-//
-//        val firstName = "adam"
-//        val lastName = "smith"
-//        val dateOfBirth = "2010-10-06"
-//
-//        val authResponse = authSuccessResponse(authRecord)
-//        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-//        when(testConnector.authenticator.http.POSTForm[HttpResponse](
-//          eqTo(refNumber), eqTo(testCredentials), eqTo(testHeaders))(
-//          any[HttpReads[HttpResponse]],
-//          any[HeaderCarrier],
-//          any[ExecutionContext])).thenReturn(Future.successful(authResponse))
-//        when(testConnector.http.GET[HttpResponse](any(), any(), any())(
-//          any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
-//        )).thenThrow(new IOException(""))
-//
-//        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
-//        verify(testConnector.http, times(1)).GET[HttpResponse](any(), any(), any())(
-//          any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
-//        )
-//
-//        result shouldBe a[BirthErrorResponse]
-//        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-//      }
-
-//      "BirthErrorResponse when all attempts fail [SocketTimeoutException]" in {
-//        implicit val metrics: BRMMetrics = new BRMMetrics(testProxyConfig)
-//
-//        val firstName = "adam"
-//        val lastName = "smith"
-//        val dateOfBirth = "2010-10-06"
-//
-//        val authResponse = authSuccessResponse(authRecord)
-//        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-//        when(testConnector.authenticator.http.POSTForm[HttpResponse](
-//          eqTo(refNumber),
-//          eqTo(testCredentials), eqTo(testHeaders))(
-//          any[HttpReads[HttpResponse]],
-//          any[HeaderCarrier],
-//          any[ExecutionContext])).thenReturn(Future.successful(authResponse))
-//        when(testConnector.http.GET[HttpResponse](any(), any(), any())(
-//          any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
-//        )).thenThrow(new SocketTimeoutException(""))
-//
-//        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
-//        verify(testConnector.http, times(3)).GET[HttpResponse](any(), any(), any())(
-//          any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
-//        )
-//
-//        result shouldBe a[BirthErrorResponse]
-//        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-//      }
 
       "return a BirthErrorResponse when token has expired and unable to obtain a new token" in {
         val testConnector: GROEnglandAndWalesConnector =

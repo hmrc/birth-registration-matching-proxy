@@ -21,21 +21,21 @@ import uk.gov.hmrc.brm.TestFixture
 
 class CertificateStatusSpec extends TestFixture {
 
-  val mockCertificateStatus = new CertificateStatus(testProxyConfig, testGroConfig)
+  val mockCertificateStatus = new CertificateStatus(testGroConfig)
 
-  val mockCertificateStatusInvalidExpiryDate = new CertificateStatus(testProxyConfig, testGroConfig) {
+  val mockCertificateStatusInvalidExpiryDate = new CertificateStatus(testGroConfig) {
     override lazy val certificateExpiryDate: String = "2012-02-19"
   }
 
-  val mockCertificateStatusValidExpiryDate = new CertificateStatus(testProxyConfig, testGroConfig) {
+  val mockCertificateStatusValidExpiryDate = new CertificateStatus(testGroConfig) {
     override lazy val certificateExpiryDate: String = "2040-02-19"
   }
 
-  val mockCertificateStatus20160219 = new CertificateStatus(testProxyConfig, testGroConfig) {
+  val mockCertificateStatus20160219 = new CertificateStatus(testGroConfig) {
     override lazy val certificateExpiryDate: String = "2016-02-19"
   }
 
-  val mockCertificateStatusInvalidConfKey = new CertificateStatus(testProxyConfig, testGroConfig) {
+  val mockCertificateStatusInvalidConfKey = new CertificateStatus(testGroConfig) {
 
     override lazy val privateKeystore = "birth-registration-matching.privateKeystoreINVALID"
 

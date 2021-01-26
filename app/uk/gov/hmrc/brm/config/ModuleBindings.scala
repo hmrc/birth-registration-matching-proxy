@@ -16,18 +16,31 @@
 
 package uk.gov.hmrc.brm.config
 
-import play.api.inject.{Binding, Module}
-import play.api.{Configuration, Environment}
-import uk.gov.hmrc.http.CoreGet
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import akka.actor.ActorSystem
+import com.google.inject.{AbstractModule, Provides}
+import play.api.Configuration
+import play.api.libs.ws.WSClient
+import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
+import uk.gov.hmrc.play.audit.http.HttpAuditing
+import uk.gov.hmrc.play.bootstrap.http.{DefaultHttpClient, HttpClient}
+import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
 
-class ModuleBindings extends Module {
+class ModuleBindings extends AbstractModule {
+  override def configure(): Unit = ()
 
-  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = Seq(
-    bind[HttpClient].to[ProxyEnabledHttpClient],
-    // binding additional interfaces so that libraries that depend on http-verbs can be easily injected
-    // this is based on the http-verbs application of the DefaultHttpClient
-    bind[CoreGet].to[ProxyEnabledHttpClient]
-  )
+  @Provides
+  def proxyHttpClient(
+                       configuration: Configuration,
+                       auditing: HttpAuditing,
+                       client: WSClient,
+                       actorSystem: ActorSystem
+                     ): HttpClient = {
+    WSProxyConfiguration("microservice.services.proxy", configuration) match {
+      case Some(proxyServer) =>
+        new ProxyEnabledHttpClient(configuration, auditing, client, proxyServer, actorSystem)
+      case None =>
+        new DefaultHttpClient(configuration, auditing, client, actorSystem)
+    }
+  }
 
 }

@@ -71,8 +71,6 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     metrics.endTimer(startTime, "reference-match-timer")
 
-    BrmLogger.debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response")
-
     responseHandler.handle(response)(extractJson, metrics)
   }
 

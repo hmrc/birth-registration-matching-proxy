@@ -30,7 +30,6 @@ import scala.util.{Failure, Success}
 
 
 class Authenticator @Inject()(groConfig: GroAppConfig,
-                              proxyAuthenticator: ProxyAuthenticator,
                               certificateStatus: CertificateStatus,
                               val http: HttpClient) {
 
@@ -114,9 +113,6 @@ class Authenticator @Inject()(groConfig: GroAppConfig,
   }
 
   def token()(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
-
-    // configure authenticator
-    proxyAuthenticator.configureProxyAuthenticator()
 
     val status = certificateStatus
 

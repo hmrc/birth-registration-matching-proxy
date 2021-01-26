@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm
 import org.scalatest.BeforeAndAfter
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import uk.gov.hmrc.brm.config.{GroAppConfig, ProxyAppConfig}
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BaseUnitSpec
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -29,7 +29,6 @@ trait TestFixture extends UnitSpec with MockitoSugar with BeforeAndAfter with Gu
 
   def real[T: ClassTag]: T = app.injector.instanceOf[T]
 
-  val testProxyConfig: ProxyAppConfig = real[ProxyAppConfig]
   val testGroConfig: GroAppConfig = real[GroAppConfig]
 
 }

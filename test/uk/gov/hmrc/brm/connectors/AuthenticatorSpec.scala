@@ -36,7 +36,7 @@ class AuthenticatorSpec extends TestFixture {
   val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
 
   val testAuthenticator =
-    new Authenticator(testGroConfig, mock[ProxyAuthenticator], mock[CertificateStatus], mockHttpClient)
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient)
 
   val mockResponseHandler: ResponseHandler = mock[ResponseHandler]
   val mockErrorHandler: ErrorHandler = mock[ErrorHandler]
@@ -44,7 +44,7 @@ class AuthenticatorSpec extends TestFixture {
   implicit val metrics: BRMMetrics = mock[BRMMetrics]
 
   val testAuthenticatorMockResponseHandler: Authenticator =
-    new Authenticator(testGroConfig, mock[ProxyAuthenticator], mock[CertificateStatus], mockHttpClient) {
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient) {
       override val responseHandler: ResponseHandler = mockResponseHandler
       override val errorHandler: ErrorHandler = mockErrorHandler
       override val tokenCache: AccessTokenRepository = mock[AccessTokenRepository]
