@@ -51,7 +51,6 @@ class GroAppConfig @Inject()(val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystore: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystore")
   lazy val tlsPrivateKeystoreKey: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystoreKey")
   lazy val certificateExpiryDate: String = servicesConfig.getString(s"$tlsConfigPath.certificateExpiryDate")
-  lazy val allowHostNameMismatch: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.allowHostnameMismatch")
   lazy val tlsVersion: String = servicesConfig.getString(s"$tlsConfigPath.tlsVersion")
   lazy val tlsEnabled: Boolean = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
