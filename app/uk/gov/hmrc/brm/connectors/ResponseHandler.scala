@@ -33,7 +33,7 @@ class ResponseHandler {
             (implicit ec: ExecutionContext): Future[BirthResponse] =
     futureResponse.map { response =>
       info(CLASS_NAME, "handle", s"response received")
-      debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response")
+      debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response, BODY: ${response.body}")
 
       metrics.httpResponseCodeStatus(response.status)
 
