@@ -37,38 +37,10 @@ class CertificateStatusSpec extends TestFixture {
 
   val mockCertificateStatusInvalidConfKey = new CertificateStatus(testGroConfig) {
 
-    override lazy val privateKeystore = "birth-registration-matching.privateKeystoreINVALID"
-
-    override lazy val privateKeystoreKey = "birth-registration-matching.privateKeystoreKeyINVALID"
-
     override lazy val certificateExpiryDate = "birth-registration-matching.certificateExpiryDateINVALID"
   }
 
   " CertificateStatus" should {
-
-    "contain privateKeystore" in {
-      val privateKeystore = mockCertificateStatus.privateKeystore
-      privateKeystore should not be empty
-    }
-
-    "contain privateKeystoreKey" in {
-      val privateKeystoreKey = mockCertificateStatus.privateKeystoreKey
-      privateKeystoreKey should not be empty
-    }
-
-    "throw RuntimeException if privateKeystore config doesn't exist" in {
-      intercept[RuntimeException] {
-        val response = mockCertificateStatusInvalidConfKey.privateKeystore
-        response shouldBe a[RuntimeException]
-      }
-    }
-
-    "throw RuntimeException if privateKeystoreKey config doesn't exist" in {
-      intercept[RuntimeException] {
-        val response = mockCertificateStatusInvalidConfKey.privateKeystoreKey
-        response shouldBe a[RuntimeException]
-      }
-    }
 
     "throw RuntimeException if certificateExpiryDate config doesn't exist" in {
       intercept[RuntimeException] {

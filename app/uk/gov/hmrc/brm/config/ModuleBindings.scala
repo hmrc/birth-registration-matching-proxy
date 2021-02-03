@@ -29,17 +29,17 @@ class ModuleBindings extends AbstractModule {
   override def configure(): Unit = ()
 
   @Provides
-  def proxyHttpClient(
-                       configuration: Configuration,
-                       auditing: HttpAuditing,
-                       client: WSClient,
-                       actorSystem: ActorSystem
-                     ): HttpClient = {
+  def createClient(
+                    configuration: Configuration,
+                    httpAuditing: HttpAuditing,
+                    wsClient: WSClient,
+                    actorSystem: ActorSystem
+                  ): HttpClient = {
     WSProxyConfiguration("microservice.services.proxy", configuration) match {
       case Some(proxyServer) =>
-        new ProxyEnabledHttpClient(configuration, auditing, client, proxyServer, actorSystem)
+        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, proxyServer, actorSystem)
       case None =>
-        new DefaultHttpClient(configuration, auditing, client, actorSystem)
+        new DefaultHttpClient(configuration, httpAuditing, wsClient, actorSystem)
     }
   }
 

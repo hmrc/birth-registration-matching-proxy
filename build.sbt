@@ -17,7 +17,7 @@ lazy val appDependencies : Seq[ModuleID] = compile ++ test
 lazy val scoverageSettings = {
   Seq(
     ScoverageKeys.coverageExcludedPackages :=
-      "<empty>;uk.gov.hmrc.brm.config.*;uk.gov.hmrc.brm.tls.*;testOnlyDoNotUseInAppConf.*;uk.gov.hmrc.brm.views.*;prod.*;uk.gov.hmrc.BuildInfo.*;app.Routes.*;",
+      "<empty>;.*CustomWSConfigParser;.*OptionalAhcHttpCacheProvider;.*AhcHttpCacheParser;testOnlyDoNotUseInAppConf.*;uk.gov.hmrc.brm.views.*;prod.*;uk.gov.hmrc.BuildInfo.*;app.Routes.*;",
     ScoverageKeys.coverageMinimum := 100,
     ScoverageKeys.coverageFailOnMinimum := true,
     ScoverageKeys.coverageHighlighting := true
@@ -52,6 +52,7 @@ scalacOptions ++= Seq(
 )
 
 lazy val compile = Seq(
+  ws,
   "uk.gov.hmrc" %% "bootstrap-play-26" % "2.3.0",
   "uk.gov.hmrc" %% "domain" % "5.10.0-play-26",
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),

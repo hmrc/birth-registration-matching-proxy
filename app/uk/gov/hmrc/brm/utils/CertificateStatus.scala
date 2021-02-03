@@ -27,8 +27,6 @@ class CertificateStatus @Inject()(val groConfig: GroAppConfig) {
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
-  lazy val privateKeystore: String = groConfig.tlsPrivateKeystore
-  lazy val privateKeystoreKey: String = groConfig.tlsPrivateKeystoreKey
   lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
 
   lazy val formatDate: PeriodFormatter =
