@@ -42,14 +42,13 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
                                             configuration: Configuration
                                            ) {
 
-    val http: HttpClient = new ProxyEnabledHttpClient(
-      configuration,
-      httpAuditing,
-      wsClient,
-      system
-    )
-    info("this", "that",
-      s"so ws client has ${wsClient}")
+  val http: HttpClient = new ProxyEnabledHttpClient(
+    configuration,
+    httpAuditing,
+    wsClient,
+    system
+  )
+
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
   val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
@@ -71,7 +70,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private[GROEnglandAndWalesConnector] def getChildByReference(reference: String,
                                                                token: AccessToken)(
-    implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+                                                                implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount() // increase counter for attempt to gro reference
 
@@ -93,8 +92,8 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private[GROEnglandAndWalesConnector] def getChildByDetails(details: Map[String, String],
                                                              token: AccessToken)(
-    implicit hc: HeaderCarrier,
-    metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+                                                              implicit hc: HeaderCarrier,
+                                                              metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount("details-request") // increase counter for attempt to gro details
 

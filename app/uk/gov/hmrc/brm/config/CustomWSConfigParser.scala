@@ -23,6 +23,7 @@ import play.api.{Configuration, Environment}
 import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.io.{File, FileOutputStream}
+import java.nio.charset.StandardCharsets
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
 
@@ -66,7 +67,7 @@ class CustomWSConfigParser @Inject()(configuration: Configuration, env: Environm
     file.deleteOnExit()
     val os = new FileOutputStream(file)
     try {
-      val bytes = Base64.getDecoder.decode(data.trim)
+      val bytes = Base64.getDecoder.decode(data.getBytes(StandardCharsets.US_ASCII))
       os.write(bytes)
       os.flush()
       file.getAbsolutePath → bytes
@@ -82,8 +83,8 @@ class CustomWSConfigParser @Inject()(configuration: Configuration, env: Environm
 
     val decryptedPass = ks.password
       .filter(_.nonEmpty)
-      .map(Base64.getDecoder.decode)
-      .map(new String(_))
+      .map(pass => Base64.getDecoder.decode(pass.getBytes(StandardCharsets.US_ASCII)))
+      .map(new String(_, StandardCharsets.US_ASCII))
 
     ks.withFilePath(Some(ksFilePath)).withPassword(decryptedPass)
   }
