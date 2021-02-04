@@ -94,7 +94,7 @@ class CustomWSConfigParserModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     Seq(
-      bind[WSConfigParser].to[CustomWSConfigParser]
+      bind[WSConfigParser].to[CustomWSConfigParser].eagerly
     )
 
 }

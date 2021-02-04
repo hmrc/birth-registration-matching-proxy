@@ -67,8 +67,7 @@ class CustomAhcWSModule
 class AsyncHttpClientProvider @Inject()(
                                          environment: Environment,
                                          configuration: Configuration,
-                                         applicationLifecycle: ApplicationLifecycle,
-                                         groAppConfig: GroAppConfig
+                                         applicationLifecycle: ApplicationLifecycle
                                        )(implicit executionContext: ExecutionContext)
   extends Provider[AsyncHttpClient] {
 

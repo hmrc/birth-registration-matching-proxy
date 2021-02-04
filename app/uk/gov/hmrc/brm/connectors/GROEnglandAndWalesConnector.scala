@@ -16,13 +16,20 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import akka.actor.ActorSystem
+import play.api.Configuration
+import play.api.libs.ws.WSClient
+import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
+import play.shaded.ahc.org.asynchttpclient.DefaultAsyncHttpClient
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
+import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HttpReads.Implicits
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import javax.inject.Inject
@@ -30,9 +37,21 @@ import scala.concurrent.{ExecutionContext, Future}
 
 
 class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
+                                            httpAuditing: HttpAuditing,
+                                            wsClient: WSClient,
+                                            system: ActorSystem,
                                             val authenticator: Authenticator,
-                                            val http: HttpClient) {
+                                            configuration: Configuration)
+  {
 
+    val http: HttpClient = new ProxyEnabledHttpClient(
+      configuration,
+      httpAuditing,
+      wsClient,
+      system
+    )
+    info("this", "that",
+      s"so ws client has ${wsClient}")
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
   val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"

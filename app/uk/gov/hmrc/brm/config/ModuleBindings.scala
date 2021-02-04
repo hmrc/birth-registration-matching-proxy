@@ -21,15 +21,16 @@ import com.google.inject.{AbstractModule, Provides}
 import play.api.Configuration
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.audit.http.HttpAuditing
-import uk.gov.hmrc.play.bootstrap.http.{DefaultHttpClient, HttpClient}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
 
 class ModuleBindings extends AbstractModule {
   override def configure(): Unit = ()
 
   @Provides
-  def createClient(
+  def proxyHttpClient(
                     configuration: Configuration,
                     httpAuditing: HttpAuditing,
                     wsClient: WSClient,
@@ -37,9 +38,11 @@ class ModuleBindings extends AbstractModule {
                   ): HttpClient = {
     WSProxyConfiguration("microservice.services.proxy", configuration) match {
       case Some(proxyServer) =>
-        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, proxyServer, actorSystem)
+        BrmLogger.info("ModuleBindings", "proxyHttpClient", "using proxy client")
+        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, actorSystem)
       case None =>
-        new DefaultHttpClient(configuration, httpAuditing, wsClient, actorSystem)
+        BrmLogger.info("ModuleBindings", "proxyHttpClient", "using non-proxy client")
+        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, actorSystem)
     }
   }
 

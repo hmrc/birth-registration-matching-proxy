@@ -22,16 +22,19 @@ import play.api.libs.ws.{WSClient, WSProxyServer, WSRequest}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
+import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
 
 class ProxyEnabledHttpClient(
                               config: Configuration,
                               httpAuditing: HttpAuditing,
                               override val wsClient: WSClient,
-                              proxyServer: WSProxyServer,
                               override protected val actorSystem: ActorSystem)
   extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem) {
 
   override def buildRequest[A](url: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): WSRequest = {
-    super.buildRequest(url, headers).withProxyServer(proxyServer)
+    WSProxyConfiguration("microservice.services.proxy", config) match {
+      case Some(proxy) => super.buildRequest(url, headers).withProxyServer(proxy)
+      case _ => super.buildRequest(url, headers)
+    }
   }
 }
