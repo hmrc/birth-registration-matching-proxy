@@ -51,7 +51,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
+  val endpoint: String = s"https://www.howsmyssl.com/a/check"
   val username: String = groConfig.groUsername
   val encoder: Encoder = Encoder
   val responseHandler: ResponseHandler = new ResponseHandler
@@ -70,7 +70,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private[GROEnglandAndWalesConnector] def getChildByReference(reference: String,
                                                                token: AccessToken)(
-                                                                implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+                                                                implicit hc: HeaderCarrier,
+                                                                metrics: BRMMetrics,
+                                                                ec: ExecutionContext): Future[BirthResponse] = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount() // increase counter for attempt to gro reference
 
