@@ -16,33 +16,23 @@
 
 package uk.gov.hmrc.brm.http
 
+import akka.stream.Materializer
+import com.typesafe.sslconfig.ssl.SystemConfiguration
+import play.api.{Configuration, Environment, Logger}
+import play.api.inject.{ApplicationLifecycle, SimpleModule, bind}
+import play.api.libs.ws._
+import play.api.libs.ws.ahc._
+import play.api.libs.ws.ahc.cache._
+import play.shaded.ahc.org.asynchttpclient.{AsyncHttpClient, DefaultAsyncHttpClient}
+import uk.gov.hmrc.brm.config.CustomWSConfigParser
+
 import java.net.URI
 import javax.cache.configuration.FactoryBuilder.SingletonFactory
 import javax.cache.configuration.MutableConfiguration
 import javax.cache.expiry.EternalExpiryPolicy
-import javax.cache.CacheManager
-import javax.cache.Caching
-import javax.cache.{Cache => JCache}
-import javax.inject.Inject
-import javax.inject.Provider
-import javax.inject.Singleton
-import akka.stream.Materializer
-import com.typesafe.sslconfig.ssl.SystemConfiguration
-import play.api.inject.ApplicationLifecycle
-import play.api.inject.SimpleModule
-import play.api.inject.bind
-import play.api.libs.ws._
-import play.api.libs.ws.ahc._
-import play.api.libs.ws.ahc.cache._
-import play.api.Configuration
-import play.api.Environment
-import play.api.Logger
-import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
-import play.shaded.ahc.org.asynchttpclient.DefaultAsyncHttpClient
-import uk.gov.hmrc.brm.config.{CustomWSConfigParser, GroAppConfig}
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import javax.cache.{CacheManager, Caching, Cache => JCache}
+import javax.inject.{Inject, Provider, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * A Play binding for the Scala WS API to the AsyncHTTPClient implementation.

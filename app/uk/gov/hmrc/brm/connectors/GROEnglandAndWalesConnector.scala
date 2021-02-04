@@ -19,8 +19,6 @@ package uk.gov.hmrc.brm.connectors
 import akka.actor.ActorSystem
 import play.api.Configuration
 import play.api.libs.ws.WSClient
-import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
-import play.shaded.ahc.org.asynchttpclient.DefaultAsyncHttpClient
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
@@ -41,8 +39,8 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
                                             wsClient: WSClient,
                                             system: ActorSystem,
                                             val authenticator: Authenticator,
-                                            configuration: Configuration)
-  {
+                                            configuration: Configuration
+                                           ) {
 
     val http: HttpClient = new ProxyEnabledHttpClient(
       configuration,

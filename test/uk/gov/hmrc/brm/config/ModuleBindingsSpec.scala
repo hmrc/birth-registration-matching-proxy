@@ -46,7 +46,7 @@ class ModuleBindingsSpec extends TestFixture {
 
   "ModuleBindings" should {
     "provide a proxy client when proxy is on" in {
-      testModuleBindings.createClient(
+      testModuleBindings.proxyHttpClient(
         fakeApplication.configuration, mock[HttpAuditing], mock[WSClient], fakeApplication.actorSystem
       ).getClass shouldBe classOf[ProxyEnabledHttpClient]
     }

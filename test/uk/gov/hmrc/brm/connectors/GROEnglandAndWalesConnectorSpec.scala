@@ -16,16 +16,20 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import akka.actor.ActorSystem
 import org.joda.time.{DateTime, DateTimeUtils}
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
 import org.specs2.mock.mockito.ArgumentCapture
+import play.api.Configuration
 import play.api.http.Status
 import play.api.libs.json.{JsArray, JsValue}
+import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils}
 import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.{DefaultHttpClient, HttpClient}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,6 +39,8 @@ import scala.util.{Failure, Success}
 class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
   val mockTokenCache: AccessTokenRepository = mock[AccessTokenRepository]
+  val mockWsClient: WSClient = mock[WSClient]
+  val mockAuditing: HttpAuditing = mock[HttpAuditing]
   val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
   val mockResponseHandler: ResponseHandler = mock[ResponseHandler]
   val mockErrorHandler: ErrorHandler = mock[ErrorHandler]
@@ -47,7 +53,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
     }
 
   val testConnector: GROEnglandAndWalesConnector =
-    new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient)
+    new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+      override val http: HttpClient = mockHttpClient
+    }
 
   when(mockResponseHandler.handle(any())(any(), any())(any[ExecutionContext])).thenReturn(BirthAccessTokenResponse("some token"))
 
@@ -125,8 +133,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return 4xx when authentication returns BadRequest" in new AuthenticationFixture {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
+            override val http: HttpClient = mockHttpClient
           }
 
         val authResponse: HttpResponse = buildResponse(Status.BAD_REQUEST)
@@ -144,7 +153,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return 5xx when authentication returns 5xx" in new AuthenticationFixture {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -163,7 +173,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return exception when certificate has expired" in new AuthenticationFixture {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -182,7 +193,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return exception when authentication cache has no access token" in new AuthenticationFixture {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
@@ -200,7 +212,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return exception when authentication returns exception" in new AuthenticationFixture {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
@@ -321,7 +334,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       "BirthErrorResponse 5xx when gro throws" in {
 
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -558,7 +572,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
       "return a BirthErrorResponse when token has expired and unable to obtain a new token" in {
         val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(testGroConfig, mockAuthenticator, mockHttpClient) {
+          new GROEnglandAndWalesConnector(testGroConfig, mockAuditing, mockWsClient, ActorSystem(), mockAuthenticator, mock[Configuration]) {
+            override val http: HttpClient = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 

@@ -31,8 +31,10 @@ class ProxyEnabledHttpClient(
                               override protected val actorSystem: ActorSystem)
   extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem) {
 
+  lazy val proxyConfiguration: Option[WSProxyServer] = WSProxyConfiguration("microservice.services.proxy", config)
+
   override def buildRequest[A](url: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): WSRequest = {
-    WSProxyConfiguration("microservice.services.proxy", config) match {
+    proxyConfiguration match {
       case Some(proxy) => super.buildRequest(url, headers).withProxyServer(proxy)
       case _ => super.buildRequest(url, headers)
     }

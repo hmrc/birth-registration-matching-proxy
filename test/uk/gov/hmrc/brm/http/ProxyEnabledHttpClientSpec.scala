@@ -17,9 +17,11 @@
 package uk.gov.hmrc.brm.http
 
 import akka.actor.ActorSystem
-import play.api.Configuration
-import play.api.libs.ws.{WSClient, WSProxyServer}
+import com.typesafe.config.ConfigFactory
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.ws.{DefaultWSProxyServer, WSClient, WSProxyServer}
 import play.api.test.Injecting
+import play.api.{Application, Configuration}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.HttpAuditing
@@ -31,13 +33,46 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
   val mockWsClient: WSClient = inject[WSClient]
   val mockProxy: WSProxyServer = mock[WSProxyServer]
 
-  val client = new ProxyEnabledHttpClient(mockConfiguration, mockAuditing, mockWsClient, mockProxy, ActorSystem())
+  def client(proxyServer: Option[WSProxyServer]): ProxyEnabledHttpClient =
+    new ProxyEnabledHttpClient(mockConfiguration, mockAuditing, mockWsClient, ActorSystem()) {
+      override lazy val proxyConfiguration: Option[WSProxyServer] = proxyServer
+    }
+
+  val isProxy: Boolean = true
+
+  override lazy val fakeApplication: Application = new GuiceApplicationBuilder()
+    .configure(
+      Configuration(
+        ConfigFactory.parseString(
+          s"""
+             |microservice.services.proxy.proxyRequiredForThisEnvironment = $isProxy
+             |microservice.services.proxy.username = squiduser
+             |microservice.services.proxy.password = squiduser
+             |microservice.services.proxy.protocol = true
+             |microservice.services.proxy.host = localhost
+             |microservice.services.proxy.port = 3128
+             |""".stripMargin)
+      )
+    )
+    .build()
 
   "buildRequest" should {
     "call down a proxy server when proxy server is enabled" in {
-      val request = client.buildRequest("http://testurl.com", Nil)(HeaderCarrier())
+      val request = client(Some(DefaultWSProxyServer("host", 1, password = Some("password"))))
+        .buildRequest("http://testurl.com", Nil)(HeaderCarrier())
 
-      request.proxyServer shouldBe Some(mockProxy)
+      request.proxyServer.get.getClass shouldBe classOf[DefaultWSProxyServer]
+      request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].host shouldBe "host"
+      request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].password shouldBe Some("password")
+      fakeApplication.stop()
+    }
+
+    "make a call when proxy is disabled" in {
+      val request = client(None).buildRequest("http://testurl.com", Nil)(HeaderCarrier())
+
+      request.proxyServer shouldBe None
+      fakeApplication.stop()
+
     }
   }
 
