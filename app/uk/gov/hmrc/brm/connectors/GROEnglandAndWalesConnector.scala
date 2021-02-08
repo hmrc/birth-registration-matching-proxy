@@ -63,6 +63,8 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private def groHeaderCarrier(token: AccessToken): Seq[(String, String)] = {
     Seq(
+      "Accept-Encoding" -> "gzip",
+      "Accept-Charset" -> "UTF-8,*;q=.1",
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
     )
@@ -81,7 +83,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     val startTime = metrics.startTimer()
 
-    val response = http.GET(s"$endpoint", Seq.empty[(String, String)], headers)(
+    val response = http.GET(s"https://api.uat.notprod.lev.homeoffice.gov.uk:443/api/v0/events/birth/400000001", Seq.empty[(String, String)], headers)(
       rds = Implicits.readRaw,
       hc,
       ec
