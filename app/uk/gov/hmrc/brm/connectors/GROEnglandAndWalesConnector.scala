@@ -81,7 +81,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     val startTime = metrics.startTimer()
 
-    val response = http.GET(s"$endpoint/$reference", Seq.empty[(String, String)], headers)(
+    val response = http.GET(s"$endpoint", Seq.empty[(String, String)], headers)(
       rds = Implicits.readRaw,
       hc,
       ec

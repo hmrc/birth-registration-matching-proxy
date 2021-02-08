@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.http
 
 import akka.stream.Materializer
 import com.typesafe.sslconfig.ssl.SystemConfiguration
+import com.typesafe.sslconfig.ssl.debug.DebugConfiguration
 import play.api.{Configuration, Environment, Logger}
 import play.api.inject.{ApplicationLifecycle, SimpleModule, bind}
 import play.api.libs.ws._
@@ -86,6 +87,10 @@ class AsyncHttpClientProvider @Inject()(
     val loggerFactory = new AhcLoggerFactory(
       org.slf4j.LoggerFactory.getILoggerFactory
     )
+    if (wsClientConfig.ssl.debug.enabled) {
+      new DebugConfiguration(loggerFactory).configure(wsClientConfig.ssl.debug)
+    }
+
     // no debug configuration necessary, as it's not used in debugging this service
     new SystemConfiguration(loggerFactory).configure(wsClientConfig.ssl)
   }
