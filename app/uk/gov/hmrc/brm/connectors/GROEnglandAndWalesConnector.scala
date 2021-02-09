@@ -26,7 +26,7 @@ import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HttpReads.Implicits
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -51,7 +51,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  val endpoint: String = s"https://www.howsmyssl.com/a/check"
+  val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
   val username: String = groConfig.groUsername
   val encoder: Encoder = Encoder
   val responseHandler: ResponseHandler = new ResponseHandler
@@ -83,7 +83,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     val startTime = metrics.startTimer()
 
-    val response = http.GET(s"https://api.uat.notprod.lev.homeoffice.gov.uk:443/api/v0/events/birth/400000001", Seq.empty[(String, String)], headers)(
+    val response = http.GET(s"$endpoint/$reference", Seq.empty[(String, String)], headers)(
       rds = Implicits.readRaw,
       hc,
       ec
@@ -142,6 +142,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
           case e: BadGatewayException =>
             error(CLASS_NAME, "request", s"[referenceHelper] bad gateway exception when loading record by reference")
             ErrorHandler.error(e.getMessage)
+          case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e")
+            ErrorHandler.error(e.getMessage, e.statusCode)
           case e: Exception =>
             error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
             ErrorHandler.error(e.getMessage)
@@ -168,6 +171,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
           case e: BadGatewayException =>
             error(CLASS_NAME, "request", s"[detailsHelper] bad gateway exception when loading record(s) by details")
             ErrorHandler.error(e.getMessage)
+          case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e")
+            ErrorHandler.error(e.getMessage, e.statusCode)
           case e: Exception =>
             error(CLASS_NAME, "request", s"[detailsHelper] failed to load record by details: unknown exception: $e")
             ErrorHandler.error(e.getMessage)

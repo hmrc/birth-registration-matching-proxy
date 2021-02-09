@@ -17,7 +17,7 @@
 package uk.gov.hmrc.brm.connectors
 
 import org.joda.time.{DateTime, DateTimeUtils, Seconds}
-import org.mockito.ArgumentMatchers.{any, anyString}
+import org.mockito.ArgumentMatchers.{any, anyInt, anyString}
 import org.mockito.Mockito._
 import play.api.http.Status
 import uk.gov.hmrc.brm.TestFixture
@@ -95,7 +95,7 @@ class AuthenticatorSpec extends TestFixture {
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new GatewayTimeoutException("gateway timeout message"))))
         when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
 
@@ -108,7 +108,7 @@ class AuthenticatorSpec extends TestFixture {
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new BadGatewayException("bad gateway message"))))
         when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
 
@@ -121,7 +121,7 @@ class AuthenticatorSpec extends TestFixture {
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new Exception("unknown exception message"))))
         when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString())).thenReturn(toReturn)
+        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
 

@@ -38,12 +38,12 @@ class ErrorHandler {
     )
   }
 
-  def error(message: String): BirthErrorResponse = {
+  def error(message: String, status: Int = INTERNAL_SERVER_ERROR): BirthErrorResponse = {
     BirthErrorResponse(
       UpstreamErrorResponse(
-        s"[ErrorHandler][InternalServerError] $message",
-        INTERNAL_SERVER_ERROR,
-        INTERNAL_SERVER_ERROR)
+        s"[ErrorHandler][$status] $message",
+        status,
+        status)
     )
   }
 
