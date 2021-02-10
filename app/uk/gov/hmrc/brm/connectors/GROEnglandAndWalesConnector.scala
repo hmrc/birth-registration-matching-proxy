@@ -132,7 +132,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
         info(CLASS_NAME, "request", s"[referenceHelper] found record by reference")
         child
       case notFound: Birth4xxErrorResponse =>
-        info(CLASS_NAME, "request", s"[referenceHelper] not found record by reference")
+        info(CLASS_NAME, "request", s"[referenceHelper] not found record by reference, $notFound")
         notFound
       case BirthErrorResponse(exception) =>
         exception match {

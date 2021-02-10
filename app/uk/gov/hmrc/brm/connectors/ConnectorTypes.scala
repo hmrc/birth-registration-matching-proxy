@@ -20,7 +20,5 @@ package uk.gov.hmrc.brm.connectors
 object ConnectorTypes {
 
   type AccessToken = String
-  type DelayAttempts = Int
-  type DelayTime = Int
 
 }

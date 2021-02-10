@@ -24,7 +24,9 @@ import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
 
-class ProxyEnabledHttpClient(
+import javax.inject.Inject
+
+class ProxyEnabledHttpClient @Inject()(
                               config: Configuration,
                               httpAuditing: HttpAuditing,
                               override val wsClient: WSClient,

@@ -16,34 +16,14 @@
 
 package uk.gov.hmrc.brm.config
 
-import akka.actor.ActorSystem
-import com.google.inject.{AbstractModule, Provides}
-import play.api.Configuration
-import play.api.libs.ws.WSClient
+import play.api.inject.{Binding, Module}
+import play.api.{Configuration, Environment}
 import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
-import uk.gov.hmrc.brm.utils.BrmLogger
-import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
 
-class ModuleBindings extends AbstractModule {
-  override def configure(): Unit = ()
-
-  @Provides
-  def proxyHttpClient(
-                    configuration: Configuration,
-                    httpAuditing: HttpAuditing,
-                    wsClient: WSClient,
-                    actorSystem: ActorSystem
-                  ): HttpClient = {
-    WSProxyConfiguration("microservice.services.proxy", configuration) match {
-      case Some(proxyServer) =>
-        BrmLogger.info("ModuleBindings", "proxyHttpClient", "using proxy client")
-        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, actorSystem)
-      case None =>
-        BrmLogger.info("ModuleBindings", "proxyHttpClient", "using non-proxy client")
-        new ProxyEnabledHttpClient(configuration, httpAuditing, wsClient, actorSystem)
-    }
-  }
+class ModuleBindings extends Module {
+  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = Seq(
+    bind(classOf[HttpClient]).to[ProxyEnabledHttpClient].eagerly()
+  )
 
 }

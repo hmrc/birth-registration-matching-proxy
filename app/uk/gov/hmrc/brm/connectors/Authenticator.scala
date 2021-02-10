@@ -114,10 +114,8 @@ class Authenticator @Inject()(groConfig: GroAppConfig,
 
   def token()(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
 
-    val status = certificateStatus
-
     // $COVERAGE-OFF$
-    if(groConfig.tlsEnabled && !status.certificateStatus()) {
+    if(groConfig.tlsEnabled && !certificateStatus.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       Future.successful(errorHandler.error("TLS Certificate expired"))
     } else {
