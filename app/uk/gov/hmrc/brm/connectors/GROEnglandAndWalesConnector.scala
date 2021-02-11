@@ -16,13 +16,18 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import akka.actor.ActorSystem
+import play.api.Configuration
+import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
+import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HttpReads.Implicits
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import javax.inject.Inject
@@ -30,8 +35,19 @@ import scala.concurrent.{ExecutionContext, Future}
 
 
 class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
+                                            httpAuditing: HttpAuditing,
+                                            wsClient: WSClient,
+                                            system: ActorSystem,
                                             val authenticator: Authenticator,
-                                            val http: HttpClient) {
+                                            configuration: Configuration
+                                           ) {
+
+  val http: HttpClient = new ProxyEnabledHttpClient(
+    configuration,
+    httpAuditing,
+    wsClient,
+    system
+  )
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
@@ -47,6 +63,8 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private def groHeaderCarrier(token: AccessToken): Seq[(String, String)] = {
     Seq(
+      "Accept-Encoding" -> "gzip",
+      "Accept-Charset" -> "UTF-8,*;q=.1",
       "Authorization" -> s"Bearer $token",
       "X-Auth-Downstream-Username" -> username
     )
@@ -54,7 +72,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private[GROEnglandAndWalesConnector] def getChildByReference(reference: String,
                                                                token: AccessToken)(
-    implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+                                                                implicit hc: HeaderCarrier,
+                                                                metrics: BRMMetrics,
+                                                                ec: ExecutionContext): Future[BirthResponse] = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount() // increase counter for attempt to gro reference
 
@@ -71,15 +91,13 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
     metrics.endTimer(startTime, "reference-match-timer")
 
-    BrmLogger.debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response")
-
     responseHandler.handle(response)(extractJson, metrics)
   }
 
   private[GROEnglandAndWalesConnector] def getChildByDetails(details: Map[String, String],
                                                              token: AccessToken)(
-    implicit hc: HeaderCarrier,
-    metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+                                                              implicit hc: HeaderCarrier,
+                                                              metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
     val headers = groHeaderCarrier(token)
     metrics.requestCount("details-request") // increase counter for attempt to gro details
 
@@ -113,7 +131,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
       case child: BirthSuccessResponse[_] =>
         info(CLASS_NAME, "request", s"[referenceHelper] found record by reference")
         child
-      case notFound: Birth4xxErrorResponse =>
+      case notFound: Birth404ErrorResponse =>
         info(CLASS_NAME, "request", s"[referenceHelper] not found record by reference")
         notFound
       case BirthErrorResponse(exception) =>
@@ -124,6 +142,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
           case e: BadGatewayException =>
             error(CLASS_NAME, "request", s"[referenceHelper] bad gateway exception when loading record by reference")
             ErrorHandler.error(e.getMessage)
+          case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e")
+            ErrorHandler.error(e.getMessage, e.statusCode)
           case e: Exception =>
             error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
             ErrorHandler.error(e.getMessage)
@@ -139,7 +160,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
       case child: BirthSuccessResponse[_] =>
         info(CLASS_NAME, "request", s"[detailsHelper] found record(s) by details")
         child
-      case notFound: Birth4xxErrorResponse =>
+      case notFound: Birth404ErrorResponse =>
         info(CLASS_NAME, "request", s"[detailsHelper] not found record by details")
         notFound
       case BirthErrorResponse(exception) =>
@@ -150,6 +171,9 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
           case e: BadGatewayException =>
             error(CLASS_NAME, "request", s"[detailsHelper] bad gateway exception when loading record(s) by details")
             ErrorHandler.error(e.getMessage)
+          case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e")
+            ErrorHandler.error(e.getMessage, e.statusCode)
           case e: Exception =>
             error(CLASS_NAME, "request", s"[detailsHelper] failed to load record by details: unknown exception: $e")
             ErrorHandler.error(e.getMessage)

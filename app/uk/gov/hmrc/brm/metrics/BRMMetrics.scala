@@ -19,11 +19,8 @@ package uk.gov.hmrc.brm.metrics
 import java.util.concurrent.TimeUnit
 
 import com.codahale.metrics.{MetricRegistry, SharedMetricRegistries}
-import javax.inject.Inject
-import uk.gov.hmrc.brm.config.ProxyAppConfig
 
-
-class BRMMetrics @Inject()(proxyConfig: ProxyAppConfig) {
+class BRMMetrics {
 
   def prefix: String = "gro"
 

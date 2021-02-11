@@ -30,20 +30,20 @@ class ErrorHandler {
     )
   }
 
-  def errorWithNotFound(response: HttpResponse): Birth4xxErrorResponse = {
-    Birth4xxErrorResponse(UpstreamErrorResponse(
+  def errorWithNotFound(response: HttpResponse): Birth404ErrorResponse = {
+    Birth404ErrorResponse(UpstreamErrorResponse(
       s"[ErrorHandler][${response.status.toString}]",
       response.status,
       response.status)
     )
   }
 
-  def error(message: String): BirthErrorResponse = {
+  def error(message: String, status: Int = INTERNAL_SERVER_ERROR): BirthErrorResponse = {
     BirthErrorResponse(
       UpstreamErrorResponse(
-        s"[ErrorHandler][InternalServerError] $message",
-        INTERNAL_SERVER_ERROR,
-        INTERNAL_SERVER_ERROR)
+        s"[ErrorHandler][$status] $message",
+        status,
+        status)
     )
   }
 

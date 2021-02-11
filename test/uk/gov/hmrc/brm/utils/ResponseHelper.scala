@@ -17,12 +17,12 @@
 package uk.gov.hmrc.brm.utils
 
 import play.api.test.Helpers._
-import uk.gov.hmrc.brm.connectors.{Birth4xxErrorResponse, BirthErrorResponse, BirthResponse}
+import uk.gov.hmrc.brm.connectors.{Birth404ErrorResponse, BirthErrorResponse, BirthResponse}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 
 object ResponseHelper {
 
-  val notFoundResponse: BirthResponse = Birth4xxErrorResponse(
+  val notFoundResponse: BirthResponse = Birth404ErrorResponse(
     UpstreamErrorResponse("", NOT_FOUND, NOT_FOUND)
   )
   val badRequestResponse: BirthResponse = BirthErrorResponse(

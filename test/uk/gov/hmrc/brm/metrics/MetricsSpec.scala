@@ -20,7 +20,7 @@ import uk.gov.hmrc.brm.TestFixture
 
 class MetricsSpec extends TestFixture {
 
-  val testMetrics: BRMMetrics = new BRMMetrics(testProxyConfig)
+  val testMetrics: BRMMetrics = new BRMMetrics
 
   "Metrics" should {
 
