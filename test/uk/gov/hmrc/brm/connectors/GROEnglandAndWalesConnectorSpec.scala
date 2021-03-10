@@ -75,7 +75,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
 
   lazy val testHeaders: Seq[(String, String)] = Seq.empty
   
-  lazy val path: String = "http://localhost:8099/api/v0/events/birth?"
+  lazy val path: String = "http://localhost:8099/api/v0.1/events/birth?"
   
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
 

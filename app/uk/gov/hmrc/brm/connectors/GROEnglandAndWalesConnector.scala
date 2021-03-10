@@ -51,7 +51,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  val endpoint: String = s"${groConfig.serviceUrl}/api/v0/events/birth"
+  val endpoint: String = s"${groConfig.serviceUrl}/api/v0.1/events/birth"
   val username: String = groConfig.groUsername
   val encoder: Encoder = Encoder
   val responseHandler: ResponseHandler = new ResponseHandler
