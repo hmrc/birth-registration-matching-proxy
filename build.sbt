@@ -9,7 +9,6 @@ import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
 lazy val appName: String = "birth-registration-matching-proxy"
 val silencerVersion = "1.7.1"
 
-resolvers += Resolver.bintrayRepo("hmrc", "releases")
 resolvers += Resolver.jcenterRepo
 
 lazy val appDependencies : Seq[ModuleID] = compile ++ test
@@ -32,7 +31,6 @@ scoverageSettings
 scalaSettings
 publishingSettings
 defaultSettings()
-integrationTestSettings
 
 majorVersion := 1
 scalaVersion := "2.12.12"
@@ -43,7 +41,7 @@ retrieveManaged := true
 routesGenerator := InjectedRoutesGenerator
 
 
-enablePlugins(PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory)
+enablePlugins(PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin)
 libraryDependencies ++= appDependencies
 
 
