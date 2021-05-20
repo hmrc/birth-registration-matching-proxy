@@ -19,11 +19,11 @@ package uk.gov.hmrc.brm.config
 import play.api.inject.{Binding, Module}
 import play.api.{Configuration, Environment}
 import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpClient
 
 class ModuleBindings extends Module {
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = Seq(
-    bind(classOf[HttpClient]).to[ProxyEnabledHttpClient].eagerly()
+    bind[HttpClient].to[ProxyEnabledHttpClient].eagerly()
   )
 
 }

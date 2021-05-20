@@ -35,7 +35,7 @@ class ProxyEnabledHttpClient @Inject()(
 
   lazy val proxyConfiguration: Option[WSProxyServer] = WSProxyConfiguration("microservice.services.proxy", config)
 
-  override def buildRequest[A](url: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): WSRequest = {
+  def buildRequest[A](url: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): WSRequest = {
     proxyConfiguration match {
       case Some(proxy) => super.buildRequest(url, headers).withProxyServer(proxy)
       case _ => super.buildRequest(url, headers)

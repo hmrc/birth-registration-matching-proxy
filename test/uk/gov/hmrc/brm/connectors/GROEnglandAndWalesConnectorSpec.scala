@@ -20,6 +20,7 @@ import akka.actor.ActorSystem
 import org.joda.time.{DateTime, DateTimeUtils}
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
+import org.scalatest.concurrent.ScalaFutures
 import org.specs2.mock.mockito.ArgumentCapture
 import play.api.Configuration
 import play.api.http.Status
@@ -30,13 +31,14 @@ import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils}
 import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
-import uk.gov.hmrc.play.bootstrap.http.{DefaultHttpClient, HttpClient}
+import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class GROEnglandAndWalesConnectorSpec extends TestFixture {
+class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   val mockTokenCache: AccessTokenRepository = mock[AccessTokenRepository]
   val mockWsClient: WSClient = mock[WSClient]
@@ -57,7 +59,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
       override val http: HttpClient = mockHttpClient
     }
 
-  when(mockResponseHandler.handle(any())(any(), any())(any[ExecutionContext])).thenReturn(BirthAccessTokenResponse("some token"))
+  when(mockResponseHandler.handle(any())(any(), any())(any[ExecutionContext])).thenReturn(Future(BirthAccessTokenResponse("some token")))
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -90,13 +92,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
     when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
 
     def buildResponse(status: Int): HttpResponse = {
-      HttpResponse.apply(
+      HttpResponse(
         status, authRecord.toString()
       )
     }
 
     def result: BirthResponse = {
-      await(testConnector.getReference(refNumber))
+      testConnector.getReference(refNumber).futureValue
     }
   }
 
@@ -147,8 +149,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
           .thenReturn(Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.NOT_FOUND))))
 
-        await(testConnector.getReference(refNumber)) shouldBe a[BirthErrorResponse]
-        await(testConnector.getReference(refNumber)).asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
+        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
 
       "return 5xx when authentication returns 5xx" in new AuthenticationFixture {
@@ -167,8 +169,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
           .thenReturn(Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR))))
 
-        await(testConnector.getReference(refNumber)) shouldBe a[BirthErrorResponse]
-        await(testConnector.getReference(refNumber)).asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
+        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
 
       "return exception when certificate has expired" in new AuthenticationFixture {
@@ -185,8 +187,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
         val date = new DateTime(2050: Int, 9: Int, 15: Int, 5: Int, 10: Int, 10: Int)
         DateTimeUtils.setCurrentMillisFixed(date.getMillis)
 
-        await(testConnector.getReference(refNumber)) shouldBe a[BirthErrorResponse]
-        await(testConnector.getReference(refNumber)).asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
+        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
 
         DateTimeUtils.setCurrentMillisSystem()
       }
@@ -206,8 +208,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]],
           any[HeaderCarrier],
           any[ExecutionContext])).thenReturn(Future.successful(authResponse))
-        await(testConnector.getReference(refNumber)) shouldBe a[BirthErrorResponse]
-        await(testConnector.getReference(refNumber)).asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
+        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
       }
 
       "return exception when authentication returns exception" in new AuthenticationFixture {
@@ -231,8 +233,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HeaderCarrier],
           any[ExecutionContext])).thenReturn(Future.successful(eventResponse))
 
-        await(testConnector.getReference(refNumber)) shouldBe a[BirthErrorResponse]
-        await(testConnector.getReference(refNumber)).asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
+        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
       }
 
       "BirthSuccessResponse when authenticator has valid token" in new AuthenticationFixture {
@@ -241,7 +243,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
         when(testConnector.http.GET[HttpResponse](any(), any(), any())(
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
-        val response: BirthResponse = await(testConnector.getReference(refNumber))
+        val response: BirthResponse = testConnector.getReference(refNumber).futureValue
         response shouldBe a[BirthSuccessResponse[_]]
       }
 
@@ -265,7 +267,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getReference(refNumber))
+        val result = testConnector.getReference(refNumber).futureValue
         result shouldBe a[BirthSuccessResponse[_]]
         metrics.defaultRegistry.counter(s"${metrics.prefix}-request-count").getCount shouldBe 1
       }
@@ -286,7 +288,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getReference("500037654675710"))
+        val result = testConnector.getReference("500037654675710").futureValue
         result shouldBe a[Birth404ErrorResponse]
         result.asInstanceOf[Birth404ErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
@@ -306,7 +308,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getReference(refNumber))
+        val result = testConnector.getReference(refNumber).futureValue
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
@@ -325,7 +327,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getReference(refNumber))
+        val result = testConnector.getReference(refNumber).futureValue
 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
@@ -352,9 +354,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
         when(testConnector.responseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
-          .thenReturn(BirthErrorResponse(new GatewayTimeoutException("some exception")))
+          .thenReturn(Future(BirthErrorResponse(new GatewayTimeoutException("some exception"))))
 
-        val result = await(testConnector.getReference(refNumber))
+        val result = testConnector.getReference(refNumber).futureValue
 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
@@ -385,7 +387,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result shouldBe a[BirthSuccessResponse[_]]
         result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
@@ -416,7 +418,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result shouldBe a[BirthSuccessResponse[_]]
         result shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
@@ -445,7 +447,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result shouldBe a[BirthSuccessResponse[_]]
         result shouldBe BirthSuccessResponse(groResponse("NoMatch"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
@@ -475,7 +477,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
         argumentCapture.value shouldBe getEntireUrl(path, firstName,lastName,dateOfBirth)
@@ -505,7 +507,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
         argumentCapture.value shouldBe getEntireUrl(path, firstName,lastName,dateOfBirth)
@@ -532,9 +534,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[ExecutionContext])).thenReturn(Future.successful(authResponse))
         when(testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
-        )).thenReturn(Future.successful(eventResponse))
+        )).thenReturn(eventResponse)
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
@@ -561,7 +563,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )).thenReturn(Future.successful(eventResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         verify(testConnector.http, times(1)).GET[HttpResponse](any(), any(), any())(
           any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]
         )
@@ -597,7 +599,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture {
           any[ExecutionContext]))
           .thenReturn(Future.successful(authResponse))
 
-        val result = await(testConnector.getDetails(firstName, lastName, dateOfBirth))
+        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
 
         result shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
