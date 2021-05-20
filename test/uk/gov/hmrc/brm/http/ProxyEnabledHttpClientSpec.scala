@@ -35,7 +35,7 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
 
   def client(proxyServer: Option[WSProxyServer]): ProxyEnabledHttpClient =
     new ProxyEnabledHttpClient(mockConfiguration, mockAuditing, mockWsClient, ActorSystem()) {
-      override lazy val proxyConfiguration: Option[WSProxyServer] = proxyServer
+      override lazy val wsProxyServer: Option[WSProxyServer] = proxyServer
     }
 
   val isProxy: Boolean = true
@@ -59,7 +59,7 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
   "buildRequest" should {
     "call down a proxy server when proxy server is enabled" in {
       val request = client(Some(DefaultWSProxyServer("host", 1, password = Some("password"))))
-        .buildRequest("http://testurl.com", Nil)(HeaderCarrier())
+        .buildRequest("http://testurl.com", Nil)
 
       request.proxyServer.get.getClass shouldBe classOf[DefaultWSProxyServer]
       request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].host shouldBe "host"
@@ -68,7 +68,7 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
     }
 
     "make a call when proxy is disabled" in {
-      val request = client(None).buildRequest("http://testurl.com", Nil)(HeaderCarrier())
+      val request = client(None).buildRequest("http://testurl.com", Nil)
 
       request.proxyServer shouldBe None
       fakeApplication.stop()

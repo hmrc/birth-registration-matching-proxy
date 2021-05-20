@@ -22,7 +22,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
 import uk.gov.hmrc.http.HttpReads.Implicits
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpClient
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}

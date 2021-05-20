@@ -16,16 +16,15 @@
 
 package uk.gov.hmrc.brm
 
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, Matchers, OptionValues, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BaseUnitSpec
-import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.reflect.ClassTag
 
-trait TestFixture extends UnitSpec with MockitoSugar with BeforeAndAfter with GuiceOneAppPerSuite with BaseUnitSpec {
+trait TestFixture extends WordSpecLike with Matchers with OptionValues with MockitoSugar with BeforeAndAfter with GuiceOneAppPerSuite with BaseUnitSpec {
 
   def real[T: ClassTag]: T = app.injector.instanceOf[T]
 
