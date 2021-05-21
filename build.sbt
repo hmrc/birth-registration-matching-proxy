@@ -41,7 +41,7 @@ retrieveManaged := true
 routesGenerator := InjectedRoutesGenerator
 
 
-enablePlugins(PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin)
+enablePlugins(PlayScala, SbtDistributablesPlugin)
 libraryDependencies ++= appDependencies
 
 
@@ -51,8 +51,8 @@ scalacOptions ++= Seq(
 
 lazy val compile = Seq(
   ws,
-  "uk.gov.hmrc" %% "bootstrap-play-26" % "2.3.0",
-  "uk.gov.hmrc" %% "domain" % "5.10.0-play-26",
+  "uk.gov.hmrc" %% "bootstrap-backend-play-27" % "5.3.0",
+  "uk.gov.hmrc" %% "domain" % "5.11.0-play-27",
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
 )
@@ -60,12 +60,11 @@ lazy val compile = Seq(
 lazy val scope: String = "test"
 
 lazy val test: Seq[ModuleID] = Seq(
-  "uk.gov.hmrc" %% "hmrctest" % "3.10.0-play-26" % scope,
   "org.scalatest" %% "scalatest" % "3.0.9" % scope,
   "org.pegdown" % "pegdown" % "1.6.0" % scope,
   "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-  "org.mockito" % "mockito-core" % "3.3.3" % scope,
-  "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.3" % scope,
+  "org.mockito" % "mockito-core" % "3.10.0" % scope,
+  "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.3" % scope,
   "org.specs2" %% "specs2-core" % "4.5.1" % scope,
   "org.specs2" %% "specs2-mock" % "4.5.1" % scope
 )

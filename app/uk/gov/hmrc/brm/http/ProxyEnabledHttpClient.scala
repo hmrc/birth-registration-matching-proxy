@@ -18,11 +18,10 @@ package uk.gov.hmrc.brm.http
 
 import akka.actor.ActorSystem
 import play.api.Configuration
-import play.api.libs.ws.{WSClient, WSProxyServer, WSRequest}
-import uk.gov.hmrc.http.HeaderCarrier
+import play.api.libs.ws.{WSClient, WSProxyServer}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
-import uk.gov.hmrc.play.http.ws.WSProxyConfiguration
+import uk.gov.hmrc.play.http.ws.{WSProxy, WSProxyConfiguration}
 
 import javax.inject.Inject
 
@@ -31,14 +30,8 @@ class ProxyEnabledHttpClient @Inject()(
                               httpAuditing: HttpAuditing,
                               override val wsClient: WSClient,
                               override protected val actorSystem: ActorSystem)
-  extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem) {
+  extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem) with WSProxy {
 
-  lazy val proxyConfiguration: Option[WSProxyServer] = WSProxyConfiguration("microservice.services.proxy", config)
+  override lazy val wsProxyServer: Option[WSProxyServer] = WSProxyConfiguration("microservice.services.proxy", config)
 
-  override def buildRequest[A](url: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): WSRequest = {
-    proxyConfiguration match {
-      case Some(proxy) => super.buildRequest(url, headers).withProxyServer(proxy)
-      case _ => super.buildRequest(url, headers)
-    }
-  }
 }

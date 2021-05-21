@@ -16,11 +16,11 @@
 
 package uk.gov.hmrc.brm.utils
 
+import org.scalatest.{Matchers, OptionValues, WordSpecLike}
 import uk.gov.hmrc.brm.connectors.Encoder
-import uk.gov.hmrc.play.test.UnitSpec
 
 
-class EncoderSpec extends UnitSpec {
+class EncoderSpec extends WordSpecLike with Matchers with OptionValues {
 
   "Encoder" should {
 
