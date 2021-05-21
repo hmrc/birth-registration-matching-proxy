@@ -62,13 +62,9 @@ class Authenticator @Inject()(groConfig: GroAppConfig,
 
     val startTime = metrics.startTimer()
 
-    val body = credentials.map(cred => cred._1 -> Seq(cred._2))
-
-    debug(s">>> extraHeaders: ${newHc.extraHeaders}, otherHeaders: ${newHc.otherHeaders}, url: $endpoint, body: $body <<<")
-
     val response: Future[HttpResponse] = http.POSTForm[HttpResponse](
       url = endpoint,
-      body = body
+      body = credentials.map(cred => cred._1 -> Seq(cred._2))
     )(rds = Implicits.readRaw,
       newHc,
       ec
