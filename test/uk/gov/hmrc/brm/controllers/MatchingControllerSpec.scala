@@ -50,6 +50,7 @@ class MatchingControllerSpec extends TestFixture {
 
   val reference = "500035710"
   val invalidReference = "812739812739183"
+  val EXAMPLE_UPSTREAM_CORRELATION_ID: String = "b98a62e6-0a3e-11ec-9a03-0242a30003"
 
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
   val groJsonNoRecord: JsValue = JsonUtils.getJsonFromFile("gro/NoMatch")
@@ -62,6 +63,18 @@ class MatchingControllerSpec extends TestFixture {
                     |{
                     |"reference": "$ref"
                     |}
+                    """.stripMargin))
+
+  def referenceRequestWithCorrelationID(ref : String) : FakeRequest[JsValue] =
+    FakeRequest("POST", s"/birth-registration-matching-proxy/match/reference")
+      .withHeaders(
+        ("Content-type", "application/json"),
+        ("X-Correlation-ID", EXAMPLE_UPSTREAM_CORRELATION_ID))
+      .withBody(
+        Json.parse(s"""
+                      |{
+                      |"reference": "$ref"
+                      |}
                     """.stripMargin))
 
   def badReferenceRequest(ref : String) : FakeRequest[JsValue] =
@@ -151,6 +164,24 @@ class MatchingControllerSpec extends TestFixture {
 
         "wire up dependencies correctly" in {
           MockController.groConnector shouldBe a[GROEnglandAndWalesConnector]
+        }
+
+      }
+
+      "getOrCreateCorrelationID" should {
+
+        "return a random UUID when no x-correlation-id is present within the request headers" in {
+          val request = referenceRequest(reference)
+          val result = MockController.getOrCreateCorrelationID(request)
+
+          result.length shouldBe 36
+        }
+
+        "return the x-correlation-id value found in the upstream request headers" in {
+          val request = referenceRequestWithCorrelationID(reference)
+          val result = MockController.getOrCreateCorrelationID(request)
+
+          result shouldBe EXAMPLE_UPSTREAM_CORRELATION_ID
         }
 
       }
