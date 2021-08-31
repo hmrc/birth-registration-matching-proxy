@@ -78,7 +78,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
     val headers = groHeaderCarrier(token)
     metrics.requestCount() // increase counter for attempt to gro reference
 
-    debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers")
+    debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers ${hc.extraHeaders}")
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint")
 
     val startTime = metrics.startTimer()
@@ -101,7 +101,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
     val headers = groHeaderCarrier(token)
     metrics.requestCount("details-request") // increase counter for attempt to gro details
 
-    debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers")
+    debug(CLASS_NAME, "getChildByDetails", s"$endpoint/ headers: $headers ${hc.extraHeaders}")
     info(CLASS_NAME, "getChildByDetails", s"requesting child's details $endpoint")
 
     val startTime = metrics.startTimer()

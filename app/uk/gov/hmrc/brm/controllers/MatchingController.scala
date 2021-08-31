@@ -24,10 +24,11 @@ import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
-import uk.gov.hmrc.http.{Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 import play.api.mvc.ControllerComponents
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -36,6 +37,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
                                    implicit val metrics: BRMMetrics) extends BackendController(cc) {
 
   val CLASS_NAME : String = this.getClass.getSimpleName
+  val HEADER_X_CORRELATION_ID = "X-Correlation-Id"
 
   implicit val ec: ExecutionContext = cc.executionContext
 
@@ -119,6 +121,11 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
     success(method)
   ).reduce(_ orElse _)
 
+  def getOrCreateCorrelationID(request: Request[_]): String = {
+    debug(CLASS_NAME, "getOrCreateCorrelationID", "Checking for Upstream x-correlation-id, returning new id if none.")
+    request.headers.get(HEADER_X_CORRELATION_ID).getOrElse(UUID.randomUUID().toString)
+  }
+
   private def setKey(request : Request[_]): Unit = {
     val brmKey = request.headers.get(BRM_KEY).getOrElse("no-key")
     KeyHolder.setKey(brmKey)
@@ -126,6 +133,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
 
   def reference: Action[JsValue] = Action.async(parse.json) {
     implicit request =>
+      implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders((HEADER_X_CORRELATION_ID, getOrCreateCorrelationID(request)))
       setKey(request)
 
       info(CLASS_NAME, s"reference", s"Reference request received")
@@ -145,6 +153,7 @@ class MatchingController @Inject()(val groConnector: GROEnglandAndWalesConnector
 
   def details(): Action[JsValue] = Action.async(parse.json) {
     implicit request =>
+      implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders((HEADER_X_CORRELATION_ID, getOrCreateCorrelationID(request)))
       setKey(request)
 
       info(CLASS_NAME, s"details", s"Details request received")
