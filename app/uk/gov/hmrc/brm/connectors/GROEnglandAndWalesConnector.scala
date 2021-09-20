@@ -23,12 +23,10 @@ import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
 import uk.gov.hmrc.http.HttpReads.Implicits
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpClient, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
-import uk.gov.hmrc.http.HttpClient
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -116,7 +114,7 @@ class GROEnglandAndWalesConnector @Inject()(groConfig: GroAppConfig,
       ec
     )
 
-    BrmLogger.debug(s"[BirthConnector][getChildByDetails][HttpResponse][Debug] $response")
+    debug(CLASS_NAME,"getChildByDetails",s"HttpResponse: $response")
 
     metrics.endTimer(startTime, "details-match-timer")
     responseHandler.handle(response)(extractJson, metrics)
