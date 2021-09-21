@@ -55,4 +55,4 @@ class BrmLogger(logger: org.slf4j.Logger) extends Logger(logger) {
   }
 }
 
-object BrmLogger extends BrmLogger(Logger.logger)
+object BrmLogger extends BrmLogger(Logger("BrmLogger").logger)

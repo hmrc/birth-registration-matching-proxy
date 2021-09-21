@@ -23,7 +23,6 @@ import play.api.libs.ws.{DefaultWSProxyServer, WSClient, WSProxyServer}
 import play.api.test.Injecting
 import play.api.{Application, Configuration}
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.HttpAuditing
 
 class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {

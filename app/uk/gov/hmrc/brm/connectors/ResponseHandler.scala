@@ -34,7 +34,7 @@ class ResponseHandler {
     futureResponse.map { response =>
       info(CLASS_NAME, "handle", s"response received")
 
-      debug(s"[BirthConnector][getChildByReference][HttpResponse][Debug] $response, BODY: ${response.body}")
+      debug("BirthConnector","getChildByReference",s"HttpResponse: $response, BODY: ${response.body}")
 
       metrics.httpResponseCodeStatus(response.status)
 
