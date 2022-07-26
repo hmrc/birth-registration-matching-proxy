@@ -14,7 +14,7 @@ lazy val scoverageSettings = {
   Seq(
     ScoverageKeys.coverageExcludedPackages :=
       "<empty>;.*CustomWSConfigParser;.*OptionalAhcHttpCacheProvider;.*AhcHttpCacheParser;testOnlyDoNotUseInAppConf.*;uk.gov.hmrc.brm.views.*;prod.*;uk.gov.hmrc.BuildInfo.*;app.Routes.*;",
-    ScoverageKeys.coverageMinimum := 100,
+    ScoverageKeys.coverageMinimumStmtTotal := 100,
     ScoverageKeys.coverageFailOnMinimum := true,
     ScoverageKeys.coverageHighlighting := true
   )
@@ -31,7 +31,7 @@ defaultSettings()
 
 majorVersion := 1
 scalaVersion := "2.12.12"
-evictionWarningOptions in update := EvictionWarningOptions.default.withWarnScalaVersionEviction(false)
+update / evictionWarningOptions := EvictionWarningOptions.default.withWarnScalaVersionEviction(false)
 PlayKeys.playDefaultPort := 9006
 
 retrieveManaged := true
@@ -40,13 +40,13 @@ routesGenerator := InjectedRoutesGenerator
 enablePlugins(PlayScala, SbtDistributablesPlugin)
 libraryDependencies ++= Seq(
   ws,
-  "uk.gov.hmrc" %% "bootstrap-backend-play-28" % "5.22.0",
-  "uk.gov.hmrc" %% "domain" % "8.0.0-play-28",
+  "uk.gov.hmrc" %% "bootstrap-backend-play-28" % "5.24.0",
+  "uk.gov.hmrc" %% "domain" % "8.1.0-play-28",
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
 
   // Test Dependencies
-  "uk.gov.hmrc" %% "bootstrap-test-play-28" % "5.22.0" % Test,
+  "uk.gov.hmrc" %% "bootstrap-test-play-28" % "5.24.0" % Test,
   "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test,
   "org.specs2" %% "specs2-core" % "4.12.12" % Test,
   "org.specs2" %% "specs2-mock" % "4.12.12" % Test
