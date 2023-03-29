@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,17 +30,16 @@ class AccessTokenRepositorySpec extends TestFixture {
       "return true for a token has been set" in {
         val dateTime = DateTime.now().plusSeconds(60)
         accessTokenRepository.saveToken(token = "some_valid_token", expiry = dateTime)
-        accessTokenRepository.hasToken shouldBe true
+        accessTokenRepository.hasToken        shouldBe true
         accessTokenRepository.token.isSuccess shouldBe true
       }
 
     }
 
-
     "hasExpired" should {
       "return true when no value is set " in {
         val accessTokenRepository = new AccessTokenRepository
-         accessTokenRepository.hasExpired shouldBe true
+        accessTokenRepository.hasExpired shouldBe true
       }
     }
 
@@ -53,15 +52,15 @@ class AccessTokenRepositorySpec extends TestFixture {
         val expiryDate = dateTime.plusMinutes(5)
 
         accessTokenRepository.saveToken(token = "some_new_valid_token", expiry = expiryDate)
-        accessTokenRepository.token.get shouldBe "some_new_valid_token"
+        accessTokenRepository.token.get       shouldBe "some_new_valid_token"
         accessTokenRepository.token.isSuccess shouldBe true
       }
 
       "return a new expiry time 4 minutes from now when actual expiry is 5 minutes from now." in {
         val dateTime = new DateTime()
         DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
-        val seconds = 300  //expire seconds 5 mins.
-        val expiry = accessTokenRepository.newExpiry(seconds)
+        val seconds  = 300 //expire seconds 5 mins.
+        val expiry   = accessTokenRepository.newExpiry(seconds)
         //new expriy should be less than 60 sec.
         Seconds.secondsBetween(dateTime, expiry).getSeconds shouldBe 240
       }
@@ -77,11 +76,11 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return success with token when access token with expiry time" in {
-        val dateTime = DateTime.now()
+        val dateTime   = DateTime.now()
         val expiryDate = dateTime.plusMinutes(5)
         accessTokenRepository.saveToken(token = "some_valid_token", expiry = expiryDate)
         DateTimeUtils.setCurrentMillisFixed(dateTime.plusMinutes(4).getMillis)
-        accessTokenRepository.token.get shouldBe "some_valid_token"
+        accessTokenRepository.token.get       shouldBe "some_valid_token"
         accessTokenRepository.token.isSuccess shouldBe true
         DateTimeUtils.setCurrentMillisSystem()
       }
@@ -90,7 +89,7 @@ class AccessTokenRepositorySpec extends TestFixture {
 
     "expired" should {
       "return failure for expiry access token" in {
-        val dateTime = DateTime.now()
+        val dateTime   = DateTime.now()
         val expiryDate = dateTime.plusMinutes(5)
         accessTokenRepository.saveToken(token = "some_valid_token", expiry = expiryDate)
         DateTimeUtils.setCurrentMillisFixed(dateTime.plusSeconds(301).getMillis)

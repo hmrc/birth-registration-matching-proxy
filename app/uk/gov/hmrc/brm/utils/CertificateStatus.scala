@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import javax.inject.Inject
 
-class CertificateStatus @Inject()(val groConfig: GroAppConfig) {
+class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
@@ -51,39 +51,35 @@ class CertificateStatus @Inject()(val groConfig: GroAppConfig) {
     (days, formatDate.print(new Period(comparisonDate, expiryDate)))
   }
 
-  private val expiresToday : PartialFunction[Int, Unit] = {
-    case 0 =>
-      error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY ($certificateExpiryDate)")
+  private val expiresToday: PartialFunction[Int, Unit] = { case 0 =>
+    error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY ($certificateExpiryDate)")
   }
 
-  private def expiresWithin60Days(message: String) : PartialFunction[Int, Unit] = {
+  private def expiresWithin60Days(message: String): PartialFunction[Int, Unit] = {
     case d if d > 0 && d <= 60 =>
       error(CLASS_NAME, "logCertificate", s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $message ($certificateExpiryDate)")
   }
 
-  private def expiresWithin90Days(message: String) : PartialFunction[Int, Unit] = {
+  private def expiresWithin90Days(message: String): PartialFunction[Int, Unit] = {
     case d if d > 60 && d <= 90 =>
       warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
   }
 
-  private def expiresAfter90Days(message: String) : PartialFunction[Int, Unit] = {
+  private def expiresAfter90Days(message: String): PartialFunction[Int, Unit] = {
     case d if d > 90 =>
       info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $message ($certificateExpiryDate)")
   }
 
-  private def expired(message: String) : PartialFunction[Int, Unit] = {
-    case _ =>
-      error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
+  private def expired(message: String): PartialFunction[Int, Unit] = { case _ =>
+    error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
   }
 
-  private def logCertificate(d: Int, message: String): Unit = {
+  private def logCertificate(d: Int, message: String): Unit =
     (expiresToday orElse
       expiresWithin60Days(message) orElse
       expiresWithin90Days(message) orElse
       expiresAfter90Days(message) orElse
-      expired(message)
-      )(d)
-  }
+      expired(message))(d)
 
   def certificateStatus(date: LocalDate = new LocalDate): Boolean = {
     val (day, message) = difference(getExpiryDate, date)

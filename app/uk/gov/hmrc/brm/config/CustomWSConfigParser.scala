@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,32 +28,34 @@ import java.util.Base64
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class CustomWSConfigParser @Inject()(configuration: Configuration, env: Environment)
-  extends WSConfigParser(configuration.underlying, env.classLoader) {
+class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environment)
+    extends WSConfigParser(configuration.underlying, env.classLoader) {
 
   lazy val className: String = this.getClass.getSimpleName
 
   override def parse(): WSClientConfig = {
 
     val internalParser = new WSConfigParser(configuration.underlying, env.classLoader)
-    val config = internalParser.parse()
+    val config         = internalParser.parse()
 
     val keyStoreConfig: scala.collection.immutable.Seq[KeyStoreConfig] =
       config.ssl.keyManagerConfig.keyStoreConfigs.filter(_.data.forall(_.nonEmpty)).map { ks ⇒
-      (ks.storeType.toUpperCase, ks.filePath, ks.data) match {
-        case (_, None, Some(data)) =>
-          createKeyStoreConfig(ks, data)
+        (ks.storeType.toUpperCase, ks.filePath, ks.data) match {
+          case (_, None, Some(data)) =>
+            createKeyStoreConfig(ks, data)
 
-        case other =>
-          BrmLogger.info(className, "parse", s"Adding ${other._1} type keystore")
-          ks
+          case other =>
+            BrmLogger.info(className, "parse", s"Adding ${other._1} type keystore")
+            ks
+        }
       }
-    }
 
     val wsClientConfig = config.copy(
       ssl = config.ssl
-        .withKeyManagerConfig(config.ssl.keyManagerConfig
-          .withKeyStoreConfigs(keyStoreConfig))
+        .withKeyManagerConfig(
+          config.ssl.keyManagerConfig
+            .withKeyStoreConfigs(keyStoreConfig)
+        )
     )
 
     wsClientConfig
@@ -65,15 +67,13 @@ class CustomWSConfigParser @Inject()(configuration: Configuration, env: Environm
   def createTempFileForData(data: String): (String, Array[Byte]) = {
     val file = File.createTempFile(getClass.getSimpleName, ".tmp")
     file.deleteOnExit()
-    val os = new FileOutputStream(file)
+    val os   = new FileOutputStream(file)
     try {
       val bytes = Base64.getDecoder.decode(data.getBytes(StandardCharsets.US_ASCII))
       os.write(bytes)
       os.flush()
       file.getAbsolutePath → bytes
-    } finally {
-      os.close()
-    }
+    } finally os.close()
   }
 
   private def createKeyStoreConfig(ks: KeyStoreConfig, data: String): KeyStoreConfig = {

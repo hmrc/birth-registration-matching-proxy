@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,14 @@ import uk.gov.hmrc.http.UpstreamErrorResponse
 
 object ResponseHelper {
 
-  val notFoundResponse: BirthResponse = Birth404ErrorResponse(
+  val notFoundResponse: BirthResponse   = Birth404ErrorResponse(
     UpstreamErrorResponse("", NOT_FOUND, NOT_FOUND)
   )
   val badRequestResponse: BirthResponse = BirthErrorResponse(
     UpstreamErrorResponse("", BAD_REQUEST, BAD_REQUEST)
   )
 
-  val teapotException : BirthResponse = BirthErrorResponse(
+  val teapotException: BirthResponse = BirthErrorResponse(
     UpstreamErrorResponse("", IM_A_TEAPOT, IM_A_TEAPOT)
   )
 
@@ -37,7 +37,7 @@ object ResponseHelper {
     UpstreamErrorResponse("", INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR)
   )
 
-  val serviceUnavailableResponse : BirthResponse = BirthErrorResponse(
+  val serviceUnavailableResponse: BirthResponse = BirthErrorResponse(
     UpstreamErrorResponse("", SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE)
   )
 

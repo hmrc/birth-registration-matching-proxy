@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,36 +24,36 @@ import scala.util.{Failure, Success, Try}
 
 class AccessTokenRepository {
 
-  private var _token : Option[AccessToken] = None
-  private var _expiry : Option[DateTime] = None
-  private val _expireSecondsDiff = 60 //1 min
-  private val CLASS_NAME = this.getClass.getSimpleName
+  private var _token: Option[AccessToken] = None
+  private var _expiry: Option[DateTime]   = None
+  private val _expireSecondsDiff          = 60 //1 min
+  private val CLASS_NAME                  = this.getClass.getSimpleName
 
-  private val expiredTokenException  = new RuntimeException(s"access_token expired")
+  private val expiredTokenException = new RuntimeException(s"access_token expired")
 
-  def saveToken(token: AccessToken, expiry : DateTime) = {
+  def saveToken(token: AccessToken, expiry: DateTime) = {
     debug(CLASS_NAME, "saveToken", s"access_token: $token, expiry: $expiry")
     info(CLASS_NAME, "saveToken", s"saving new access_token, expiry: $expiry")
     _token = Some(token)
     _expiry = Some(expiry)
   }
 
-  def newExpiry(seconds : Int) = {
+  def newExpiry(seconds: Int) = {
     info(CLASS_NAME, "newExpiry", s"access_token new expiry time in seconds: $seconds")
     //making expiry time less by one minute.
     DateTime.now.plusSeconds(seconds).minusSeconds(_expireSecondsDiff)
   }
 
-  def hasExpired : Boolean = {
+  def hasExpired: Boolean = {
     def currentTime = DateTime.now()
-    val expired = _expiry.fold(true)(t => t.isBefore(currentTime))
+    val expired     = _expiry.fold(true)(t => t.isBefore(currentTime))
     info(CLASS_NAME, "access_token hasExpired", s"access_token has expired $expired")
     expired
   }
 
   def hasToken = _token.fold(false)(x => x.trim.nonEmpty)
 
-  def token : Try[AccessToken] = {
+  def token: Try[AccessToken] =
     if (hasToken && !hasExpired) {
       def seconds = Seconds.secondsBetween(DateTime.now, _expiry.get).getSeconds
       info(CLASS_NAME, "token", s"access_token expires in: $seconds seconds")
@@ -62,6 +62,5 @@ class AccessTokenRepository {
       info(CLASS_NAME, "token", "access_token has expired")
       Failure(expiredTokenException)
     }
-  }
 
 }

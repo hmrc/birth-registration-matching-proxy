@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,13 @@ import uk.gov.hmrc.play.http.ws.{WSProxy, WSProxyConfiguration}
 
 import javax.inject.Inject
 
-class ProxyEnabledHttpClient @Inject()(
-                              config: Configuration,
-                              httpAuditing: HttpAuditing,
-                              override val wsClient: WSClient,
-                              override protected val actorSystem: ActorSystem)
-  extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem) with WSProxy {
+class ProxyEnabledHttpClient @Inject() (
+  config: Configuration,
+  httpAuditing: HttpAuditing,
+  override val wsClient: WSClient,
+  override protected val actorSystem: ActorSystem
+) extends DefaultHttpClient(config, httpAuditing, wsClient, actorSystem)
+    with WSProxy {
 
   override lazy val wsProxyServer: Option[WSProxyServer] = WSProxyConfiguration("microservice.services.proxy", config)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,24 +18,22 @@ package uk.gov.hmrc.brm.controllers
 
 import play.api.libs.json.Json
 
-
 object ErrorResponses {
 
-  private def error(code: String, message: String) = Json.parse(
-    s"""
+  private def error(code: String, message: String) = Json.parse(s"""
        |{
        |  "code": "$code",
        |  "message": "$message"
        |}
      """.stripMargin)
 
-  val CONNECTION_DOWN = error("GRO_CONNECTION_DOWN", "Connection to GRO is down")
-  val BAD_REQUEST = error("BAD_REQUEST", "Invalid payload provided")
-  val TEAPOT = error("TEAPOT", "Invalid argument sent to GRO")
-  val NOT_FOUND = error("NOT_FOUND", "Resource not found")
-  val GATEWAY_TIMEOUT = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
+  val CONNECTION_DOWN     = error("GRO_CONNECTION_DOWN", "Connection to GRO is down")
+  val BAD_REQUEST         = error("BAD_REQUEST", "Invalid payload provided")
+  val TEAPOT              = error("TEAPOT", "Invalid argument sent to GRO")
+  val NOT_FOUND           = error("NOT_FOUND", "Resource not found")
+  val GATEWAY_TIMEOUT     = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
   val CERTIFICATE_INVALID = error("INVALID_CERTIFICATE", "TLS certificate was either not provided or was invalid")
-  val UNKNOWN_ERROR = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
-  val BAD_GATEWAY = error("BAD_GATEWAY", "GRO returned bad gateway")
+  val UNKNOWN_ERROR       = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
+  val BAD_GATEWAY         = error("BAD_GATEWAY", "GRO returned bad gateway")
 
 }

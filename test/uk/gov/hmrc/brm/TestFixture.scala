@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,14 @@ import uk.gov.hmrc.brm.utils.BaseUnitSpec
 
 import scala.reflect.ClassTag
 
-trait TestFixture extends AnyWordSpecLike with Matchers with OptionValues with MockitoSugar with BeforeAndAfter with GuiceOneAppPerSuite with BaseUnitSpec {
+trait TestFixture
+    extends AnyWordSpecLike
+    with Matchers
+    with OptionValues
+    with MockitoSugar
+    with BeforeAndAfter
+    with GuiceOneAppPerSuite
+    with BaseUnitSpec {
 
   def real[T: ClassTag]: T = app.injector.instanceOf[T]
 

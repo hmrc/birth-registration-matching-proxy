@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ class BrmLoggerSpec extends TestFixture {
       val argumentCapture = new ArgumentCapture[String]
       verify(mockLogger, times(1)).info(argumentCapture.capture)
       argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message") shouldBe true
-      argumentCapture.value.contains("somekey") shouldBe true
+      argumentCapture.value.contains("message")    shouldBe true
+      argumentCapture.value.contains("somekey")    shouldBe true
     }
 
     "warn call Logger warn" in {
@@ -48,8 +48,8 @@ class BrmLoggerSpec extends TestFixture {
       verify(mockLogger, times(1)).warn(argumentCapture.capture)
 
       argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message") shouldBe true
-      argumentCapture.value.contains("somekey") shouldBe true
+      argumentCapture.value.contains("message")    shouldBe true
+      argumentCapture.value.contains("somekey")    shouldBe true
     }
 
     "debug call Logger debug" in {
@@ -58,8 +58,8 @@ class BrmLoggerSpec extends TestFixture {
       verify(mockLogger, times(1)).debug(argumentCapture.capture)
 
       argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message") shouldBe true
-      argumentCapture.value.contains("somekey") shouldBe true
+      argumentCapture.value.contains("message")    shouldBe true
+      argumentCapture.value.contains("somekey")    shouldBe true
     }
 
     "error call Logger error" in {
@@ -68,8 +68,8 @@ class BrmLoggerSpec extends TestFixture {
       verify(mockLogger, times(1)).error(argumentCapture.capture)
 
       argumentCapture.value.contains("methodNameForError") shouldBe true
-      argumentCapture.value.contains("errorMessage") shouldBe true
-      argumentCapture.value.contains("somekey") shouldBe true
+      argumentCapture.value.contains("errorMessage")       shouldBe true
+      argumentCapture.value.contains("somekey")            shouldBe true
     }
 
   }

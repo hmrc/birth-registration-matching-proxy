@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,20 +29,21 @@ class ResponseHandler {
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  def handle(futureResponse: Future[HttpResponse])(f: HttpResponse => BirthResponse, metrics: BRMMetrics)
-            (implicit ec: ExecutionContext): Future[BirthResponse] =
+  def handle(
+    futureResponse: Future[HttpResponse]
+  )(f: HttpResponse => BirthResponse, metrics: BRMMetrics)(implicit ec: ExecutionContext): Future[BirthResponse] =
     futureResponse.map { response =>
       info(CLASS_NAME, "handle", s"response received")
 
-      debug("BirthConnector","getChildByReference",s"HttpResponse: $response, BODY: ${response.body}")
+      debug("BirthConnector", "getChildByReference", s"HttpResponse: $response, BODY: ${response.body}")
 
       metrics.httpResponseCodeStatus(response.status)
 
       response.status match {
-        case Status.OK =>
+        case Status.OK                                         =>
           info(CLASS_NAME, "handle", s"[200] Success")
           f(response)
-        case Status.NOT_FOUND =>
+        case Status.NOT_FOUND                                  =>
           info(CLASS_NAME, "handle", s"[404] 404 status response from LEV, no match")
           ErrorHandler.errorWithNotFound(response)
         case status4xx if status4xx >= 400 && status4xx <= 499 =>
@@ -51,7 +52,7 @@ class ResponseHandler {
         case status5xx if status5xx >= 500 && status5xx <= 599 =>
           warn(CLASS_NAME, "handle", s"[$status5xx] 5xx status response found,  InternalServerError")
           ErrorHandler.error(response)
-        case status =>
+        case status                                            =>
           error(CLASS_NAME, "handle", s"[$status] Unexpected response found")
           ErrorHandler.error(response)
       }

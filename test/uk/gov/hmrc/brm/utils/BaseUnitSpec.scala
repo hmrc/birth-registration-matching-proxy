@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,42 +21,35 @@ import play.api.libs.json.JsValue
 import uk.gov.hmrc.brm.connectors.Encoder
 import uk.gov.hmrc.http.HttpResponse
 
-
 trait BaseUnitSpec {
 
   val headers = Map(
-    "Authorization" -> Seq(s"Bearer something"),
+    "Authorization"              -> Seq(s"Bearer something"),
     "X-Auth-Downstream-Username" -> Seq("hmrc")
   )
 
-  def authSuccessResponse(authRecord: JsValue): HttpResponse = {
+  def authSuccessResponse(authRecord: JsValue): HttpResponse =
     HttpResponse.apply(
       Status.OK,
       authRecord.toString()
-      )
-  }
+    )
 
-  def eventResponseWithStatus(status: Int, eventResponse: String): HttpResponse = {
+  def eventResponseWithStatus(status: Int, eventResponse: String): HttpResponse =
     HttpResponse.apply(status, eventResponse)
-  }
 
-
-  def eventSuccessResponse(eventResponse: JsValue): HttpResponse = {
+  def eventSuccessResponse(eventResponse: JsValue): HttpResponse =
     HttpResponse.apply(Status.OK, eventResponse.toString(), headers = headers)
-  }
 
   def getUrlEncodeString(firstName: String, lastname: String, dateOfBirth: String): String = {
-    val details =  Map(
-      "forenames" -> firstName,
-      "lastname" -> lastname,
+    val details = Map(
+      "forenames"   -> firstName,
+      "lastname"    -> lastname,
       "dateofbirth" -> dateOfBirth
     )
     Encoder.encode(details)
   }
 
-  def getEntireUrl(path: String, firstName: String, lastName: String, dateOfBirth: String): String = {
+  def getEntireUrl(path: String, firstName: String, lastName: String, dateOfBirth: String): String =
     path + getUrlEncodeString(firstName, lastName, dateOfBirth)
-  }
-
 
 }
