@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-
 class AuthenticatorSpec extends TestFixture {
 
   val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
@@ -39,22 +38,24 @@ class AuthenticatorSpec extends TestFixture {
     new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient)
 
   val mockResponseHandler: ResponseHandler = mock[ResponseHandler]
-  val mockErrorHandler: ErrorHandler = mock[ErrorHandler]
-  implicit val hc: HeaderCarrier = HeaderCarrier()
-  implicit val metrics: BRMMetrics = mock[BRMMetrics]
+  val mockErrorHandler: ErrorHandler       = mock[ErrorHandler]
+  implicit val hc: HeaderCarrier           = HeaderCarrier()
+  implicit val metrics: BRMMetrics         = mock[BRMMetrics]
 
   val testAuthenticatorMockResponseHandler: Authenticator =
     new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient) {
-      override val responseHandler: ResponseHandler = mockResponseHandler
-      override val errorHandler: ErrorHandler = mockErrorHandler
+      override val responseHandler: ResponseHandler  = mockResponseHandler
+      override val errorHandler: ErrorHandler        = mockErrorHandler
       override val tokenCache: AccessTokenRepository = mock[AccessTokenRepository]
     }
 
-  when(mockHttpClient.POSTForm[HttpResponse](
-    anyString(), any[Map[String, Seq[String]]], any[Seq[(String, String)]])(
-    any[HttpReads[HttpResponse]],
-    any[HeaderCarrier],
-    any[ExecutionContext])).thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
+  when(
+    mockHttpClient.POSTForm[HttpResponse](anyString(), any[Map[String, Seq[String]]], any[Seq[(String, String)]])(
+      any[HttpReads[HttpResponse]],
+      any[HeaderCarrier],
+      any[ExecutionContext]
+    )
+  ).thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
   doNothing().when(metrics).requestCount(any())
   when(metrics.startTimer()).thenReturn(1L)
   doNothing().when(metrics).endTimer(any(), any())
@@ -64,7 +65,7 @@ class AuthenticatorSpec extends TestFixture {
     "creating an instance of cache" should {
 
       "return false for having a token" in {
-        testAuthenticator.tokenCache.hasToken shouldBe false
+        testAuthenticator.tokenCache.hasToken   shouldBe false
         testAuthenticator.tokenCache.hasExpired shouldBe true
       }
 
@@ -74,13 +75,13 @@ class AuthenticatorSpec extends TestFixture {
 
       "insert a token" in {
         testAuthenticator.tokenCache.saveToken("new token", DateTime.now.plusDays(2))
-        testAuthenticator.tokenCache.hasToken shouldBe true
+        testAuthenticator.tokenCache.hasToken   shouldBe true
         testAuthenticator.tokenCache.hasExpired shouldBe false
-        testAuthenticator.tokenCache.token shouldBe Success("new token")
+        testAuthenticator.tokenCache.token      shouldBe Success("new token")
       }
 
       "generate new expiry" in {
-        val dateTime = new DateTime()
+        val dateTime   = new DateTime()
         DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
         val expiryTime = testAuthenticator.tokenCache.newExpiry(100)
         //expiry time shd be less by 60 sec.
@@ -94,7 +95,8 @@ class AuthenticatorSpec extends TestFixture {
 
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new GatewayTimeoutException("gateway timeout message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token)
+          .thenReturn(Failure(new Exception("exception message")))
         when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
@@ -107,7 +109,8 @@ class AuthenticatorSpec extends TestFixture {
 
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new BadGatewayException("bad gateway message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token)
+          .thenReturn(Failure(new Exception("exception message")))
         when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
@@ -120,7 +123,8 @@ class AuthenticatorSpec extends TestFixture {
 
         when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext]))
           .thenReturn(Future.successful(BirthErrorResponse(new Exception("unknown exception message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token).thenReturn(Failure(new Exception("exception message")))
+        when(testAuthenticatorMockResponseHandler.tokenCache.token)
+          .thenReturn(Failure(new Exception("exception message")))
         when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
 
         testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,15 @@ class ResponseParserSpec extends TestFixture {
 
   "ResponseParser" must {
     "parse correctly when the body is valid Json" in {
-      val response: HttpResponse = HttpResponse.apply(Status.OK,
+      val response: HttpResponse = HttpResponse.apply(
+        Status.OK,
         """
           |{"this": "isJson"}
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       val parsed: JsValue = Json.obj("this" -> "isJson")
-      val success = responseParser.parse(response)
+      val success         = responseParser.parse(response)
 
       success shouldBe BirthSuccessResponse(parsed)
       verify(mockHandler, never()).error(anyString(), anyInt())
@@ -45,11 +47,10 @@ class ResponseParserSpec extends TestFixture {
     }
 
     "return a BirthErrorResponse when the body is not valid Json" in {
-      val response: HttpResponse = HttpResponse.apply(Status.OK, "thisIsNotJson")
+      val response: HttpResponse              = HttpResponse.apply(Status.OK, "thisIsNotJson")
       val returnException: BirthErrorResponse = BirthErrorResponse(new Exception)
 
       when(mockHandler.error(any[HttpResponse])).thenReturn(returnException)
-
 
       responseParser.parse(response) shouldBe returnException
       verify(mockHandler, times(1))

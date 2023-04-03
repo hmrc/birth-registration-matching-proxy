@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,14 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues
 import uk.gov.hmrc.brm.connectors.Encoder
 
-
 class EncoderSpec extends AnyWordSpecLike with Matchers with OptionValues {
 
   "Encoder" should {
 
     "parse a Map[String, String] into a UTF-8 URI" in {
-      val details =  Map(
-        "forenames" -> "Adàm TËST",
-        "lastname" -> "SMÏTH",
+      val details = Map(
+        "forenames"   -> "Adàm TËST",
+        "lastname"    -> "SMÏTH",
         "dateofbirth" -> "2006-11-12"
       )
       Encoder.encode(details) shouldBe "forenames=Ad%C3%A0m+T%C3%8BST&lastname=SM%C3%8FTH&dateofbirth=2006-11-12"

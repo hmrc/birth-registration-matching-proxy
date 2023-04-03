@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,8 @@ class BRMMetrics {
   def httpResponseCodeStatus(code: Int): Unit =
     defaultRegistry.counter(s"$prefix-http-response-code-$code").inc()
 
-  def requestCount(key: String = "request"): Unit = {
+  def requestCount(key: String = "request"): Unit =
     defaultRegistry.counter(s"$prefix-$key-count").inc()
-  }
 
   def time(diff: Long, unit: TimeUnit, key: String): Unit = {
     val name = s"$prefix-$key"

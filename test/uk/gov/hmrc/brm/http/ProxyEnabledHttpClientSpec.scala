@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ import uk.gov.hmrc.play.audit.http.HttpAuditing
 class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
 
   val mockConfiguration: Configuration = inject[Configuration]
-  val mockAuditing: HttpAuditing = inject[HttpAuditing]
-  val mockWsClient: WSClient = inject[WSClient]
-  val mockProxy: WSProxyServer = mock[WSProxyServer]
+  val mockAuditing: HttpAuditing       = inject[HttpAuditing]
+  val mockWsClient: WSClient           = inject[WSClient]
+  val mockProxy: WSProxyServer         = mock[WSProxyServer]
 
   def client(proxyServer: Option[WSProxyServer]): ProxyEnabledHttpClient =
     new ProxyEnabledHttpClient(mockConfiguration, mockAuditing, mockWsClient, ActorSystem()) {
@@ -42,8 +42,7 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
   override lazy val fakeApplication: Application = new GuiceApplicationBuilder()
     .configure(
       Configuration(
-        ConfigFactory.parseString(
-          s"""
+        ConfigFactory.parseString(s"""
              |microservice.services.proxy.proxyRequiredForThisEnvironment = $isProxy
              |microservice.services.proxy.username = squiduser
              |microservice.services.proxy.password = squiduser
@@ -60,8 +59,8 @@ class ProxyEnabledHttpClientSpec extends TestFixture with Injecting {
       val request = client(Some(DefaultWSProxyServer("host", 1, password = Some("password"))))
         .buildRequest("http://testurl.com", Nil)
 
-      request.proxyServer.get.getClass shouldBe classOf[DefaultWSProxyServer]
-      request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].host shouldBe "host"
+      request.proxyServer.get.getClass                                    shouldBe classOf[DefaultWSProxyServer]
+      request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].host     shouldBe "host"
       request.proxyServer.get.asInstanceOf[DefaultWSProxyServer].password shouldBe Some("password")
       fakeApplication.stop()
     }

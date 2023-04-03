@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,33 +19,22 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status._
 import uk.gov.hmrc.http.{HttpResponse, UpstreamErrorResponse}
 
-
 class ErrorHandler {
 
-  def error(response: HttpResponse): BirthErrorResponse = {
-    BirthErrorResponse(UpstreamErrorResponse(
-      s"[ErrorHandler][${response.status.toString}]",
-      response.status,
-      response.status)
-    )
-  }
-
-  def errorWithNotFound(response: HttpResponse): Birth404ErrorResponse = {
-    Birth404ErrorResponse(UpstreamErrorResponse(
-      s"[ErrorHandler][${response.status.toString}]",
-      response.status,
-      response.status)
-    )
-  }
-
-  def error(message: String, status: Int = INTERNAL_SERVER_ERROR): BirthErrorResponse = {
+  def error(response: HttpResponse): BirthErrorResponse =
     BirthErrorResponse(
-      UpstreamErrorResponse(
-        s"[ErrorHandler][$status] $message",
-        status,
-        status)
+      UpstreamErrorResponse(s"[ErrorHandler][${response.status.toString}]", response.status, response.status)
     )
-  }
+
+  def errorWithNotFound(response: HttpResponse): Birth404ErrorResponse =
+    Birth404ErrorResponse(
+      UpstreamErrorResponse(s"[ErrorHandler][${response.status.toString}]", response.status, response.status)
+    )
+
+  def error(message: String, status: Int = INTERNAL_SERVER_ERROR): BirthErrorResponse =
+    BirthErrorResponse(
+      UpstreamErrorResponse(s"[ErrorHandler][$status] $message", status, status)
+    )
 
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,24 +25,23 @@ import uk.gov.hmrc.http.HttpResponse.unapply
 
 import scala.util.{Failure, Success, Try}
 
-
 class ResponseParser(errorHandler: ErrorHandler) {
 
-  private val CLASS_NAME : String = this.getClass.getSimpleName
+  private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  def parse(response: HttpResponse) : BirthResponse = {
+  def parse(response: HttpResponse): BirthResponse = {
     info(CLASS_NAME, "parse", "parsing json")
     Try {
       val bodyText = response.body
-      val json = Json.parse(bodyText)
+      val json     = Json.parse(bodyText)
 
       BirthSuccessResponse(json)
     } match {
       case Success(successResponse) => successResponse
-      case Failure(exception) =>
+      case Failure(exception)       =>
         BrmLogger.error(CLASS_NAME, "parse", s"unable to parse json: $exception")
         val (_, body, headers): (Int, String, Map[String, Seq[String]]) = unapply(response).get
-        val error = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, body, headers)
+        val error                                                       = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, body, headers)
         errorHandler.error(error)
     }
   }
