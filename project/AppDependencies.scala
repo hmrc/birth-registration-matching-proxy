@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-import play.sbt.PlayImport._
-import sbt.{ModuleID, _}
+import play.sbt.PlayImport.*
+import sbt.*
 
 object AppDependencies {
 
-  private val bootstrapPlayVersion = "7.15.0"
+  private val bootstrapPlayVersion = "7.21.0"
 
   val compile: Seq[ModuleID] = Seq(
     ws,
     "uk.gov.hmrc" %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
-    "uk.gov.hmrc" %% "domain"                    % "8.1.0-play-28"
+    "uk.gov.hmrc" %% "domain"                    % "8.3.0-play-28"
   )
 
   val test: Seq[ModuleID]    = Seq(
     "uk.gov.hmrc"         %% "bootstrap-test-play-28" % bootstrapPlayVersion,
-    "org.scalatestplus"   %% "mockito-3-4"            % "3.2.10.0",
-    "org.specs2"          %% "specs2-core"            % "4.20.0",
-    "org.specs2"          %% "specs2-mock"            % "4.20.0",
-    "com.vladsch.flexmark" % "flexmark-all"           % "0.64.0"
+    "org.scalatestplus"   %% "mockito-4-11"           % "3.2.16.0",
+    "com.vladsch.flexmark" % "flexmark-all"           % "0.64.8"
   ).map(_ % Test)
 
   def apply(): Seq[ModuleID] = compile ++ test

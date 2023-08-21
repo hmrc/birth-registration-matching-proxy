@@ -23,7 +23,7 @@ import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.KeyHolder
-import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse, UpstreamErrorResponse}
 import play.api.mvc.ControllerComponents
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
@@ -48,49 +48,49 @@ class MatchingController @Inject() (
     )
 
   def notFoundException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case Birth404ErrorResponse(Upstream4xxResponse(message, NOT_FOUND, _, _)) =>
+    case Birth404ErrorResponse(UpstreamErrorResponse(message, NOT_FOUND, _, _)) =>
       info(CLASS_NAME, "handleException", s"[$method] NotFound: no record found: $message")
       respond(NotFound(ErrorResponses.NOT_FOUND))
   }
 
   def badRequestException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream4xxResponse(message, BAD_REQUEST, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, BAD_REQUEST, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] BadRequest: $message")
       respond(BadRequest(ErrorResponses.BAD_REQUEST))
   }
 
   def teapotException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream4xxResponse(message, IM_A_TEAPOT, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, IM_A_TEAPOT, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] TeaPot: $message")
       respond(Forbidden(ErrorResponses.TEAPOT))
   }
 
   def forbiddenException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream4xxResponse(message, FORBIDDEN, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, FORBIDDEN, _, _)) =>
       warn(CLASS_NAME, "handleException", s"[$method] Forbidden [certificate not provided]: $message")
       respond(Forbidden(ErrorResponses.CERTIFICATE_INVALID))
   }
 
   def badGatewayException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, BAD_GATEWAY, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, BAD_GATEWAY, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] BadGateway: $message")
       respond(BadGateway(ErrorResponses.BAD_GATEWAY))
   }
 
   def gatewayTimeoutException(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, GATEWAY_TIMEOUT, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, GATEWAY_TIMEOUT, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] GatewayTimeout: $message")
       respond(GatewayTimeout(ErrorResponses.GATEWAY_TIMEOUT))
   }
 
   def connectionDown(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, INTERNAL_SERVER_ERROR, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, INTERNAL_SERVER_ERROR, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] InternalServerError: Connection to GRO is down: $message")
       respond(InternalServerError(ErrorResponses.CONNECTION_DOWN))
   }
 
   def serviceUnavailable(method: String): PartialFunction[BirthResponse, Future[Result]] = {
-    case BirthErrorResponse(Upstream5xxResponse(message, SERVICE_UNAVAILABLE, _, _)) =>
+    case BirthErrorResponse(UpstreamErrorResponse(message, SERVICE_UNAVAILABLE, _, _)) =>
       error(CLASS_NAME, "handleException", s"[$method] InternalServerError: Service Unavailable: $message")
       respond(ServiceUnavailable(ErrorResponses.CONNECTION_DOWN))
   }

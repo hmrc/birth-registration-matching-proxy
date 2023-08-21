@@ -39,7 +39,7 @@ class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environ
     val config         = internalParser.parse()
 
     val keyStoreConfig: scala.collection.immutable.Seq[KeyStoreConfig] =
-      config.ssl.keyManagerConfig.keyStoreConfigs.filter(_.data.forall(_.nonEmpty)).map { ks ⇒
+      config.ssl.keyManagerConfig.keyStoreConfigs.filter(_.data.forall(_.nonEmpty)).map { ks =>
         (ks.storeType.toUpperCase, ks.filePath, ks.data) match {
           case (_, None, Some(data)) =>
             createKeyStoreConfig(ks, data)
@@ -72,7 +72,7 @@ class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environ
       val bytes = Base64.getDecoder.decode(data.getBytes(StandardCharsets.US_ASCII))
       os.write(bytes)
       os.flush()
-      file.getAbsolutePath → bytes
+      file.getAbsolutePath -> bytes
     } finally os.close()
   }
 
@@ -95,7 +95,7 @@ class CustomWSConfigParserModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     Seq(
-      bind[WSConfigParser].to[CustomWSConfigParser].eagerly
+      bind[WSConfigParser].to[CustomWSConfigParser].eagerly()
     )
 
 }
