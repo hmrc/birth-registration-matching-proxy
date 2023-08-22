@@ -18,10 +18,10 @@ package uk.gov.hmrc.brm.connectors
 
 import akka.actor.ActorSystem
 import org.joda.time.{DateTime, DateTimeUtils}
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
-import org.specs2.mock.mockito.ArgumentCapture
 import play.api.Configuration
 import play.api.http.Status
 import play.api.libs.json.{JsArray, JsValue}
@@ -491,7 +491,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam"))
 
-        val argumentCapture = new ArgumentCapture[String]
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
 
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
@@ -514,7 +514,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         result                                                                               shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size                   shouldBe 2
         metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count").getCount shouldBe 1
-        argumentCapture.value                                                                shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                                                             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthSuccessResponse when gro details responds with 200 with single record when request has special character." in {
@@ -527,7 +527,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
 
-        val argumentCapture = new ArgumentCapture[String]
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
 
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
@@ -549,7 +549,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         result                                                             shouldBe a[BirthSuccessResponse[_]]
         result                                                             shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
-        argumentCapture.value                                              shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                                           shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
 
       }
 
@@ -563,7 +563,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("NoMatch"))
 
-        val argumentCapture = new ArgumentCapture[String]
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
           testConnector.authenticator.http.POSTForm[HttpResponse](
@@ -584,7 +584,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         result                                                             shouldBe a[BirthSuccessResponse[_]]
         result                                                             shouldBe BirthSuccessResponse(groResponse("NoMatch"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
-        argumentCapture.value                                              shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                                           shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
@@ -596,8 +596,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         val authResponse = authSuccessResponse(authRecord)
 
-        val eventResponse   = HttpResponse.apply(Status.BAD_REQUEST, "forenames or forename1 is required")
-        val argumentCapture = new ArgumentCapture[String]
+        val eventResponse                           = HttpResponse.apply(Status.BAD_REQUEST, "forenames or forename1 is required")
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
           testConnector.authenticator.http.POSTForm[HttpResponse](
@@ -617,7 +617,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.value                         shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
@@ -629,8 +629,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         val authResponse = authSuccessResponse(authRecord)
 
-        val eventResponse   = HttpResponse.apply(Status.BAD_REQUEST, "Must provide lastname parameter")
-        val argumentCapture = new ArgumentCapture[String]
+        val eventResponse                           = HttpResponse.apply(Status.BAD_REQUEST, "Must provide lastname parameter")
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
           testConnector.authenticator.http.POSTForm[HttpResponse](
@@ -650,7 +650,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.value                         shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
@@ -660,10 +660,10 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val lastName    = "smith"
         val dateOfBirth = ""
 
-        val authResponse    = authSuccessResponse(authRecord)
-        val eventResponse   =
+        val authResponse                            = authSuccessResponse(authRecord)
+        val eventResponse                           =
           Future.successful(HttpResponse.apply(Status.BAD_REQUEST, "Must provide date of birth parameter"))
-        val argumentCapture = new ArgumentCapture[String]
+        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
           testConnector.authenticator.http.POSTForm[HttpResponse](
@@ -684,7 +684,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.value                         shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse when GRO returns 5xx" in {

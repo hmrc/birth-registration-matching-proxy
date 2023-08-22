@@ -16,13 +16,14 @@
 
 package uk.gov.hmrc.brm.utils
 
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
-import org.specs2.mock.mockito.ArgumentCapture
+import org.slf4j.Logger
 import uk.gov.hmrc.brm.TestFixture
 
 class BrmLoggerSpec extends TestFixture {
 
-  val mockLogger = mock[org.slf4j.Logger]
+  val mockLogger: Logger = mock[org.slf4j.Logger]
 
   object MockBRMLogger extends BrmLogger(mockLogger)
 
@@ -35,41 +36,41 @@ class BrmLoggerSpec extends TestFixture {
     "info call Logger info" in {
       KeyHolder.setKey("somekey")
       MockBRMLogger.info(this, "methodName", "message")
-      val argumentCapture = new ArgumentCapture[String]
+      val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
       verify(mockLogger, times(1)).info(argumentCapture.capture)
-      argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message")    shouldBe true
-      argumentCapture.value.contains("somekey")    shouldBe true
+      argumentCapture.getValue.contains("methodName") shouldBe true
+      argumentCapture.getValue.contains("message")    shouldBe true
+      argumentCapture.getValue.contains("somekey")    shouldBe true
     }
 
     "warn call Logger warn" in {
       MockBRMLogger.warn(this, "methodName", "message")
-      val argumentCapture = new ArgumentCapture[String]
+      val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
       verify(mockLogger, times(1)).warn(argumentCapture.capture)
 
-      argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message")    shouldBe true
-      argumentCapture.value.contains("somekey")    shouldBe true
+      argumentCapture.getValue.contains("methodName") shouldBe true
+      argumentCapture.getValue.contains("message")    shouldBe true
+      argumentCapture.getValue.contains("somekey")    shouldBe true
     }
 
     "debug call Logger debug" in {
       MockBRMLogger.debug(this, "methodName", "message")
-      val argumentCapture = new ArgumentCapture[String]
+      val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
       verify(mockLogger, times(1)).debug(argumentCapture.capture)
 
-      argumentCapture.value.contains("methodName") shouldBe true
-      argumentCapture.value.contains("message")    shouldBe true
-      argumentCapture.value.contains("somekey")    shouldBe true
+      argumentCapture.getValue.contains("methodName") shouldBe true
+      argumentCapture.getValue.contains("message")    shouldBe true
+      argumentCapture.getValue.contains("somekey")    shouldBe true
     }
 
     "error call Logger error" in {
       MockBRMLogger.error(this, "methodNameForError", "errorMessage")
-      val argumentCapture = new ArgumentCapture[String]
+      val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
       verify(mockLogger, times(1)).error(argumentCapture.capture)
 
-      argumentCapture.value.contains("methodNameForError") shouldBe true
-      argumentCapture.value.contains("errorMessage")       shouldBe true
-      argumentCapture.value.contains("somekey")            shouldBe true
+      argumentCapture.getValue.contains("methodNameForError") shouldBe true
+      argumentCapture.getValue.contains("errorMessage")       shouldBe true
+      argumentCapture.getValue.contains("somekey")            shouldBe true
     }
 
   }

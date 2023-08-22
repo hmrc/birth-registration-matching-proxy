@@ -199,7 +199,7 @@ class GROEnglandAndWalesConnector @Inject() (
   def getReference(
     reference: String
   )(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
-    val json = authenticator.token.flatMap {
+    val json = authenticator.token().flatMap {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getReference", s"valid access token obtained")
         request(reference, token)
@@ -215,7 +215,7 @@ class GROEnglandAndWalesConnector @Inject() (
     metrics: BRMMetrics,
     ec: ExecutionContext
   ): Future[BirthResponse] = {
-    val json = authenticator.token.flatMap {
+    val json = authenticator.token().flatMap {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getDetails", s"valid access token obtained")
         val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
