@@ -19,7 +19,7 @@ import sbt.*
 
 object AppDependencies {
 
-  private val bootstrapPlayVersion = "7.21.0"
+  private val bootstrapPlayVersion = "7.22.0"
 
   val compile: Seq[ModuleID] = Seq(
     ws,
@@ -29,7 +29,7 @@ object AppDependencies {
 
   val test: Seq[ModuleID]    = Seq(
     "uk.gov.hmrc"         %% "bootstrap-test-play-28" % bootstrapPlayVersion,
-    "org.scalatestplus"   %% "mockito-4-11"           % "3.2.16.0",
+    "org.scalatestplus"   %% "mockito-4-11"           % "3.2.17.0",
     "com.vladsch.flexmark" % "flexmark-all"           % "0.64.8"
   ).map(_ % Test)
 
