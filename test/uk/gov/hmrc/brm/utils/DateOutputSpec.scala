@@ -32,7 +32,7 @@ class DateOutputSpec extends AnyWordSpecLike with Matchers {
   "DateOutput.getDurations" should {
 
     "count the correct time in years" in {
-      DateOutput.getDurations(OneYear) shouldBe  DateOutput(years = 1)
+      DateOutput.getDurations(OneYear) shouldBe DateOutput(years = 1)
     }
 
     "count the correct time in months" in {

@@ -45,25 +45,24 @@ object DateOutput {
     )
 
     // start from days moving towards years to format the output string with commas correctly
-    val output = textWithSingularOrPlural.reduceRight((prev, cur) => {
+    val output = textWithSingularOrPlural.reduceRight { (prev, cur) =>
       if (prev.nonEmpty) {
         val textWithConditionalComma = if (cur.nonEmpty) ", " + cur else cur
         prev + textWithConditionalComma
       } else {
         cur
       }
-    })
+    }
 
     if (output.isEmpty) "0 days" else output
   }
 
   // Count the number of days, weeks, months, and years of a given period
-  def getDurations(initialPeriod: Period): DateOutput = {
+  def getDurations(initialPeriod: Period): DateOutput =
     (getYears andThen
       getMonths andThen
       getWeeks andThen
       getDays)(initialPeriod -> DateOutput())._2
-  }
 
   private def getYears: PartialFunction[(Period, DateOutput), (Period, DateOutput)] = {
     case (period, dateOutput) if period.getYears != 0 =>

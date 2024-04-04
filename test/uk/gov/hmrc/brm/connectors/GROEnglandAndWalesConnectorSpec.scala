@@ -243,7 +243,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           )
 
         // Force LocalDate to something other than now
-        val date = ZonedDateTime.of(2050 , 9 , 15 , 5 , 10 , 10, 0, ZoneId.of("GMT"))
+        val date = ZonedDateTime.of(2050, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
 
         when(mockTimeProvider.now) thenReturn date
 

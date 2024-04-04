@@ -23,7 +23,6 @@ lazy val microservice = Project(appName, file("."))
     scoverageSettings,
     scalaSettings,
     scalaVersion := "2.13.13",
-//    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always,
     defaultSettings(),
     majorVersion := 1,
     PlayKeys.playDefaultPort := 9006,

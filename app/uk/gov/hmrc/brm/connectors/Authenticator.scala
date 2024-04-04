@@ -28,10 +28,10 @@ import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class Authenticator @Inject() (groConfig: GroAppConfig,
-                               certificateStatus: CertificateStatus,
-                               val http: HttpClient,
-                               val timeProvider: TimeProvider) {
+class Authenticator @Inject()(groConfig: GroAppConfig,
+                              certificateStatus: CertificateStatus,
+                              val http: HttpClient,
+                              val timeProvider: TimeProvider) {
 
   val username: String                  = groConfig.groUsername
   val password: String                  = groConfig.groPassword
