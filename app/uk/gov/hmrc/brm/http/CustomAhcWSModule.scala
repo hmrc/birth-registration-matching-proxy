@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.http
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 import com.typesafe.sslconfig.ssl.SystemConfiguration
 import play.api.{Configuration, Environment, Logger}
 import play.api.inject.{ApplicationLifecycle, SimpleModule, bind}

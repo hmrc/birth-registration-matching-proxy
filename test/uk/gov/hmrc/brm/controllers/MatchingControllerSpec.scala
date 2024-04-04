@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.controllers
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 import org.mockito.ArgumentMatchers.{any, eq => mockEq}
 import org.mockito.Mockito._
 import play.api.Application
@@ -39,9 +39,7 @@ class MatchingControllerSpec extends TestFixture {
 
   implicit lazy val materializer: Materializer = fakeApplication.materializer
 
-  override lazy val fakeApplication: Application = GuiceApplicationBuilder(
-    disabled = Seq(classOf[com.kenshoo.play.metrics.PlayModule])
-  ).build()
+  override lazy val fakeApplication: Application = GuiceApplicationBuilder().build()
 
   implicit val hc: HeaderCarrier   = HeaderCarrier()
   implicit val metrics: BRMMetrics = new BRMMetrics

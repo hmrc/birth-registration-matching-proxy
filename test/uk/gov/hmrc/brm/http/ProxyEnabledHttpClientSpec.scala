@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.http
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.{DefaultWSProxyServer, WSClient, WSProxyServer}

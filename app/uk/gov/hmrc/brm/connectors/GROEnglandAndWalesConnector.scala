@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import play.api.Configuration
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.config.GroAppConfig
