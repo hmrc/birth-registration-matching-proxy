@@ -22,11 +22,6 @@ case class DateOutput(years: Int = 0, months: Int = 0, weeks: Int = 0, days: Int
 
 object DateOutput {
 
-  private val DayText = "day"
-  private val WeekText = "week"
-  private val MonthText = "month"
-  private val YearText = "year"
-
   def formatDurations(period: Period): String = {
 
     val dateOutput = getDurations(period)
@@ -38,10 +33,10 @@ object DateOutput {
     }
 
     val textWithSingularOrPlural = Seq(
-      formatTimeField(dateOutput.years, YearText),
-      formatTimeField(dateOutput.months, MonthText),
-      formatTimeField(dateOutput.weeks, WeekText),
-      formatTimeField(dateOutput.days, DayText)
+      formatTimeField(dateOutput.years, "year"),
+      formatTimeField(dateOutput.months, "month"),
+      formatTimeField(dateOutput.weeks, "week"),
+      formatTimeField(dateOutput.days, "day")
     )
 
     // start from days moving towards years to format the output string with commas correctly
