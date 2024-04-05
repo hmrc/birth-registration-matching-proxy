@@ -62,7 +62,7 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return a new expiry time 4 minutes from now when actual expiry is 5 minutes from now." in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider = mock[TimeProvider]
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
 
         val dateTime = ZonedDateTime.now()
@@ -84,7 +84,7 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return success with token when access token with expiry time" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider = mock[TimeProvider]
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
 
         val dateTime = ZonedDateTime.now()
@@ -101,9 +101,9 @@ class AccessTokenRepositorySpec extends TestFixture {
 
     "expired" should {
       "return failure for expiry access token" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider = mock[TimeProvider]
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
-        val dateTime              = ZonedDateTime.now()
+        val dateTime = ZonedDateTime.now()
 
         when(mockTimeProvider.now) thenReturn dateTime.plusSeconds(301)
 
@@ -113,9 +113,9 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return failure for expiry access token when set using new expiry" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider = mock[TimeProvider]
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
-        val dateTime              = ZonedDateTime.now()
+        val dateTime = ZonedDateTime.now()
 
         when(mockTimeProvider.now) thenReturn dateTime // return ZonedDateTime.now() for call in newExpiry method
         val expiry = accessTokenRepository.newExpiry(300)

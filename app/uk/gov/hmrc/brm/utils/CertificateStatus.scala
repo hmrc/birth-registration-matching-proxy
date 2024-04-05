@@ -30,7 +30,7 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
 
   lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
 
-  private def getExpiryDate = LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+  private def getExpiryDate: LocalDate = LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
   private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Long, String) = {
     val days = DAYS.between(comparisonDate, expiryDate)
@@ -60,12 +60,12 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
     error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
   }
 
-  private def logCertificate(d: Long, message: String): Unit =
+  private def logCertificate(day: Long, message: String): Unit =
     (expiresToday orElse
       expiresWithin60Days(message) orElse
       expiresWithin90Days(message) orElse
       expiresAfter90Days(message) orElse
-      expired(message))(d)
+      expired(message))(day)
 
   def certificateStatus(date: LocalDate = LocalDate.now()): Boolean = {
     val (day, message) = difference(getExpiryDate, date)
