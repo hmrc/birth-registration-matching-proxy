@@ -50,7 +50,7 @@
 
     <logger name="com.google.inject" level="OFF"/>
 
-    <logger name="akka.event" level="OFF"/>
+    <logger name="org.apache.pekko.event" level="OFF"/>
 
     <logger name="io.netty" level="OFF"/>
 

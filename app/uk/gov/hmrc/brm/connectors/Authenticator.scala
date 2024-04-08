@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
 import uk.gov.hmrc.http.HttpReads.Implicits
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.HttpClient
@@ -28,7 +28,10 @@ import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class Authenticator @Inject() (groConfig: GroAppConfig, certificateStatus: CertificateStatus, val http: HttpClient) {
+class Authenticator @Inject()(groConfig: GroAppConfig,
+                              certificateStatus: CertificateStatus,
+                              val http: HttpClient,
+                              val timeProvider: TimeProvider) {
 
   val username: String                  = groConfig.groUsername
   val password: String                  = groConfig.groPassword
@@ -36,7 +39,7 @@ class Authenticator @Inject() (groConfig: GroAppConfig, certificateStatus: Certi
   val clientSecret: String              = groConfig.groClientSecret
   val grantType: String                 = groConfig.groGrantType
   val endpoint: String                  = groConfig.authenticationServiceUrl + groConfig.authenticationUri
-  val tokenCache: AccessTokenRepository = new AccessTokenRepository
+  val tokenCache: AccessTokenRepository = new AccessTokenRepository(timeProvider)
   val responseHandler: ResponseHandler  = new ResponseHandler
   val errorHandler: ErrorHandler        = new ErrorHandler
 

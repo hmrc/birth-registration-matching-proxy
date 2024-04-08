@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,17 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.joda.time.{DateTime, DateTimeUtils, Seconds}
 import org.mockito.ArgumentMatchers.{any, anyInt, anyString}
 import org.mockito.Mockito._
 import play.api.http.Status
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus}
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit.SECONDS
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -35,7 +36,7 @@ class AuthenticatorSpec extends TestFixture {
   val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
 
   val testAuthenticator =
-    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient)
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider())
 
   val mockResponseHandler: ResponseHandler = mock[ResponseHandler]
   val mockErrorHandler: ErrorHandler       = mock[ErrorHandler]
@@ -43,7 +44,7 @@ class AuthenticatorSpec extends TestFixture {
   implicit val metrics: BRMMetrics         = mock[BRMMetrics]
 
   val testAuthenticatorMockResponseHandler: Authenticator =
-    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient) {
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider()) {
       override val responseHandler: ResponseHandler  = mockResponseHandler
       override val errorHandler: ErrorHandler        = mockErrorHandler
       override val tokenCache: AccessTokenRepository = mock[AccessTokenRepository]
@@ -74,19 +75,25 @@ class AuthenticatorSpec extends TestFixture {
     "saving a new token" should {
 
       "insert a token" in {
-        testAuthenticator.tokenCache.saveToken("new token", DateTime.now.plusDays(2))
+        testAuthenticator.tokenCache.saveToken("new token", ZonedDateTime.now.plusDays(2))
         testAuthenticator.tokenCache.hasToken   shouldBe true
         testAuthenticator.tokenCache.hasExpired shouldBe false
         testAuthenticator.tokenCache.token      shouldBe Success("new token")
       }
 
       "generate new expiry" in {
-        val dateTime   = new DateTime()
-        DateTimeUtils.setCurrentMillisFixed(dateTime.getMillis)
+        val mockTimeProvider = mock[TimeProvider]
+
+        val testAuthenticator =
+          new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, mockTimeProvider)
+
+        val dateTime = ZonedDateTime.now()
+
+        when(mockTimeProvider.now) thenReturn dateTime
+
         val expiryTime = testAuthenticator.tokenCache.newExpiry(100)
         //expiry time shd be less by 60 sec.
-        Seconds.secondsBetween(dateTime, expiryTime).getSeconds shouldBe 40
-        DateTimeUtils.setCurrentMillisSystem()
+        SECONDS.between(dateTime, expiryTime) shouldBe 40
       }
 
       "fail if a GatewayTimeoutException is returned by the post" in {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import akka.actor.ActorSystem
-import org.joda.time.{DateTime, DateTimeUtils}
+import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
@@ -28,12 +27,12 @@ import play.api.libs.json.{JsArray, JsValue}
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils}
-import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils, TimeProvider}
+import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpClient, HttpReads, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
-import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 
+import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -48,7 +47,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
   val mockErrorHandler: ErrorHandler        = mock[ErrorHandler]
 
   val mockAuthenticator: Authenticator =
-    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient) {
+    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider) {
       override val tokenCache: AccessTokenRepository = mockTokenCache
       override val responseHandler: ResponseHandler  = mockResponseHandler
       override val errorHandler: ErrorHandler        = mockErrorHandler
@@ -216,6 +215,15 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
       }
 
       "return exception when certificate has expired" in new AuthenticationFixture {
+
+        val mockTimeProvider = mock[TimeProvider]
+        val mockAuthenticator: Authenticator =
+          new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, mockTimeProvider) {
+            override val tokenCache: AccessTokenRepository = mockTokenCache
+            override val responseHandler: ResponseHandler  = mockResponseHandler
+            override val errorHandler: ErrorHandler        = mockErrorHandler
+          }
+
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
@@ -235,13 +243,12 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           )
 
         // Force LocalDate to something other than now
-        val date = new DateTime(2050: Int, 9: Int, 15: Int, 5: Int, 10: Int, 10: Int)
-        DateTimeUtils.setCurrentMillisFixed(date.getMillis)
+        val date = ZonedDateTime.of(2050, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
+
+        when(mockTimeProvider.now) thenReturn date
 
         testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
         testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
-
-        DateTimeUtils.setCurrentMillisSystem()
       }
 
       "return exception when authentication cache has no access token" in new AuthenticationFixture {
