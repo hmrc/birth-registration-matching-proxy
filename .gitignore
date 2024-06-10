@@ -32,3 +32,6 @@ tmp
 .idea_modules
 bin
 .bsp
+.metals
+.vscode
+conf/cert

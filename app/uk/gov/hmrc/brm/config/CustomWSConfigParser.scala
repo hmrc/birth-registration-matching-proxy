@@ -61,6 +61,7 @@ class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environ
     wsClientConfig
   }
 
+  //TODO remove this below and clean up above after DDCE-5592 5593 and 5594 are complete. Also clean up configs
   /**
     * @return absolute file path with the bytes written to the file
     */
