@@ -86,6 +86,7 @@ class Authenticator @Inject()(groConfig: GroAppConfig,
 
         BirthAccessTokenResponse(token)
       case e @ BirthErrorResponse(_)  =>
+        debug(CLASS_NAME, "saveAccessToken", s"Response from home office: ${response.toString()}")
         warn(CLASS_NAME, "saveAccessToken", "failed to parse response")
         e
     }

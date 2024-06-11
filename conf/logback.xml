@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/birth-registration-matching-proxy.log</file>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
-        </encoder>
-    </appender>
-
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] rid=[%X{X-Request-ID}] user=[%X{Authorization}] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
@@ -17,20 +10,6 @@
     <appender name="STDOUT_IGNORE_NETTY" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] rid=[not-available] user=[not-available] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="ACCESS_LOG_FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/access.log</file>
-        <encoder>
-            <pattern>%message%n</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="CONNECTOR_LOG_FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/connector.log</file>
-        <encoder>
-            <pattern>%message%n</pattern>
         </encoder>
     </appender>
 
@@ -54,8 +33,6 @@
 
     <logger name="io.netty" level="OFF"/>
 
-    <logger name="connector" level="OFF"/>
-
     <logger name="uk.gov">
         <appender-ref ref="STDOUT"/>
     </logger>
@@ -65,9 +42,6 @@
     </logger>
 
     <root level="INFO">
-        <appender-ref ref="FILE"/>
         <appender-ref ref="STDOUT"/>
-        <appender-ref ref="ACCESS_LOG_FILE"/>
-        <appender-ref ref="CONNECTOR_LOG_FILE"/>
     </root>
 </configuration>
