@@ -58,7 +58,7 @@ class Authenticator @Inject()(groConfig: GroAppConfig,
       "grant_type"    -> grantType
     )
 
-    val newHc = hc.withExtraHeaders(("Content-Type" -> "application/x-www-form-urlencoded; charset=ISO-8859-1"))
+    val newHc = hc.withExtraHeaders(("Content-Type" -> "application/x-www-form-urlencoded; charset=utf-8"))
     info(CLASS_NAME, "authenticate", s"requesting authentication token $endpoint")
 
     metrics.requestCount("authentication")
