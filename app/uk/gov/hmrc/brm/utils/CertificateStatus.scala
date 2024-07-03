@@ -30,7 +30,8 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
 
   lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
 
-  private def getExpiryDate: LocalDate = LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+  private def getExpiryDate: LocalDate =
+    LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
   private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Long, String) = {
     val days = DAYS.between(comparisonDate, expiryDate)
