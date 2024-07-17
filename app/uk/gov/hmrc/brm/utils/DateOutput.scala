@@ -27,9 +27,9 @@ object DateOutput {
     val dateOutput = getDurations(period)
 
     def formatTimeField(value: Int, durationType: String): String = value match {
-      case 0 => ""
+      case 0      => ""
       case 1 | -1 => s"$value $durationType"
-      case _ => s"$value ${durationType}s" // plural
+      case _      => s"$value ${durationType}s" // plural
     }
 
     val textWithSingularOrPlural = Seq(
@@ -53,7 +53,7 @@ object DateOutput {
   }
 
   // Count the number of days, weeks, months, and years of a given period
-  def getDurations(initialPeriod: Period): DateOutput =
+  def getDurations(initialPeriod: Period): DateOutput                               =
     (getYears andThen
       getMonths andThen
       getWeeks andThen
@@ -63,28 +63,28 @@ object DateOutput {
     case (period, dateOutput) if period.getYears != 0 =>
       val years = period.getYears
       (period.minusYears(years), dateOutput.copy(years = years))
-    case (period, dateOutput) => (period, dateOutput)
+    case (period, dateOutput)                         => (period, dateOutput)
   }
 
   private def getMonths: PartialFunction[(Period, DateOutput), (Period, DateOutput)] = {
     case (period, dateOutput) if period.getMonths != 0 =>
       val months = period.getMonths
       (period.minusMonths(months), dateOutput.copy(months = months))
-    case (period, dateOutput) => (period, dateOutput)
+    case (period, dateOutput)                          => (period, dateOutput)
   }
 
   private def getWeeks: PartialFunction[(Period, DateOutput), (Period, DateOutput)] = {
     case (period, dateOutput) if period.getDays / 7 != 0 =>
       val numberOfWeeksInDays = (period.getDays / 7) * 7
       (period.minusDays(numberOfWeeksInDays), dateOutput.copy(weeks = numberOfWeeksInDays / 7))
-    case (period, dateOutput) => (period, dateOutput)
+    case (period, dateOutput)                            => (period, dateOutput)
   }
 
   private def getDays: PartialFunction[(Period, DateOutput), (Period, DateOutput)] = {
     case (period, dateOutput) if period.getDays != 0 =>
       val days = period.getDays
       (period.minusDays(days), dateOutput.copy(days = days))
-    case (period, dateOutput) => (period, dateOutput)
+    case (period, dateOutput)                        => (period, dateOutput)
   }
 
 }

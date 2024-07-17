@@ -74,7 +74,8 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return true when current date within 7 days but greater than certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusDays(4: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusDays(4: Int))
       dateStatus shouldBe true
     }
 
@@ -89,27 +90,32 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return true when current date 70 days behind certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusDays(70: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusDays(70: Int))
       dateStatus shouldBe true
     }
 
     "return true when current date one month behind certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(1: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(1: Int))
       dateStatus shouldBe true
     }
 
     "return true when current date 6 months behind certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(6: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(6: Int))
       dateStatus shouldBe true
     }
 
     "return true when current date 10 months behind certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(10: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).minusMonths(10: Int))
       dateStatus shouldBe true
     }
 
     "return false when current date 10 months in front of certificate expiry date" in {
-      val dateStatus = mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).plusMonths(10: Int))
+      val dateStatus =
+        mockCertificateStatus20160219.certificateStatus(LocalDate.parse("2016-02-19", formatter).plusMonths(10: Int))
       dateStatus shouldBe false
     }
 

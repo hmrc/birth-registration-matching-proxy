@@ -24,12 +24,12 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 import javax.inject.Inject
 import scala.util.{Failure, Success, Try}
 
-class AccessTokenRepository @Inject()(val timeProvider: TimeProvider) {
+class AccessTokenRepository @Inject() (val timeProvider: TimeProvider) {
 
-  private var _token: Option[AccessToken] = None
+  private var _token: Option[AccessToken]    = None
   private var _expiry: Option[ZonedDateTime] = None
-  private val _expireSecondsDiff = 60
-  private val CLASS_NAME = this.getClass.getSimpleName
+  private val _expireSecondsDiff             = 60
+  private val CLASS_NAME                     = this.getClass.getSimpleName
 
   private val expiredTokenException = new RuntimeException(s"access_token expired")
 

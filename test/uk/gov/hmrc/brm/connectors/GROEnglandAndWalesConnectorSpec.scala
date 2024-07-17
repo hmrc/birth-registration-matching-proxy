@@ -47,7 +47,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
   val mockErrorHandler: ErrorHandler        = mock[ErrorHandler]
 
   val mockAuthenticator: Authenticator =
-    new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider) {
+    new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
       override val tokenCache: AccessTokenRepository = mockTokenCache
       override val responseHandler: ResponseHandler  = mockResponseHandler
       override val errorHandler: ErrorHandler        = mockErrorHandler
@@ -216,9 +216,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
       "return exception when certificate has expired" in new AuthenticationFixture {
 
-        val mockTimeProvider = mock[TimeProvider]
+        val mockTimeProvider                 = mock[TimeProvider]
         val mockAuthenticator: Authenticator =
-          new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, mockTimeProvider) {
+          new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, mockTimeProvider) {
             override val tokenCache: AccessTokenRepository = mockTokenCache
             override val responseHandler: ResponseHandler  = mockResponseHandler
             override val errorHandler: ErrorHandler        = mockErrorHandler
@@ -242,13 +242,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
             Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
           )
 
-        // Force LocalDate to something other than now
-        val date = ZonedDateTime.of(2050, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
+        // Force LocalDate to the past so cert is expired
+        val date = ZonedDateTime.of(2000, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
 
         when(mockTimeProvider.now) thenReturn date
 
         testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
-        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
+        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe an[Exception]
       }
 
       "return exception when authentication cache has no access token" in new AuthenticationFixture {
