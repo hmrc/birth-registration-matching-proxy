@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import play.api.Configuration
@@ -28,10 +28,11 @@ import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils, TimeProvider}
-import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpClient, HttpReads, HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
+import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing
-import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
 
+import java.net.URL
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,9 +43,12 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
   val mockTokenCache: AccessTokenRepository = mock[AccessTokenRepository]
   val mockWsClient: WSClient                = mock[WSClient]
   val mockAuditing: HttpAuditing            = mock[HttpAuditing]
-  val mockHttpClient: DefaultHttpClient     = mock[DefaultHttpClient]
+  val mockHttpClient: HttpClientV2          = mock[HttpClientV2]
   val mockResponseHandler: ResponseHandler  = mock[ResponseHandler]
   val mockErrorHandler: ErrorHandler        = mock[ErrorHandler]
+  val mockRequestBuilderGet                 = mock[RequestBuilder]
+  val mockRequestBuilderPost                = mock[RequestBuilder]
+  val mockConfiguration: Configuration      = mock[Configuration]
 
   val mockAuthenticator: Authenticator =
     new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
@@ -56,14 +60,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
   val testConnector: GROEnglandAndWalesConnector =
     new GROEnglandAndWalesConnector(
       testGroConfig,
+      mockHttpClient,
       mockAuditing,
       mockWsClient,
       ActorSystem(),
       mockAuthenticator,
-      mock[Configuration]
-    ) {
-      override val http: HttpClient = mockHttpClient
-    }
+      mockConfiguration
+    )
 
   when(mockResponseHandler.handle(any())(any(), any())(any[ExecutionContext]))
     .thenReturn(Future(BirthAccessTokenResponse("some token")))
@@ -88,9 +91,21 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
 
-  before(
-    reset(mockHttpClient)
-  )
+  before {
+    reset(mockHttpClient, mockRequestBuilderGet, mockRequestBuilderPost)
+
+    when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilderPost)
+    when(mockHttpClient.get(any())(any())).thenReturn(mockRequestBuilderGet)
+
+    when(mockRequestBuilderPost.setHeader(any())).thenReturn(mockRequestBuilderPost)
+    when(mockRequestBuilderGet.setHeader(any())).thenReturn(mockRequestBuilderGet)
+
+    when(mockRequestBuilderGet.withProxy).thenReturn(mockRequestBuilderGet)
+    when(mockRequestBuilderPost.withProxy).thenReturn(mockRequestBuilderPost)
+
+    when(mockRequestBuilderPost.withBody(any())(any(), any(), any())).thenReturn(mockRequestBuilderPost)
+
+  }
 
   trait AuthenticationFixture {
 
@@ -110,14 +125,6 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   "BirthConnector" when {
 
-    "initialising" should {
-
-      "having correct configurations" in {
-        testConnector.authenticator shouldBe a[Authenticator]
-        testConnector.http          shouldBe a[HttpClient]
-      }
-    }
-
     "parsing json" should {
 
       "throw Upstream5xxResponse for invalid json" in new AuthenticationFixture {
@@ -125,18 +132,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse: HttpResponse = eventResponseWithStatus(Status.OK, "[something]")
 
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val birthErrorResponse: BirthErrorResponse = result.asInstanceOf[BirthErrorResponse]
@@ -150,6 +152,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
@@ -157,17 +160,16 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
             mock[Configuration]
           ) {
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
           }
 
         val authResponse: HttpResponse = buildResponse(Status.BAD_REQUEST)
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
           .thenReturn(Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.NOT_FOUND))))
 
@@ -183,35 +185,35 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
         val authResponse: HttpResponse = buildResponse(Status.BAD_REQUEST)
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
           .thenReturn(
             Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
           )
 
         testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
+
         testConnector
           .getReference(refNumber)
           .futureValue
           .asInstanceOf[BirthErrorResponse]
-          .cause                                          shouldBe a[UpstreamErrorResponse]
+          .cause shouldBe a[UpstreamErrorResponse]
       }
 
       "return exception when certificate has expired" in new AuthenticationFixture {
@@ -227,13 +229,14 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -255,13 +258,14 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
@@ -270,13 +274,12 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           )
 
         val authResponse: HttpResponse = buildResponse(Status.OK)
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
         testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
       }
@@ -285,13 +288,14 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
         when(testConnector.responseHandler.handle(any())(any(), any())(any()))
@@ -306,11 +310,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse: HttpResponse = eventResponseWithStatus(Status.OK, json)
 
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
@@ -320,14 +321,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
       "BirthSuccessResponse when authenticator has valid token" in new AuthenticationFixture {
         when(mockTokenCache.token).thenReturn(Success("token"))
         val eventResponse: HttpResponse = eventSuccessResponse(groResponse(refNumber))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
-        val response: BirthResponse     = testConnector.getReference(refNumber).futureValue
+
+        val response: BirthResponse = testConnector.getReference(refNumber).futureValue
         response shouldBe a[BirthSuccessResponse[_]]
       }
 
@@ -342,19 +342,15 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse = eventSuccessResponse(groResponse(refNumber))
 
         when(mockTokenCache.token).thenReturn(Success("token"))
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getReference(refNumber).futureValue
@@ -370,18 +366,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getReference("500037654675710").futureValue
@@ -395,19 +386,15 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse                = eventResponseWithStatus(Status.BAD_REQUEST, "")
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getReference(refNumber).futureValue
@@ -421,18 +408,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse                = eventResponseWithStatus(Status.INTERNAL_SERVER_ERROR, "")
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getReference(refNumber).futureValue
@@ -446,13 +428,14 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -461,19 +444,15 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val eventResponse                = eventResponseWithStatus(Status.INTERNAL_SERVER_ERROR, "")
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
+
         when(
           testConnector.responseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(any[ExecutionContext])
         )
@@ -498,30 +477,28 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam"))
 
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
 
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
+
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
+
         result                                                                               shouldBe a[BirthSuccessResponse[_]]
         result                                                                               shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size                   shouldBe 2
         metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count").getCount shouldBe 1
-        argumentCapture.getValue                                                             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                                    shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthSuccessResponse when gro details responds with 200 with single record when request has special character." in {
@@ -534,29 +511,25 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
 
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
 
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                                             shouldBe a[BirthSuccessResponse[_]]
         result                                                             shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
-        argumentCapture.getValue                                           shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
 
       }
 
@@ -570,28 +543,25 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val authResponse  = authSuccessResponse(authRecord)
         val eventResponse = eventSuccessResponse(groResponse("NoMatch"))
 
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
+
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                                             shouldBe a[BirthSuccessResponse[_]]
         result                                                             shouldBe BirthSuccessResponse(groResponse("NoMatch"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
-        argumentCapture.getValue                                           shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
@@ -603,28 +573,24 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         val authResponse = authSuccessResponse(authRecord)
 
-        val eventResponse                           = HttpResponse.apply(Status.BAD_REQUEST, "forenames or forename1 is required")
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val eventResponse                        = HttpResponse.apply(Status.BAD_REQUEST, "forenames or forename1 is required")
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
@@ -636,28 +602,26 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         val authResponse = authSuccessResponse(authRecord)
 
-        val eventResponse                           = HttpResponse.apply(Status.BAD_REQUEST, "Must provide lastname parameter")
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val eventResponse                        = HttpResponse.apply(Status.BAD_REQUEST, "Must provide lastname parameter")
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
         when(mockTokenCache.token).thenReturn(Success("token"))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
+
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
+
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
@@ -667,31 +631,28 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val lastName    = "smith"
         val dateOfBirth = ""
 
-        val authResponse                            = authSuccessResponse(authRecord)
-        val eventResponse                           =
+        val authResponse                         = authSuccessResponse(authRecord)
+        val eventResponse                        =
           Future.successful(HttpResponse.apply(Status.BAD_REQUEST, "Must provide date of birth parameter"))
-        val argumentCapture: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
+
         when(mockTokenCache.token).thenReturn(Success("token"))
+
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](argumentCapture.capture, any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(eventResponse)
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
+        verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue                      shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
       }
 
       "BirthErrorResponse when GRO returns 5xx" in {
@@ -706,26 +667,19 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(authResponse))
+
         when(
-          testConnector.http.GET[HttpResponse](any(), any(), any())(
-            any[HttpReads[HttpResponse]],
-            any[HeaderCarrier],
-            any[ExecutionContext]
-          )
+          mockRequestBuilderGet
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-        verify(testConnector.http, times(1)).GET[HttpResponse](any(), any(), any())(
-          any[HttpReads[HttpResponse]],
-          any[HeaderCarrier],
-          any[ExecutionContext]
-        )
+
+        verify(mockRequestBuilderGet, times(1))
+          .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
 
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
@@ -735,13 +689,14 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val testConnector: GROEnglandAndWalesConnector =
           new GROEnglandAndWalesConnector(
             testGroConfig,
+            mockHttpClient,
             mockAuditing,
             mockWsClient,
             ActorSystem(),
             mockAuthenticator,
             mock[Configuration]
           ) {
-            override val http: HttpClient                 = mockHttpClient
+            override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
 
@@ -760,13 +715,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         when(testConnector.authenticator.tokenCache.token).thenReturn(Failure(new RuntimeException))
         when(
-          testConnector.authenticator.http.POSTForm[HttpResponse](
-            eqTo(refNumber),
-            eqTo(testCredentials),
-            eqTo(testHeaders)
-          )(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
-        )
-          .thenReturn(Future.successful(authResponse))
+          mockRequestBuilderPost
+            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
+        ).thenReturn(Future.successful(authResponse))
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
 

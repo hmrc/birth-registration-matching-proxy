@@ -26,7 +26,7 @@ import play.api.mvc.ControllerComponents
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.brm.connectors.{GROEnglandAndWalesConnector, _}
+import uk.gov.hmrc.brm.connectors._
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.JsonUtils
 import uk.gov.hmrc.brm.utils.ResponseHelper._
