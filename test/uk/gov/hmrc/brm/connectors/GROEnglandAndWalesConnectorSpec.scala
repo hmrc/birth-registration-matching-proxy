@@ -16,12 +16,10 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
-import play.api.Configuration
 import play.api.http.Status
 import play.api.libs.json.{JsArray, JsValue}
 import play.api.libs.ws.WSClient
@@ -48,7 +46,6 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
   val mockErrorHandler: ErrorHandler        = mock[ErrorHandler]
   val mockRequestBuilderGet                 = mock[RequestBuilder]
   val mockRequestBuilderPost                = mock[RequestBuilder]
-  val mockConfiguration: Configuration      = mock[Configuration]
 
   val mockAuthenticator: Authenticator =
     new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
@@ -61,11 +58,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
     new GROEnglandAndWalesConnector(
       testGroConfig,
       mockHttpClient,
-      mockAuditing,
-      mockWsClient,
-      ActorSystem(),
-      mockAuthenticator,
-      mockConfiguration
+      mockAuthenticator
     )
 
   when(mockResponseHandler.handle(any())(any(), any())(any[ExecutionContext]))
@@ -153,11 +146,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
             override val http: HttpClientV2               = mockHttpClient
@@ -186,11 +175,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
           }
@@ -230,11 +215,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
@@ -259,11 +240,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
@@ -289,11 +266,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
@@ -429,11 +402,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]
@@ -690,11 +659,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           new GROEnglandAndWalesConnector(
             testGroConfig,
             mockHttpClient,
-            mockAuditing,
-            mockWsClient,
-            ActorSystem(),
-            mockAuthenticator,
-            mock[Configuration]
+            mockAuthenticator
           ) {
             override val http: HttpClientV2               = mockHttpClient
             override val responseHandler: ResponseHandler = mock[ResponseHandler]

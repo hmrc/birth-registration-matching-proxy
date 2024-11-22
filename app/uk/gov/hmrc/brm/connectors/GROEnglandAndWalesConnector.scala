@@ -16,36 +16,21 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.apache.pekko.actor.ActorSystem
-import play.api.Configuration
-import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
-import uk.gov.hmrc.brm.http.ProxyEnabledHttpClient
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger.{error, _}
-import uk.gov.hmrc.http.HttpReads.Implicits
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpClient, HttpResponse, UpstreamErrorResponse}
-import uk.gov.hmrc.play.audit.http.HttpAuditing
+import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
 class GROEnglandAndWalesConnector @Inject() (
   groConfig: GroAppConfig,
-  httpAuditing: HttpAuditing,
-  wsClient: WSClient,
-  system: ActorSystem,
-  val authenticator: Authenticator,
-  configuration: Configuration
+  val http: HttpClientV2,
+  val authenticator: Authenticator
 ) {
-
-  val http: HttpClient = new ProxyEnabledHttpClient(
-    configuration,
-    httpAuditing,
-    wsClient,
-    system
-  )
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
@@ -79,12 +64,11 @@ class GROEnglandAndWalesConnector @Inject() (
 
     val startTime = metrics.startTimer()
 
-    val response = http.GET(s"$endpoint/$reference", Seq.empty[(String, String)], headers)(
-      rds = Implicits.readRaw,
-      hc,
-      ec
-    )
-
+    val response = http
+      .get(url"$endpoint/$reference")
+      .withProxy
+      .setHeader(headers: _*)
+      .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
     metrics.endTimer(startTime, "reference-match-timer")
 
     responseHandler.handle(response)(extractJson, metrics)
@@ -106,12 +90,11 @@ class GROEnglandAndWalesConnector @Inject() (
     val url       = s"$endpoint?$query"
 
     debug(CLASS_NAME, "getChildByDetails", s"query: $url")
-
-    val response = http.GET(url, Seq.empty[(String, String)], headers)(
-      rds = Implicits.readRaw,
-      hc,
-      ec
-    )
+    val response = http
+      .get(url"$url")
+      .withProxy
+      .setHeader(headers: _*)
+      .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
 
     debug(CLASS_NAME, "getChildByDetails", s"HttpResponse: $response")
 
