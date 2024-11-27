@@ -62,10 +62,11 @@ class GROEnglandAndWalesConnector @Inject() (
     debug(CLASS_NAME, "getChildByReference", s"$endpoint/$reference headers: $headers ${hc.extraHeaders}")
     info(CLASS_NAME, "getChildByReference", s"requesting child's details $endpoint")
 
+    val fullUrl = s"$endpoint/$reference"
     val startTime = metrics.startTimer()
 
     val response = http
-      .get(url"$endpoint/$reference")
+      .get(url"$fullUrl")
       .withProxy
       .setHeader(headers: _*)
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
