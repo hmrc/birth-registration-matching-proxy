@@ -19,11 +19,12 @@ package uk.gov.hmrc.brm.connectors
 import org.mockito.ArgumentMatchers.{any, anyInt, anyString}
 import org.mockito.Mockito._
 import play.api.http.Status
+import play.api.libs.json.JsObject
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.http.DefaultHttpClient
+import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
@@ -33,7 +34,8 @@ import scala.util.{Failure, Success}
 
 class AuthenticatorSpec extends TestFixture {
 
-  val mockHttpClient: DefaultHttpClient = mock[DefaultHttpClient]
+  val mockHttpClient: HttpClientV2 = mock[HttpClientV2]
+  val mockRequestBuilder           = mock[RequestBuilder]
 
   val testAuthenticator =
     new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider())
@@ -50,13 +52,10 @@ class AuthenticatorSpec extends TestFixture {
       override val tokenCache: AccessTokenRepository = mock[AccessTokenRepository]
     }
 
-  when(
-    mockHttpClient.POSTForm[HttpResponse](anyString(), any[Map[String, Seq[String]]], any[Seq[(String, String)]])(
-      any[HttpReads[HttpResponse]],
-      any[HeaderCarrier],
-      any[ExecutionContext]
-    )
-  ).thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
+  when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilder)
+  when(mockRequestBuilder.withBody(any[JsObject])(any(), any(), any())).thenReturn(mockRequestBuilder)
+  when(mockRequestBuilder.execute[HttpResponse](any(), any()))
+    .thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
   doNothing().when(metrics).requestCount(any())
   when(metrics.startTimer()).thenReturn(1L)
   doNothing().when(metrics).endTimer(any(), any())

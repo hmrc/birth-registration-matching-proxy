@@ -20,11 +20,9 @@ import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
-import uk.gov.hmrc.http.HttpReads.Implicits
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
-import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 
-import java.time.LocalDate
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -32,7 +30,7 @@ import scala.util.{Failure, Success}
 class Authenticator @Inject() (
   groConfig: GroAppConfig,
   certificateStatus: CertificateStatus,
-  val http: HttpClient,
+  val http: HttpClientV2,
   val timeProvider: TimeProvider
 ) {
 
@@ -68,10 +66,10 @@ class Authenticator @Inject() (
 
     val startTime = metrics.startTimer()
 
-    val response: Future[HttpResponse] = http.POSTForm[HttpResponse](
-      url = endpoint,
-      body = credentials.map(cred => cred._1 -> Seq(cred._2))
-    )(rds = Implicits.readRaw, newHc, ec)
+    val response: Future[HttpResponse] = http
+      .post(url"$endpoint")(newHc)
+      .withBody(credentials.map(cred => cred._1 -> Seq(cred._2)))
+      .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
 
     metrics.endTimer(startTime, "authentication-timer")
 
