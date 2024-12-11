@@ -68,6 +68,7 @@ class Authenticator @Inject() (
 
     val response: Future[HttpResponse] = http
       .post(url"$endpoint")(newHc)
+      .withProxy
       .withBody(credentials.map(cred => cred._1 -> Seq(cred._2)))
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
 
