@@ -54,6 +54,7 @@ class AuthenticatorSpec extends TestFixture {
 
   when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilder)
   when(mockRequestBuilder.withBody(any[JsObject])(any(), any(), any())).thenReturn(mockRequestBuilder)
+  when(mockRequestBuilder.withProxy).thenReturn(mockRequestBuilder)
   when(mockRequestBuilder.execute[HttpResponse](any(), any()))
     .thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
   doNothing().when(metrics).requestCount(any())
