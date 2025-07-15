@@ -16,41 +16,37 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
 
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.security.KeyStore
+import java.security.cert.Certificate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 class CertificateStatusSpec extends TestFixture {
 
-  val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+  val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
   val mockCertificateStatusValidExpiryDate = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDate.now().plusDays(100))
   }
-
-  val mockCertificateStatusToday = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusToday           = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDate.now())
   }
-
-  val mockCertificateStatusWithin60 = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin60        = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDate.now().plusDays(30))
   }
-
-  val mockCertificateStatusWithin90 = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin90        = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDate.now().plusDays(75))
   }
-
-  val mockCertificateStatusExpired = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusExpired         = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDate.now().minusDays(10))
   }
-
-  val mockCertificateStatusNone = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusNone            = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = None
   }
 
@@ -81,13 +77,13 @@ class CertificateStatusSpec extends TestFixture {
       status.extractExpiryDateFromCertificate() shouldBe None
     }
 
-    "return some(date) if keystore path is valid" in {
+    "return Some(date) if keystore path is valid" in {
       val config = real[GroAppConfig]
       val status = new CertificateStatus(config)
       status.extractExpiryDateFromCertificate() should not be empty
     }
 
-    "return None when keystore contains a certificate that is not an X509Certificate" in {
+    "return None when keystore contains no certificates (empty keystore)" in {
       val password = "password"
       val keyStore = KeyStore.getInstance("PKCS12")
       keyStore.load(null, null)
@@ -107,6 +103,22 @@ class CertificateStatusSpec extends TestFixture {
       result shouldBe None
 
       tempFile.delete()
+    }
+
+    "return None when keystore contains a certificate that is NOT an X509Certificate" in {
+      val fakeCertificate = mock[Certificate]
+
+      val dummyConfig = mock[GroAppConfig]
+      when(dummyConfig.tlsPrivateCertificatePath).thenReturn("dummyPath")
+      when(dummyConfig.tlsPrivateKeystorePassword).thenReturn("dummyPassword")
+
+      val certStatus = new CertificateStatus(dummyConfig) {
+        override def loadCertificates(): List[Certificate] = List(fakeCertificate)
+      }
+
+      val result = certStatus.extractExpiryDateFromCertificate()
+
+      result shouldBe None
     }
 
     "return false if getExpiryDate is None" in {
@@ -147,12 +159,5 @@ class CertificateStatusSpec extends TestFixture {
       customStatus.certificateStatus(LocalDate.now()) shouldBe false
     }
 
-    "return true when current date is exactly expiry date" in {
-      val customStatus = new CertificateStatus(testGroConfig) {
-        override lazy val getExpiryDate = Some(LocalDate.now())
-      }
-      customStatus.certificateStatus(LocalDate.now()) shouldBe true
-    }
   }
-
 }

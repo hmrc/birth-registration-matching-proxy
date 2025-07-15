@@ -21,13 +21,14 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import java.io.FileInputStream
 import java.security.KeyStore
-import java.security.cert.X509Certificate
+import java.security.cert.{Certificate, X509Certificate}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit.DAYS
 import java.time.{LocalDate, Period, ZoneId}
 import javax.inject.Inject
+import scala.collection.mutable.ListBuffer
 
-class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
+class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends CertificateProvider {
 
   lazy val getExpiryDate: Option[LocalDate] = extractExpiryDateFromCertificate()
 
@@ -36,33 +37,41 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
-  def extractExpiryDateFromCertificate(): Option[LocalDate] = {
-    info(CLASS_NAME, "extractExpiryDateFromCertificate", "start")
-    var fis: FileInputStream = null
+  override def loadCertificates(): List[Certificate] = {
+    val keyStore = KeyStore.getInstance("PKCS12")
+    val fis      = new FileInputStream(groConfig.tlsPrivateCertificatePath)
     try {
-      val keyStore = KeyStore.getInstance("PKCS12")
-      fis = new FileInputStream(groConfig.tlsPrivateCertificatePath)
       keyStore.load(fis, groConfig.tlsPrivateKeystorePassword.toCharArray)
-
+      val certs   = ListBuffer[Certificate]()
       val aliases = keyStore.aliases()
       while (aliases.hasMoreElements) {
         val alias = aliases.nextElement()
-        keyStore.getCertificate(alias) match {
-          case x509: X509Certificate =>
-            val expiryDateFromFile = x509.getNotAfter
-            val expiryDateLocal    = expiryDateFromFile.toInstant
-              .atZone(ZoneId.systemDefault())
-              .toLocalDate
-            info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $expiryDateLocal")
-            return Some(expiryDateLocal)
-        }
+        certs += keyStore.getCertificate(alias)
+      }
+      certs.toList
+    } finally fis.close()
+  }
+
+  def extractExpiryDateFromCertificate(): Option[LocalDate] = {
+    info(CLASS_NAME, "extractExpiryDateFromCertificate", "start")
+
+    try {
+      val certs = loadCertificates()
+      certs.foreach {
+        case x509: X509Certificate =>
+          val expiryDate = x509.getNotAfter
+          val localDate  = expiryDate.toInstant.atZone(ZoneId.systemDefault()).toLocalDate
+          info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDate")
+          return Some(localDate)
+        case _                     =>
+          error(CLASS_NAME, "extractExpiryDateFromCertificate", "Non-X509 certificate found")
+          throw new Exception("failed to get certificate")
       }
     } catch {
       case e: Exception =>
         error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Exception occurred: ${e.getMessage}")
-    } finally if (fis != null) {
-      fis.close()
     }
+
     None
   }
 
