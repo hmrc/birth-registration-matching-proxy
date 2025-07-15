@@ -19,19 +19,52 @@ package uk.gov.hmrc.brm.utils
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
+import java.io.FileInputStream
+import java.security.KeyStore
+import java.security.cert.X509Certificate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit.DAYS
-import java.time.{LocalDate, Period}
+import java.time.{LocalDate, Period, ZoneId}
 import javax.inject.Inject
 
 class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
 
+  lazy val getExpiryDate: Option[LocalDate] = extractExpiryDateFromCertificate()
+
+  lazy val certificateExpiryDate: String =
+    getExpiryDate.getOrElse(LocalDate.MIN).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
-  lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
+  def extractExpiryDateFromCertificate(): Option[LocalDate] = {
+    info(CLASS_NAME, "extractExpiryDateFromCertificate", "start")
+    var fis: FileInputStream = null
+    try {
+      val keyStore = KeyStore.getInstance("PKCS12")
+      fis = new FileInputStream(groConfig.tlsPrivateCertificatePath)
+      keyStore.load(fis, groConfig.tlsPrivateKeystorePassword.toCharArray)
 
-  private def getExpiryDate: LocalDate =
-    LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+      val aliases = keyStore.aliases()
+      while (aliases.hasMoreElements) {
+        val alias = aliases.nextElement()
+        keyStore.getCertificate(alias) match {
+          case x509: X509Certificate =>
+            val expiryDateFromFile = x509.getNotAfter
+            val expiryDateLocal    = expiryDateFromFile.toInstant
+              .atZone(ZoneId.systemDefault())
+              .toLocalDate
+            info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $expiryDateLocal")
+            return Some(expiryDateLocal)
+        }
+      }
+    } catch {
+      case e: Exception =>
+        error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Exception occurred: ${e.getMessage}")
+    } finally if (fis != null) {
+      fis.close()
+    }
+    None
+  }
 
   private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Long, String) = {
     val days = DAYS.between(comparisonDate, expiryDate)
@@ -68,10 +101,12 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
       expiresAfter90Days(message) orElse
       expired(message))(day)
 
-  def certificateStatus(date: LocalDate = LocalDate.now()): Boolean = {
-    val (day, message) = difference(getExpiryDate, date)
-    logCertificate(day, message)
-    day >= 0
-  }
-
+  def certificateStatus(date: LocalDate = LocalDate.now()): Boolean =
+    if (getExpiryDate.isDefined) {
+      val (day, message) = difference(getExpiryDate.get, date)
+      logCertificate(day, message)
+      day >= 0
+    } else {
+      false
+    }
 }
