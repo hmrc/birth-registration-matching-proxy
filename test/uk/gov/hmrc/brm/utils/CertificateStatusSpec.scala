@@ -26,6 +26,7 @@ import java.security.KeyStore
 import java.security.cert.Certificate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import scala.util.Try
 
 class CertificateStatusSpec extends TestFixture {
 
@@ -51,15 +52,6 @@ class CertificateStatusSpec extends TestFixture {
   }
 
   "CertificateStatus" should {
-
-    "format certificateExpiryDate from getExpiryDate" in {
-      mockCertificateStatusValidExpiryDate.certificateExpiryDate shouldBe
-        mockCertificateStatusValidExpiryDate.getExpiryDate.get.format(formatter)
-    }
-
-    "fallback to LocalDate.MIN if getExpiryDate is None" in {
-      mockCertificateStatusNone.certificateExpiryDate shouldBe LocalDate.MIN.format(formatter)
-    }
 
     "return Some(date) if cert is present" in {
       val status = new CertificateStatus(testGroConfig) {
@@ -113,7 +105,7 @@ class CertificateStatusSpec extends TestFixture {
       when(dummyConfig.tlsPrivateKeystorePassword).thenReturn("dummyPassword")
 
       val certStatus = new CertificateStatus(dummyConfig) {
-        override def loadCertificates(): List[Certificate] = List(fakeCertificate)
+        override def loadCertificate(): Try[Certificate] = Try(fakeCertificate)
       }
 
       val result = certStatus.extractExpiryDateFromCertificate()

@@ -17,7 +17,8 @@
 package uk.gov.hmrc.brm.utils
 
 import java.security.cert.Certificate
+import scala.util.Try
 
 trait CertificateProvider {
-  def loadCertificates(): List[Certificate]
+  def loadCertificate(): Try[Certificate]
 }
