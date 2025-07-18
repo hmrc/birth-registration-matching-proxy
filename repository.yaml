@@ -6,3 +6,7 @@ leakDetectionExemptions:
   - ruleId: 'filename_private_key_1'
     filePaths:
       - '/conf/cert/certificate.p12'
+
+  - ruleId: 'filename_private_key_2'
+    filePaths:
+      - '/path/to/old/expired_cert.p12'
