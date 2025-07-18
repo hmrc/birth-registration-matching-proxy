@@ -16,12 +16,15 @@
 
 package uk.gov.hmrc.brm.utils
 
+import com.typesafe.config.ConfigFactory
 import org.mockito.Mockito._
+import play.api.Configuration
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.io.FileOutputStream
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 import java.security.KeyStore
 import java.security.cert.Certificate
 import java.time.LocalDate
@@ -149,6 +152,43 @@ class CertificateStatusSpec extends TestFixture {
         override lazy val getExpiryDate = Some(LocalDate.now().minusDays(5))
       }
       customStatus.certificateStatus(LocalDate.now()) shouldBe false
+    }
+
+  }
+
+  "checks with actual certificates" should {
+
+    val config = mock[GroAppConfig]
+
+    val groAppConfigLoad =
+      new GroAppConfig(new ServicesConfig(Configuration(ConfigFactory.load()))) //read the props from the app.conf
+
+    when(config.tlsPrivateKeystorePassword).thenReturn(groAppConfigLoad.tlsPrivateKeystorePassword)
+
+    "extractExpiryDateFromCertificate should return a date for a valid certificate" in {
+
+      when(config.tlsPrivateCertificatePath).thenReturn(groAppConfigLoad.tlsPrivateCertificatePath)
+
+      val certStatus = new CertificateStatus(config)
+
+      val result = certStatus.extractExpiryDateFromCertificate()
+
+      result should not be empty
+
+      result.get.isAfter(LocalDate.now()) shouldBe true
+    }
+
+    "extractExpiryDateFromCertificate should return a past date or be considered invalid for expired certificate" in {
+      val certPath = Paths.get("test/resources/certificate-expired.p12").toAbsolutePath.toString
+
+      when(config.tlsPrivateCertificatePath).thenReturn(certPath)
+
+      val certStatus = new CertificateStatus(config)
+
+      val result = certStatus.extractExpiryDateFromCertificate()
+
+      result                                 should not be empty
+      result.get.isBefore(LocalDate.now()) shouldBe true
     }
 
   }
