@@ -57,10 +57,10 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends Certific
         info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDate")
         Some(localDate)
       case Success(cert)                         =>
-        error(CLASS_NAME, "", s"Error loading cert, cert was of type: ${cert.getType}")
+        error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert, cert was of type: ${cert.getType}")
         None
       case Failure(exception)                    =>
-        error(CLASS_NAME, "", s"Error loading cert $exception ")
+        error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert $exception ")
         None
     }
   }

@@ -75,7 +75,7 @@ class CertificateStatusSpec extends TestFixture {
     "return Some(date) if keystore path is valid" in {
       val config = real[GroAppConfig]
       val status = new CertificateStatus(config)
-      status.extractExpiryDateFromCertificate() should not be empty
+      status.getExpiryDate should not be empty
     }
 
     "return None when keystore contains no certificates (empty keystore)" in {
