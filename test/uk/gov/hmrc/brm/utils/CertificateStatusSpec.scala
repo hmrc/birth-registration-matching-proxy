@@ -27,7 +27,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
 import java.security.KeyStore
 import java.security.cert.Certificate
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import scala.util.Try
 
@@ -36,19 +36,19 @@ class CertificateStatusSpec extends TestFixture {
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
   val mockCertificateStatusValidExpiryDate = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDate.now().plusDays(100))
+    override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(100))
   }
   val mockCertificateStatusToday           = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDate.now())
+    override lazy val getExpiryDate = Some(LocalDateTime.now())
   }
   val mockCertificateStatusWithin60        = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDate.now().plusDays(30))
+    override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(30))
   }
   val mockCertificateStatusWithin90        = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDate.now().plusDays(75))
+    override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(75))
   }
   val mockCertificateStatusExpired         = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDate.now().minusDays(10))
+    override lazy val getExpiryDate = Some(LocalDateTime.now().minusDays(10))
   }
   val mockCertificateStatusNone            = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = None
@@ -58,7 +58,7 @@ class CertificateStatusSpec extends TestFixture {
 
     "return Some(date) if cert is present" in {
       val status = new CertificateStatus(testGroConfig) {
-        override def extractExpiryDateFromCertificate(): Option[LocalDate] = Some(LocalDate.now().plusDays(30))
+        override def extractExpiryDateFromCertificate(): Option[LocalDateTime] = Some(LocalDateTime.now().plusDays(30))
       }
       status.extractExpiryDateFromCertificate() should not be empty
     }
@@ -125,7 +125,10 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return true and log EXPIRES_TODAY if cert expires today" in {
-      mockCertificateStatusToday.certificateStatus() shouldBe true
+      val customStatus = new CertificateStatus(testGroConfig) {
+        override lazy val getExpiryDate = Some(LocalDateTime.now().plusHours(2))
+      }
+      customStatus.certificateStatus() shouldBe true
     }
 
     "return true and log EXPIRES_WITHIN 60 days" in {
@@ -142,16 +145,16 @@ class CertificateStatusSpec extends TestFixture {
 
     "return true when current date is earlier than expiry" in {
       val customStatus = new CertificateStatus(testGroConfig) {
-        override lazy val getExpiryDate = Some(LocalDate.now().plusDays(10))
+        override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(10))
       }
-      customStatus.certificateStatus(LocalDate.now()) shouldBe true
+      customStatus.certificateStatus() shouldBe true
     }
 
     "return false when current date is later than expiry" in {
       val customStatus = new CertificateStatus(testGroConfig) {
-        override lazy val getExpiryDate = Some(LocalDate.now().minusDays(5))
+        override lazy val getExpiryDate = Some(LocalDateTime.now().minusDays(5))
       }
-      customStatus.certificateStatus(LocalDate.now()) shouldBe false
+      customStatus.certificateStatus() shouldBe false
     }
 
   }
@@ -175,7 +178,7 @@ class CertificateStatusSpec extends TestFixture {
 
       result should not be empty
 
-      result.get.isAfter(LocalDate.now()) shouldBe true
+      result.get.isAfter(LocalDateTime.now()) shouldBe true
     }
 
     "extractExpiryDateFromCertificate should return a past date or be considered invalid for expired certificate" in {
@@ -187,8 +190,8 @@ class CertificateStatusSpec extends TestFixture {
 
       val result = certStatus.extractExpiryDateFromCertificate()
 
-      result                                 should not be empty
-      result.get.isBefore(LocalDate.now()) shouldBe true
+      result                                     should not be empty
+      result.get.isBefore(LocalDateTime.now()) shouldBe true
     }
 
   }
