@@ -38,27 +38,27 @@ class CertificateStatusSpec extends TestFixture {
   val mockCertificateStatusValidExpiryDate = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(100))
   }
-  val mockCertificateStatusToday = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusToday           = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDateTime.now())
   }
-  val mockCertificateStatusWithin60 = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin60        = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(30))
   }
-  val mockCertificateStatusWithin90 = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin90        = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(75))
   }
-  val mockCertificateStatusExpired = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusExpired         = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().minusDays(10))
   }
-  val mockCertificateStatusNone = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusNone            = new CertificateStatus(testGroConfig) {
     override lazy val getExpiryDate = None
   }
 
   "CertificateStatus" should {
 
     "return Some(date) if cert is present" in {
-      val date = Some(LocalDateTime.now().plusDays(30))
-      val status = new CertificateStatus(testGroConfig) {
+      val date       = Some(LocalDateTime.now().plusDays(30))
+      val status     = new CertificateStatus(testGroConfig) {
         override def extractExpiryDateFromCertificate(): Option[LocalDateTime] = date
       }
       val expiryDate = status.extractExpiryDateFromCertificate()
@@ -87,7 +87,7 @@ class CertificateStatusSpec extends TestFixture {
       keyStore.load(null, null)
 
       val tempFile = Files.createTempFile("emptyKeystore", ".p12").toFile
-      val fos = new FileOutputStream(tempFile)
+      val fos      = new FileOutputStream(tempFile)
       keyStore.store(fos, password.toCharArray)
       fos.close()
 
@@ -96,7 +96,7 @@ class CertificateStatusSpec extends TestFixture {
       when(mockConfig.tlsPrivateKeystorePassword).thenReturn(password)
 
       val certStatus = new CertificateStatus(mockConfig)
-      val result = certStatus.extractExpiryDateFromCertificate()
+      val result     = certStatus.extractExpiryDateFromCertificate()
 
       result shouldBe None
 
@@ -193,7 +193,7 @@ class CertificateStatusSpec extends TestFixture {
 
       val result = certStatus.extractExpiryDateFromCertificate()
 
-      result should not be empty
+      result                                     should not be empty
       result.get.isBefore(LocalDateTime.now()) shouldBe true
     }
 
