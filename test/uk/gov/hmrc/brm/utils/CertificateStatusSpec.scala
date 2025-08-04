@@ -181,7 +181,7 @@ class CertificateStatusSpec extends TestFixture {
 
       result should not be empty
 
-      result.get.isAfter(LocalDateTime.now()) shouldBe true
+      assert(result.get.isEqual(LocalDateTime.parse("2055-07-11T13:47:42")))
     }
 
     "extractExpiryDateFromCertificate should return a past date or be considered invalid for expired certificate" in {

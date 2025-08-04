@@ -44,8 +44,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystorePassword: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystorePassword")
   lazy val tlsEnabled: Boolean                = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
-  lazy val certificate_expires_in_90_days = servicesConfig.getInt("certificate_expires_in_90_days")
-  lazy val certificate_expires_in_60_days = servicesConfig.getInt("certificate_expires_in_60_days")
-
+  lazy val certExpiryCriticalThreshold = servicesConfig.getInt("certExpiryCriticalThreshold")
+  lazy val certExpiryWarningThreshold  = servicesConfig.getInt("certExpiryWarningThreshold")
 
 }
