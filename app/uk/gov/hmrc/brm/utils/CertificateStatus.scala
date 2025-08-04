@@ -54,7 +54,7 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends Certific
     loadCertificate() match {
       case Success(certificate: X509Certificate) =>
         val expiryDate    = certificate.getNotAfter
-        val localDateTime = expiryDate.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+        val localDateTime = expiryDate.toInstant.atZone(ZoneId.of("UTC")).toLocalDateTime
         info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDateTime")
         Some(localDateTime)
       case Success(cert)                         =>
