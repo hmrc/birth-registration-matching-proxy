@@ -72,13 +72,13 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends Certific
     val durationMessage       = DateOutput.formatDurations(Period.between(LocalDate.now(), certificateExpiryDate))
     val formatter             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
-    if (daysTillExpiry > groConfig.certExpiryCriticalThreshold) {
+    if (daysTillExpiry > groConfig.certExpiryWarningThreshold) {
       info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $durationMessage ($certificateExpiryDate)")
     } else if (
-      daysTillExpiry > groConfig.certExpiryWarningThreshold && daysTillExpiry <= groConfig.certExpiryCriticalThreshold
+      daysTillExpiry > groConfig.certExpiryCriticalThreshold && daysTillExpiry <= groConfig.certExpiryWarningThreshold
     ) {
       warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)")
-    } else if (daysTillExpiry > 0 && daysTillExpiry <= groConfig.certExpiryWarningThreshold) {
+    } else if (daysTillExpiry > 0 && daysTillExpiry <= groConfig.certExpiryCriticalThreshold) {
       error(
         CLASS_NAME,
         "logCertificate",
