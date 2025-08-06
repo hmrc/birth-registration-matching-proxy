@@ -19,59 +19,85 @@ package uk.gov.hmrc.brm.utils
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
+import java.io.FileInputStream
+import java.security.KeyStore
+import java.security.cert.{Certificate, X509Certificate}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit.DAYS
-import java.time.{LocalDate, Period}
+import java.time.{Duration, LocalDate, LocalDateTime, Period, ZoneId}
 import javax.inject.Inject
+import scala.jdk.CollectionConverters.EnumerationHasAsScala
+import scala.util.{Failure, Success, Try, Using}
 
-class CertificateStatus @Inject() (val groConfig: GroAppConfig) {
+class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends CertificateProvider {
+
+  lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
-  lazy val certificateExpiryDate: String = groConfig.certificateExpiryDate
-
-  private def getExpiryDate: LocalDate =
-    LocalDate.parse(certificateExpiryDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-
-  private def difference(expiryDate: LocalDate, comparisonDate: LocalDate): (Long, String) = {
-    val days = DAYS.between(comparisonDate, expiryDate)
-    (days, DateOutput.formatDurations(Period.between(comparisonDate, expiryDate)))
+  override def loadCertificate(): Try[Certificate] = {
+    val keyStore = KeyStore.getInstance("PKCS12")
+    Using(new FileInputStream(groConfig.tlsPrivateCertificatePath)) { fis =>
+      keyStore.load(fis, groConfig.tlsPrivateKeystorePassword.toCharArray)
+      keyStore
+        .aliases()
+        .asScala
+        .map(alias => keyStore.getCertificate(alias))
+        .toList
+        .head
+    }
   }
 
-  private val expiresToday: PartialFunction[Long, Unit] = { case 0 =>
-    error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY ($certificateExpiryDate)")
+  def extractExpiryDateFromCertificate(): Option[LocalDateTime] = {
+    info(CLASS_NAME, "extractExpiryDateFromCertificate", "start")
+
+    loadCertificate() match {
+      case Success(certificate: X509Certificate) =>
+        val expiryDate    = certificate.getNotAfter
+        val localDateTime = expiryDate.toInstant.atZone(ZoneId.of("UTC")).toLocalDateTime
+        info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDateTime")
+        Some(localDateTime)
+      case Success(cert)                         =>
+        error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert, cert was of type: ${cert.getType}")
+        None
+      case Failure(exception)                    =>
+        error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert $exception ")
+        None
+    }
   }
 
-  private def expiresWithin60Days(message: String): PartialFunction[Long, Unit] = {
-    case d if d > 0 && d <= 60 =>
-      error(CLASS_NAME, "logCertificate", s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $message ($certificateExpiryDate)")
+  private def logCertificate(certificateExpiry: LocalDateTime): Unit = {
+    val certificateExpiryDate = certificateExpiry.toLocalDate
+    val daysTillExpiry        = DAYS.between(LocalDateTime.now(), certificateExpiry)
+    val durationMessage       = DateOutput.formatDurations(Period.between(LocalDate.now(), certificateExpiryDate))
+    val formatter             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
+    if (daysTillExpiry > groConfig.certExpiryWarningThreshold) {
+      info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $durationMessage ($certificateExpiryDate)")
+    } else if (
+      daysTillExpiry > groConfig.certExpiryCriticalThreshold && daysTillExpiry <= groConfig.certExpiryWarningThreshold
+    ) {
+      warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)")
+    } else if (daysTillExpiry > 0 && daysTillExpiry <= groConfig.certExpiryCriticalThreshold) {
+      error(
+        CLASS_NAME,
+        "logCertificate",
+        s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)"
+      )
+    } else if (Duration.between(certificateExpiry, LocalDateTime.now()).toMillis >= 1) {
+      error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY (${certificateExpiry.format(formatter)})")
+    } else {
+      error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED (${certificateExpiry.format(formatter)})")
+    }
   }
 
-  private def expiresWithin90Days(message: String): PartialFunction[Long, Unit] = {
-    case d if d > 60 && d <= 90 =>
-      warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $message ($certificateExpiryDate)")
-  }
-
-  private def expiresAfter90Days(message: String): PartialFunction[Long, Unit] = {
-    case d if d > 90 =>
-      info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $message ($certificateExpiryDate)")
-  }
-
-  private def expired(message: String): PartialFunction[Long, Unit] = { case _ =>
-    error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED $message $certificateExpiryDate")
-  }
-
-  private def logCertificate(day: Long, message: String): Unit =
-    (expiresToday orElse
-      expiresWithin60Days(message) orElse
-      expiresWithin90Days(message) orElse
-      expiresAfter90Days(message) orElse
-      expired(message))(day)
-
-  def certificateStatus(date: LocalDate = LocalDate.now()): Boolean = {
-    val (day, message) = difference(getExpiryDate, date)
-    logCertificate(day, message)
-    day >= 0
-  }
+  def certificateStatus(): Boolean =
+    getExpiryDate match {
+      case Some(certificateExpiryDateTime) =>
+        logCertificate(certificateExpiryDateTime)
+        certificateExpiryDateTime.isAfter(LocalDateTime.now())
+      case None                            =>
+        false
+    }
 
 }
