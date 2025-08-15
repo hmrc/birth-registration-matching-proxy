@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ object DateOutput {
   }
 
   // Count the number of days, weeks, months, and years of a given period
-  def getDurations(initialPeriod: Period): DateOutput                               =
+  def getDurations(initialPeriod: Period): DateOutput =
     (getYears andThen
       getMonths andThen
       getWeeks andThen

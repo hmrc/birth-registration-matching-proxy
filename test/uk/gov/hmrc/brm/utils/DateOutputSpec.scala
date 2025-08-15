@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ import java.time.Period
 
 class DateOutputSpec extends AnyWordSpecLike with Matchers {
 
-  val OneYear                            = Period.ofYears(1)
-  val OneMonth                           = Period.ofMonths(1)
-  val OneWeek                            = Period.ofWeeks(1)
-  val OneDay                             = Period.ofDays(1)
-  val TwelveYearsSixMonthsTwoWeeksOneDay = Period.ofWeeks(2).plusYears(12).plusMonths(6).plusDays(1)
+  val OneYear: Period                            = Period.ofYears(1)
+  val OneMonth: Period                           = Period.ofMonths(1)
+  val OneWeek: Period                            = Period.ofWeeks(1)
+  val OneDay: Period                             = Period.ofDays(1)
+  val TwelveYearsSixMonthsTwoWeeksOneDay: Period = Period.ofWeeks(2).plusYears(12).plusMonths(6).plusDays(1)
 
   "DateOutput.getDurations" should {
 

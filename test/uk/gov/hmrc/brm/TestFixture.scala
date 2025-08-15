@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfter, OptionValues}
+import org.scalatest.{BeforeAndAfterEach, OptionValues}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -31,7 +31,7 @@ trait TestFixture
     with Matchers
     with OptionValues
     with MockitoSugar
-    with BeforeAndAfter
+    with BeforeAndAfterEach
     with GuiceOneAppPerSuite
     with BaseUnitSpec {
 

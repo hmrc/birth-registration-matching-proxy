@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import scala.util.{Failure, Success}
 
 class AuthenticatorSpec extends TestFixture {
 
-  val mockHttpClient: HttpClientV2 = mock[HttpClientV2]
-  val mockRequestBuilder           = mock[RequestBuilder]
+  val mockHttpClient: HttpClientV2       = mock[HttpClientV2]
+  val mockRequestBuilder: RequestBuilder = mock[RequestBuilder]
 
   val testAuthenticator =
     new Authenticator(testGroConfig, mock[CertificateStatus], mockHttpClient, new TimeProvider())
@@ -92,7 +92,7 @@ class AuthenticatorSpec extends TestFixture {
         when(mockTimeProvider.now) thenReturn dateTime
 
         val expiryTime = testAuthenticator.tokenCache.newExpiry(100)
-        //expiry time shd be less by 60 sec.
+        // expiry time shd be less by 60 sec.
         SECONDS.between(dateTime, expiryTime) shouldBe 40
       }
 

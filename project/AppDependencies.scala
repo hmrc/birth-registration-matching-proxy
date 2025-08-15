@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import sbt.*
 
 object AppDependencies {
 
-  private val bootstrapPlayVersion = "9.18.0"
+  private val bootstrapPlayVersion = "9.19.0"
 
   val compile: Seq[ModuleID] = Seq(
     ws,
@@ -27,11 +27,10 @@ object AppDependencies {
     "uk.gov.hmrc" %% "domain-play-30"            % "11.0.0"
   )
 
-  val test: Seq[ModuleID]    = Seq(
-    "uk.gov.hmrc"         %% "bootstrap-test-play-30" % bootstrapPlayVersion,
-    "org.scalatestplus"   %% "mockito-4-11"           % "3.2.18.0",
-    "com.vladsch.flexmark" % "flexmark-all"           % "0.64.8"
+  val test: Seq[ModuleID] = Seq(
+    "uk.gov.hmrc" %% "bootstrap-test-play-30" % bootstrapPlayVersion
   ).map(_ % Test)
 
   def apply(): Seq[ModuleID] = compile ++ test
+
 }

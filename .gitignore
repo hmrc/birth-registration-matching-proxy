@@ -1,6 +1,5 @@
 .ensime
 .ensime_cache
-
 .cache
 /.classpath
 db
