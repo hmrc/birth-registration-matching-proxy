@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,14 +38,14 @@ import scala.util.{Failure, Success}
 
 class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
-  val mockTokenCache: AccessTokenRepository = mock[AccessTokenRepository]
-  val mockWsClient: WSClient                = mock[WSClient]
-  val mockAuditing: HttpAuditing            = mock[HttpAuditing]
-  val mockHttpClient: HttpClientV2          = mock[HttpClientV2]
-  val mockResponseHandler: ResponseHandler  = mock[ResponseHandler]
-  val mockErrorHandler: ErrorHandler        = mock[ErrorHandler]
-  val mockRequestBuilderGet                 = mock[RequestBuilder]
-  val mockRequestBuilderPost                = mock[RequestBuilder]
+  val mockTokenCache: AccessTokenRepository  = mock[AccessTokenRepository]
+  val mockWsClient: WSClient                 = mock[WSClient]
+  val mockAuditing: HttpAuditing             = mock[HttpAuditing]
+  val mockHttpClient: HttpClientV2           = mock[HttpClientV2]
+  val mockResponseHandler: ResponseHandler   = mock[ResponseHandler]
+  val mockErrorHandler: ErrorHandler         = mock[ErrorHandler]
+  val mockRequestBuilderGet: RequestBuilder  = mock[RequestBuilder]
+  val mockRequestBuilderPost: RequestBuilder = mock[RequestBuilder]
 
   val mockAuthenticator: Authenticator =
     new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
@@ -84,7 +84,9 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
 
-  before {
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+
     reset(mockHttpClient, mockRequestBuilderGet, mockRequestBuilderPost)
 
     when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilderPost)
@@ -203,7 +205,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
       "return exception when certificate has expired" in new AuthenticationFixture {
 
-        val mockTimeProvider                 = mock[TimeProvider]
+        val mockTimeProvider: TimeProvider   = mock[TimeProvider]
         val mockAuthenticator: Authenticator =
           new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, mockTimeProvider) {
             override val tokenCache: AccessTokenRepository = mockTokenCache
@@ -227,7 +229,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           )
 
         // Force LocalDate to the past so cert is expired
-        val date = ZonedDateTime.of(2000, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
+        val date: ZonedDateTime = ZonedDateTime.of(2000, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
 
         when(mockTimeProvider.now) thenReturn date
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2025 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystorePassword: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystorePassword")
   lazy val tlsEnabled: Boolean                = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
-  lazy val certExpiryWarningThreshold = servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningThreshold")
-  lazy val certExpiryCriticalThreshold  = servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalThreshold")
+  lazy val certExpiryWarningThreshold: Int  = servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningThreshold")
+  lazy val certExpiryCriticalThreshold: Int = servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalThreshold")
 
 }
