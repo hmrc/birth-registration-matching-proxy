@@ -17,6 +17,8 @@
 package uk.gov.hmrc.brm.utils
 
 import com.typesafe.config.ConfigFactory
+import org.apache.pekko.actor.typed.ActorSystem
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.mockito.Mockito._
 import play.api.Configuration
 import uk.gov.hmrc.brm.TestFixture
@@ -30,27 +32,32 @@ import java.security.cert.Certificate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import scala.util.Try
+import play.api.inject.DefaultApplicationLifecycle
 
 class CertificateStatusSpec extends TestFixture {
 
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-  val mockCertificateStatusValidExpiryDate: CertificateStatus = new CertificateStatus(testGroConfig) {
-    override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(100))
-  }
-  val mockCertificateStatusToday: CertificateStatus           = new CertificateStatus(testGroConfig) {
+  val applicationLifecycle              = app.injector.instanceOf[DefaultApplicationLifecycle]
+  val actorSystem: ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "test")
+
+  val mockCertificateStatusValidExpiryDate: CertificateStatus =
+    new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
+      override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(100))
+    }
+  val mockCertificateStatusToday: CertificateStatus           = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
     override lazy val getExpiryDate = Some(LocalDateTime.now())
   }
-  val mockCertificateStatusWithin60: CertificateStatus        = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin60: CertificateStatus        = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(30))
   }
-  val mockCertificateStatusWithin90: CertificateStatus        = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusWithin90: CertificateStatus        = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(75))
   }
-  val mockCertificateStatusExpired: CertificateStatus         = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusExpired: CertificateStatus         = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
     override lazy val getExpiryDate = Some(LocalDateTime.now().minusDays(10))
   }
-  val mockCertificateStatusNone: CertificateStatus            = new CertificateStatus(testGroConfig) {
+  val mockCertificateStatusNone: CertificateStatus            = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
     override lazy val getExpiryDate: Option[LocalDateTime] = None
   }
 
@@ -58,7 +65,7 @@ class CertificateStatusSpec extends TestFixture {
 
     "return Some(date) if cert is present" in {
       val date       = Some(LocalDateTime.now().plusDays(30))
-      val status     = new CertificateStatus(testGroConfig) {
+      val status     = new CertificateStatus(testGroConfig,applicationLifecycle, actorSystem) {
         override def extractExpiryDateFromCertificate(): Option[LocalDateTime] = date
       }
       val expiryDate = status.extractExpiryDateFromCertificate()
@@ -71,13 +78,13 @@ class CertificateStatusSpec extends TestFixture {
       when(config.tlsPrivateCertificatePath).thenReturn("/invalid/path.p12")
       when(config.tlsPrivateKeystorePassword).thenReturn("pass")
 
-      val status = new CertificateStatus(config)
+      val status = new CertificateStatus(config, applicationLifecycle, actorSystem)
       status.extractExpiryDateFromCertificate() shouldBe None
     }
 
     "return Some(date) if keystore path is valid" in {
       val config = real[GroAppConfig]
-      val status = new CertificateStatus(config)
+      val status = new CertificateStatus(config, applicationLifecycle, actorSystem)
       status.getExpiryDate should not be empty
     }
 
@@ -95,7 +102,7 @@ class CertificateStatusSpec extends TestFixture {
       when(mockConfig.tlsPrivateCertificatePath).thenReturn(tempFile.getAbsolutePath)
       when(mockConfig.tlsPrivateKeystorePassword).thenReturn(password)
 
-      val certStatus = new CertificateStatus(mockConfig)
+      val certStatus = new CertificateStatus(mockConfig,applicationLifecycle, actorSystem)
       val result     = certStatus.extractExpiryDateFromCertificate()
 
       result shouldBe None
@@ -110,7 +117,7 @@ class CertificateStatusSpec extends TestFixture {
       when(dummyConfig.tlsPrivateCertificatePath).thenReturn("dummyPath")
       when(dummyConfig.tlsPrivateKeystorePassword).thenReturn("dummyPassword")
 
-      val certStatus = new CertificateStatus(dummyConfig) {
+      val certStatus = new CertificateStatus(dummyConfig, applicationLifecycle, actorSystem) {
         override def loadCertificate(): Try[Certificate] = Try(fakeCertificate)
       }
 
@@ -128,7 +135,7 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return true and log EXPIRES_TODAY if cert expires today" in {
-      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig) {
+      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
         override lazy val getExpiryDate = Some(LocalDateTime.now().plusHours(2))
       }
       customStatus.certificateStatus() shouldBe true
@@ -147,14 +154,14 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return true when current date is earlier than expiry" in {
-      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig) {
+      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
         override lazy val getExpiryDate = Some(LocalDateTime.now().plusDays(10))
       }
       customStatus.certificateStatus() shouldBe true
     }
 
     "return false when current date is later than expiry" in {
-      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig) {
+      val customStatus: CertificateStatus = new CertificateStatus(testGroConfig, applicationLifecycle, actorSystem) {
         override lazy val getExpiryDate = Some(LocalDateTime.now().minusDays(5))
       }
       customStatus.certificateStatus() shouldBe false
@@ -175,7 +182,7 @@ class CertificateStatusSpec extends TestFixture {
 
       when(config.tlsPrivateCertificatePath).thenReturn(groAppConfigLoad.tlsPrivateCertificatePath)
 
-      val certStatus = new CertificateStatus(config)
+      val certStatus = new CertificateStatus(config, applicationLifecycle, actorSystem)
 
       val result = certStatus.extractExpiryDateFromCertificate()
 
@@ -189,7 +196,7 @@ class CertificateStatusSpec extends TestFixture {
 
       when(config.tlsPrivateCertificatePath).thenReturn(certPath)
 
-      val certStatus = new CertificateStatus(config)
+      val certStatus = new CertificateStatus(config, applicationLifecycle, actorSystem)
 
       val result = certStatus.extractExpiryDateFromCertificate()
 

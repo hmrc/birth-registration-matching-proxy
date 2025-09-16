@@ -16,24 +16,44 @@
 
 package uk.gov.hmrc.brm.utils
 
+import org.apache.pekko.actor.typed.{ActorRef, ActorSystem}
+import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.cert.{Certificate, X509Certificate}
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit.DAYS
-import java.time.{Duration, LocalDate, LocalDateTime, Period, ZoneId}
-import javax.inject.Inject
+import java.time.{LocalDateTime, ZoneId}
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
-class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends CertificateProvider {
+// temp note: singleton as we shouldn't have two actors with the same name
+@Singleton
+class CertificateStatus @Inject() (
+  val groConfig: GroAppConfig,
+  lifecycle: ApplicationLifecycle,
+  actorSystem: ActorSystem[Nothing]
+) extends CertificateProvider {
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
+
+  // todo: should this be systemActorOf, seems like this is discouraged in the source?
+  private val certificateExpiryLoggerActor: ActorRef[CertificateExpiryLogger.Command] =
+    actorSystem.systemActorOf(
+      CertificateExpiryLogger(getExpiryDate.get, groConfig), // todo .get
+      "certificate-expiry-logger"
+    )
+
+  lifecycle.addStopHook { () =>
+    Future.successful {
+      certificateExpiryLoggerActor ! CertificateExpiryLogger.Stop
+    }
+  }
 
   override def loadCertificate(): Try[Certificate] = {
     val keyStore = KeyStore.getInstance("PKCS12")
@@ -66,35 +86,9 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends Certific
     }
   }
 
-  private def logCertificate(certificateExpiry: LocalDateTime): Unit = {
-    val certificateExpiryDate = certificateExpiry.toLocalDate
-    val daysTillExpiry        = DAYS.between(LocalDateTime.now(), certificateExpiry)
-    val durationMessage       = DateOutput.formatDurations(Period.between(LocalDate.now(), certificateExpiryDate))
-    val formatter             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-
-    if (daysTillExpiry > groConfig.certExpiryWarningThreshold) {
-      info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $durationMessage ($certificateExpiryDate)")
-    } else if (
-      daysTillExpiry > groConfig.certExpiryCriticalThreshold && daysTillExpiry <= groConfig.certExpiryWarningThreshold
-    ) {
-      warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)")
-    } else if (daysTillExpiry > 0 && daysTillExpiry <= groConfig.certExpiryCriticalThreshold) {
-      error(
-        CLASS_NAME,
-        "logCertificate",
-        s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)"
-      )
-    } else if (Duration.between(certificateExpiry, LocalDateTime.now()).toMillis >= 1) {
-      error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY (${certificateExpiry.format(formatter)})")
-    } else {
-      error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED (${certificateExpiry.format(formatter)})")
-    }
-  }
-
   def certificateStatus(): Boolean =
     getExpiryDate match {
       case Some(certificateExpiryDateTime) =>
-        logCertificate(certificateExpiryDateTime)
         certificateExpiryDateTime.isAfter(LocalDateTime.now())
       case None                            =>
         false
