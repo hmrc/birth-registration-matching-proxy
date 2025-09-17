@@ -29,8 +29,11 @@ object CertificateExpiryLogger {
   case object CheckExpiry extends Command
   case object Stop extends Command
 
+  val CLASS_NAME = getClass.getSimpleName
+
   def apply(certificateExpiry: LocalDateTime, groAppConfig: GroAppConfig): Behavior[Command] =
     Behaviors.withTimers { timerScheduler =>
+      BrmLogger.info(CLASS_NAME, "starting initial check")
       timerScheduler.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
       running(certificateExpiry, timerScheduler, groAppConfig)
     }
@@ -48,6 +51,9 @@ object CertificateExpiryLogger {
 
         val nextCheckInterval: FiniteDuration =
           getNextCertificateCheckInterval(certificateExpiry, timeUntilCertExpiry, groAppConfig)
+
+        val nextCheckTime = LocalDateTime.now().plusNanos(nextCheckInterval.toNanos)
+        BrmLogger.info(CLASS_NAME, s"Setting next check interval to $nextCheckInterval at $nextCheckTime")
 
         timerScheduler.startSingleTimer(CheckExpiry, nextCheckInterval)
 
@@ -86,11 +92,19 @@ object CertificateExpiryLogger {
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime): Unit =
     if (timeUntilCertExpiry.toDays > 0) {
-      BrmLogger.warn(s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $certificateExpiry")
+      BrmLogger.warn(
+        CLASS_NAME,
+        "logCertificateExpiry",
+        s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $certificateExpiry"
+      )
     } else if (!timeUntilCertExpiry.isNegative) {
-      BrmLogger.warn(s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $certificateExpiry")
+      BrmLogger.warn(
+        CLASS_NAME,
+        "logCertificateExpiry",
+        s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $certificateExpiry"
+      )
     } else {
-      BrmLogger.warn(s"Certificate expired at $certificateExpiry")
+      BrmLogger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $certificateExpiry")
     }
 
 }

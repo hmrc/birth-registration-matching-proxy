@@ -49,15 +49,18 @@ class CertificateStatus @Inject() (
 
   // todo: should this be systemActorOf, seems like this is discouraged in the source?
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.Command]] =
-    getExpiryDate.map(expiryDate =>
+    getExpiryDate.map { expiryDate =>
+      info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
+
       typedActorSystem.systemActorOf(
         CertificateExpiryLogger(expiryDate, groConfig),
         "certificate-expiry-logger"
       )
-    )
+    }
 
   certificateExpiryLoggerActorOpt.foreach(certificateExpiryLoggerActor =>
     lifecycle.addStopHook { () =>
+      info(CLASS_NAME, "Stopping CertificateExpiryLogger actor")
       Future.successful {
         certificateExpiryLoggerActor ! CertificateExpiryLogger.Stop
       }
