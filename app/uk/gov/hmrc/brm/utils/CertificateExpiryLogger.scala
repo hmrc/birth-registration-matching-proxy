@@ -43,16 +43,16 @@ object CertificateExpiryLogger {
 
     Behaviors.receiveMessage {
       case CheckExpiry =>
-      val now                           = Instant.now()
-      val timeUntilCertExpiry: Duration = Duration.between(now, certificateExpiry)
+        val now                           = Instant.now()
+        val timeUntilCertExpiry: Duration = Duration.between(now, certificateExpiry)
 
-      val nextCheckInterval: FiniteDuration =
-        getNextCertificateCheckInterval(certificateExpiry, timeUntilCertExpiry, groAppConfig)
+        val nextCheckInterval: FiniteDuration =
+          getNextCertificateCheckInterval(certificateExpiry, timeUntilCertExpiry, groAppConfig)
 
-      timerScheduler.startSingleTimer(CheckExpiry, nextCheckInterval)
+        timerScheduler.startSingleTimer(CheckExpiry, nextCheckInterval)
 
-      Behaviors.same
-      case Stop =>
+        Behaviors.same
+      case Stop        =>
         BrmLogger.info("Stopping certificate expiry monitoring")
         Behaviors.stopped
     }

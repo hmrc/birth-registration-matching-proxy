@@ -16,7 +16,9 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.apache.pekko.actor.typed.{ActorRef, ActorSystem}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.typed.ActorRef
+import org.apache.pekko.actor.typed.scaladsl.adapter._
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -35,17 +37,20 @@ import scala.util.{Failure, Success, Try, Using}
 class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
   lifecycle: ApplicationLifecycle,
-  actorSystem: ActorSystem[Nothing]
+  actorSystem: ActorSystem
 ) extends CertificateProvider {
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
+  // convert play's actor system to typed to use with our typed actor
+  val typedActorSystem = actorSystem.toTyped
+
   // todo: should this be systemActorOf, seems like this is discouraged in the source?
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.Command]] =
     getExpiryDate.map(expiryDate =>
-      actorSystem.systemActorOf(
+      typedActorSystem.systemActorOf(
         CertificateExpiryLogger(expiryDate, groConfig),
         "certificate-expiry-logger"
       )

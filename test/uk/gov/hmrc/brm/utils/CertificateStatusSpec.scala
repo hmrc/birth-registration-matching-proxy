@@ -17,7 +17,7 @@
 package uk.gov.hmrc.brm.utils
 
 import com.typesafe.config.ConfigFactory
-import org.apache.pekko.actor.typed.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.mockito.Mockito._
 import play.api.Configuration
@@ -38,10 +38,10 @@ class CertificateStatusSpec extends TestFixture {
 
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-  val testGroConfigSpy                  = spy(testGroConfig)
-  val applicationLifecycle              = app.injector.instanceOf[DefaultApplicationLifecycle]
-  val actorSystem: ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "test")
-  val certificateStatus                 = spy(new CertificateStatus(testGroConfigSpy, applicationLifecycle, actorSystem))
+  private val testGroConfigSpy     = spy(testGroConfig)
+  private val applicationLifecycle = app.injector.instanceOf[DefaultApplicationLifecycle]
+  private val actorSystem          = app.injector.instanceOf[ActorSystem]
+  private val certificateStatus    = spy(new CertificateStatus(testGroConfigSpy, applicationLifecycle, actorSystem))
 
   override def afterEach(): Unit = {
     reset(testGroConfigSpy)
@@ -60,7 +60,6 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return None if keystore path is invalid or exception occurs" in {
-
       when(testGroConfigSpy.tlsPrivateCertificatePath).thenReturn("/invalid/path.p12")
       when(testGroConfigSpy.tlsPrivateKeystorePassword).thenReturn("pass")
 
