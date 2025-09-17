@@ -43,17 +43,21 @@ class CertificateStatus @Inject() (
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
   // todo: should this be systemActorOf, seems like this is discouraged in the source?
-  private val certificateExpiryLoggerActor: ActorRef[CertificateExpiryLogger.Command] =
-    actorSystem.systemActorOf(
-      CertificateExpiryLogger(getExpiryDate.get, groConfig), // todo .get
-      "certificate-expiry-logger"
+  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.Command]] =
+    getExpiryDate.map(expiryDate =>
+      actorSystem.systemActorOf(
+        CertificateExpiryLogger(expiryDate, groConfig),
+        "certificate-expiry-logger"
+      )
     )
 
-  lifecycle.addStopHook { () =>
-    Future.successful {
-      certificateExpiryLoggerActor ! CertificateExpiryLogger.Stop
+  certificateExpiryLoggerActorOpt.foreach(certificateExpiryLoggerActor =>
+    lifecycle.addStopHook { () =>
+      Future.successful {
+        certificateExpiryLoggerActor ! CertificateExpiryLogger.Stop
+      }
     }
-  }
+  )
 
   override def loadCertificate(): Try[Certificate] = {
     val keyStore = KeyStore.getInstance("PKCS12")
