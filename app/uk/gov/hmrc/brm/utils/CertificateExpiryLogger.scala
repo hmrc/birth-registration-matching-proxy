@@ -29,11 +29,11 @@ object CertificateExpiryLogger {
   case object CheckExpiry extends Command
   case object Stop extends Command
 
-  val CLASS_NAME = getClass.getSimpleName
+  private val CLASS_NAME = getClass.getSimpleName
 
   def apply(certificateExpiry: LocalDateTime, groAppConfig: GroAppConfig): Behavior[Command] =
     Behaviors.withTimers { timerScheduler =>
-      BrmLogger.info(CLASS_NAME, "starting initial check")
+      BrmLogger.info(CLASS_NAME, "Starting initial check")
       timerScheduler.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
       running(certificateExpiry, timerScheduler, groAppConfig)
     }
@@ -68,23 +68,23 @@ object CertificateExpiryLogger {
   private def getNextCertificateCheckInterval(
     certificateExpiry: LocalDateTime,
     timeUntilCertExpiry: Duration,
-    config: GroAppConfig
+    conf: GroAppConfig
   ): FiniteDuration = {
 
     val hoursTillExpiry = timeUntilCertExpiry.toHours
 
-    if (hoursTillExpiry > config.certExpiryEarlyWarningHours) {
-      7.days
+    if (hoursTillExpiry > conf.certExpiryEarlyWarningHours) {
+      FiniteDuration(conf.certExpiryEarlyWarningCheckIntervalHours, HOURS)
     } else {
 
       logCertificateExpiry(timeUntilCertExpiry, certificateExpiry)
 
-      if (hoursTillExpiry <= config.certExpiryEarlyWarningHours && hoursTillExpiry > config.certExpiryWarningHours) {
-        7.days
-      } else if (hoursTillExpiry <= config.certExpiryWarningHours && hoursTillExpiry > config.certExpiryCriticalHours) {
-        1.day
+      if (hoursTillExpiry <= conf.certExpiryEarlyWarningHours && hoursTillExpiry > conf.certExpiryWarningHours) {
+        FiniteDuration(conf.certExpiryEarlyWarningCheckIntervalHours, HOURS)
+      } else if (hoursTillExpiry <= conf.certExpiryWarningHours && hoursTillExpiry > conf.certExpiryCriticalHours) {
+        FiniteDuration(conf.certExpiryWarningCheckIntervalHours, HOURS)
       } else { // in critical window
-        1.hour
+        FiniteDuration(conf.certExpiryCriticalCheckIntervalHours, HOURS)
       }
     }
 
