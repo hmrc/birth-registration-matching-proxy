@@ -20,7 +20,8 @@ import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.scaladsl.{Behaviors, TimerScheduler}
 import uk.gov.hmrc.brm.config.GroAppConfig
 
-import java.time.{Duration, Instant, LocalDateTime}
+import java.time.format.DateTimeFormatter
+import java.time.{Duration, LocalDateTime}
 import scala.concurrent.duration._
 
 object CertificateExpiryLogger {
@@ -31,9 +32,13 @@ object CertificateExpiryLogger {
 
   private val CLASS_NAME = getClass.getSimpleName
 
-  def apply(certificateExpiry: LocalDateTime, groAppConfig: GroAppConfig): Behavior[Command] =
+  val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")
+
+  def apply(certificateExpiry: LocalDateTime, groAppConfig: GroAppConfig)(implicit
+    logger: BrmLogger
+  ): Behavior[Command] =
     Behaviors.withTimers { timerScheduler =>
-      BrmLogger.info(CLASS_NAME, "Starting initial check")
+      logger.info(CLASS_NAME, "Starting initial check")
       timerScheduler.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
       running(certificateExpiry, timerScheduler, groAppConfig)
     }
@@ -42,24 +47,28 @@ object CertificateExpiryLogger {
     certificateExpiry: LocalDateTime,
     timerScheduler: TimerScheduler[Command],
     groAppConfig: GroAppConfig
-  ): Behavior[Command] =
+  )(implicit logger: BrmLogger): Behavior[Command] =
 
     Behaviors.receiveMessage {
       case CheckExpiry =>
-        val now                           = Instant.now()
+        val now                           = LocalDateTime.now()
         val timeUntilCertExpiry: Duration = Duration.between(now, certificateExpiry)
 
         val nextCheckInterval: FiniteDuration =
           getNextCertificateCheckInterval(certificateExpiry, timeUntilCertExpiry, groAppConfig)
 
-        val nextCheckTime = LocalDateTime.now().plusNanos(nextCheckInterval.toNanos)
-        BrmLogger.info(CLASS_NAME, s"Setting next check interval to $nextCheckInterval at $nextCheckTime")
+        val nextCheckTime = now.plusNanos(nextCheckInterval.toNanos)
+
+        logger.info(
+          CLASS_NAME,
+          s"Setting next check interval to $nextCheckInterval at ${nextCheckTime.format(timeFormat)}"
+        )
 
         timerScheduler.startSingleTimer(CheckExpiry, nextCheckInterval)
 
         Behaviors.same
       case Stop        =>
-        BrmLogger.info("Stopping certificate expiry monitoring")
+        logger.info("Stopping certificate expiry monitoring")
         Behaviors.stopped
     }
 
@@ -69,7 +78,7 @@ object CertificateExpiryLogger {
     certificateExpiry: LocalDateTime,
     timeUntilCertExpiry: Duration,
     conf: GroAppConfig
-  ): FiniteDuration = {
+  )(implicit logger: BrmLogger): FiniteDuration = {
 
     val hoursTillExpiry = timeUntilCertExpiry.toHours
 
@@ -90,21 +99,23 @@ object CertificateExpiryLogger {
 
   }
 
-  private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime): Unit =
+  private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
+    logger: BrmLogger
+  ): Unit =
     if (timeUntilCertExpiry.toDays > 0) {
-      BrmLogger.warn(
+      logger.warn(
         CLASS_NAME,
         "logCertificateExpiry",
         s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $certificateExpiry"
       )
     } else if (!timeUntilCertExpiry.isNegative) {
-      BrmLogger.warn(
+      logger.warn(
         CLASS_NAME,
         "logCertificateExpiry",
         s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $certificateExpiry"
       )
     } else {
-      BrmLogger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $certificateExpiry")
+      logger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $certificateExpiry")
     }
 
 }

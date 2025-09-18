@@ -42,6 +42,8 @@ class CertificateStatus @Inject() (
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
+  implicit val logger = BrmLogger
+
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
   // convert play's actor system to typed to use with our typed actor
