@@ -19,10 +19,7 @@ package uk.gov.hmrc.brm.utils
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.actor.typed.ActorRef
 import org.mockito.Mockito._
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -30,22 +27,21 @@ import uk.gov.hmrc.brm.config.GroAppConfig
 import java.time.LocalDateTime
 import scala.concurrent.duration._
 
-class CertificateExpiryLoggerSpec
-    extends AnyWordSpec
-    with Matchers
-    with MockitoSugar
-    with TestFixture
-    with BeforeAndAfterAll {
+class CertificateExpiryLoggerSpec extends AnyWordSpec with TestFixture {
 
-  val testKit: ActorTestKit = ActorTestKit()
+  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec")
 
-  implicit val spiedLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val spiedLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
 
-  override def afterAll(): Unit =
+  override def afterAll(): Unit = {
     testKit.shutdownTestKit()
+    super.afterAll()
+  }
 
-  override def afterEach(): Unit =
+  override def afterEach(): Unit = {
     reset(spiedLogger)
+    super.afterEach()
+  }
 
   private val oneWeekInHours   = 168
   private val sixtyDaysInHours = 1440

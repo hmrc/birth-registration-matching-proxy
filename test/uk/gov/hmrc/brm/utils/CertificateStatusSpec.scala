@@ -17,10 +17,10 @@
 package uk.gov.hmrc.brm.utils
 
 import com.typesafe.config.ConfigFactory
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.mockito.Mockito._
 import play.api.Configuration
+import play.api.inject.DefaultApplicationLifecycle
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
@@ -32,7 +32,6 @@ import java.security.cert.Certificate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import scala.util.Try
-import play.api.inject.DefaultApplicationLifecycle
 
 class CertificateStatusSpec extends TestFixture {
 
@@ -40,12 +39,22 @@ class CertificateStatusSpec extends TestFixture {
 
   private val testGroConfigSpy     = spy(testGroConfig)
   private val applicationLifecycle = app.injector.instanceOf[DefaultApplicationLifecycle]
-  private val actorSystem          = app.injector.instanceOf[ActorSystem]
-  private val certificateStatus    = spy(new CertificateStatus(testGroConfigSpy, applicationLifecycle, actorSystem))
+
+  private val testKit            = ActorTestKit("CertificateStatusSpec")
+  private val untypedActorSystem = testKit.system.classicSystem
+
+  private val certificateStatus = spy(
+    new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem)
+  )
 
   override def afterEach(): Unit = {
     reset(testGroConfigSpy)
     reset(certificateStatus)
+  }
+
+  override def afterAll(): Unit = {
+    testKit.shutdownTestKit()
+    super.afterAll()
   }
 
   "CertificateStatus" should {
@@ -173,6 +182,7 @@ class CertificateStatusSpec extends TestFixture {
       result should not be empty
 
       assert(result.get.isEqual(LocalDateTime.parse("2025-07-03T11:09:29")))
+
     }
 
   }
