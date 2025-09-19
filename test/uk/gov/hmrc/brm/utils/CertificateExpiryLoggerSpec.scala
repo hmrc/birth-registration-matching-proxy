@@ -16,20 +16,28 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
+import com.typesafe.config.ConfigFactory
+import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
 import org.apache.pekko.actor.typed.ActorRef
+import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.Mockito._
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.utils.CertificateExpiryLogger.{CheckExpiry, LoggerCommand}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration._
 
 class CertificateExpiryLoggerSpec extends AnyWordSpec with TestFixture {
 
-  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec")
+
+  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
+  implicit val system = testKit.system
+
+  val manualTime = ManualTime()
+
 
   implicit val spiedLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
 
@@ -46,26 +54,26 @@ class CertificateExpiryLoggerSpec extends AnyWordSpec with TestFixture {
   private val oneWeekInHours   = 168
   private val sixtyDaysInHours = 1440
 
-  private val certExpiryEarlyWarningHours              = sixtyDaysInHours
+  private val certExpiryEarlyWarningThresholdHours     = sixtyDaysInHours
   private val certExpiryEarlyWarningCheckIntervalHours = oneWeekInHours
 
-  private val certExpiryWarningHours              = oneWeekInHours
+  private val certExpiryWarningThresholdHours     = oneWeekInHours
   private val certExpiryWarningCheckIntervalHours = 24
 
-  private val certExpiryCriticalHours              = 24
+  private val certExpiryCriticalThresholdHours     = 24
   private val certExpiryCriticalCheckIntervalHours = 1
 
   // Mock configuration for testing
   def createMockConfig(): GroAppConfig = {
     val config = mock[GroAppConfig]
 
-    when(config.certExpiryEarlyWarningHours).thenReturn(certExpiryEarlyWarningHours)
+    when(config.certExpiryEarlyWarningThresholdHours).thenReturn(certExpiryEarlyWarningThresholdHours)
     when(config.certExpiryEarlyWarningCheckIntervalHours).thenReturn(certExpiryEarlyWarningCheckIntervalHours)
 
-    when(config.certExpiryWarningHours).thenReturn(certExpiryWarningHours)
+    when(config.certExpiryWarningThresholdHours).thenReturn(certExpiryWarningThresholdHours)
     when(config.certExpiryWarningCheckIntervalHours).thenReturn(certExpiryWarningCheckIntervalHours)
 
-    when(config.certExpiryCriticalHours).thenReturn(certExpiryCriticalHours)
+    when(config.certExpiryCriticalThresholdHours).thenReturn(certExpiryCriticalThresholdHours)
     when(config.certExpiryCriticalCheckIntervalHours).thenReturn(certExpiryCriticalCheckIntervalHours)
 
     config
@@ -79,11 +87,21 @@ class CertificateExpiryLoggerSpec extends AnyWordSpec with TestFixture {
 
       implicit val spiedLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
 
-      testKit.spawn(CertificateExpiryLogger(certificateExpiry, config))
+      var timerSpy : Timer[LoggerCommand] = null
+
+        val magic = (scheduler: TimerScheduler[LoggerCommand]) => {
+          val realTimer = new PekkoTimer(scheduler)
+          timerSpy = spy(realTimer)
+          timerSpy
+        }
+
+      testKit.spawn(CertificateExpiryLogger(certificateExpiry, config, magic))
 
       Thread.sleep(100) // allow our actor to pop up like a comedy rodent
 
       verify(spiedLogger).info("CertificateExpiryLogger$", "Starting initial check")
+
+      verify(timerSpy).startSingleTimer(CheckExpiry, FiniteDuration(0, MINUTES))
 
       val nextCheckTime =
         LocalDateTime
@@ -100,7 +118,7 @@ class CertificateExpiryLoggerSpec extends AnyWordSpec with TestFixture {
       val certificateExpiry = LocalDateTime.now().plusDays(10)
       val config            = createMockConfig()
 
-      val actor: ActorRef[CertificateExpiryLogger.Command] =
+      val actor: ActorRef[CertificateExpiryLogger.LoggerCommand] =
         testKit.spawn(CertificateExpiryLogger(certificateExpiry, config))
 
       actor ! CertificateExpiryLogger.Stop

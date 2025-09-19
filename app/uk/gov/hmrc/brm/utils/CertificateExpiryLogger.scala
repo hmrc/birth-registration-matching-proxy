@@ -24,47 +24,60 @@ import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import scala.concurrent.duration._
 
+// for testing purposes to assert our timer has been called correctly
+trait Timer[T] {
+  def startSingleTimer(msg: T, delay: FiniteDuration): Unit
+}
+
+class PekkoTimer[T](scheduler: TimerScheduler[T]) extends Timer[T] {
+  override def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
+}
+
 object CertificateExpiryLogger {
 
-  sealed trait Command
-  case object CheckExpiry extends Command
-  case object Stop extends Command
+  sealed trait LoggerCommand
+  case object CheckExpiry extends LoggerCommand
+  case object Stop extends LoggerCommand
 
   private val CLASS_NAME = getClass.getSimpleName
 
   val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")
 
-  def apply(certificateExpiry: LocalDateTime, groAppConfig: GroAppConfig)(implicit
+  def apply(
+    certificateExpiry: LocalDateTime,
+    groAppConfig: GroAppConfig,
+    timer: TimerScheduler[LoggerCommand] => Timer[LoggerCommand] = new PekkoTimer(_)
+  )(implicit
     logger: BrmLogger
-  ): Behavior[Command] =
+  ): Behavior[LoggerCommand] =
     Behaviors.withTimers { timerScheduler =>
+      val t = timer(timerScheduler)
       logger.info(CLASS_NAME, "Starting initial check")
-      timerScheduler.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
+      t.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
       running(certificateExpiry, timerScheduler, groAppConfig)
     }
 
   private def running(
     certificateExpiry: LocalDateTime,
-    timerScheduler: TimerScheduler[Command],
+    timerScheduler: TimerScheduler[LoggerCommand],
     groAppConfig: GroAppConfig
-  )(implicit logger: BrmLogger): Behavior[Command] =
+  )(implicit logger: BrmLogger): Behavior[LoggerCommand] =
 
     Behaviors.receiveMessage {
       case CheckExpiry =>
-        val now                           = LocalDateTime.now()
-        val timeUntilCertExpiry: Duration = Duration.between(now, certificateExpiry)
+        val now = LocalDateTime.now()
 
-        val nextCheckInterval: FiniteDuration =
-          getNextCertificateCheckInterval(certificateExpiry, timeUntilCertExpiry, groAppConfig)
+        val nextCheckIntervalMinutes: FiniteDuration =
+          FiniteDuration(getNextCertificateCheckIntervalMinutes(certificateExpiry, now, groAppConfig), MINUTES)
 
-        val nextCheckTime = now.plusNanos(nextCheckInterval.toNanos)
+        val nextCheckTime = now.plusNanos(nextCheckIntervalMinutes.toNanos)
 
         logger.info(
           CLASS_NAME,
-          s"Setting next check interval to $nextCheckInterval at ${nextCheckTime.format(timeFormat)}"
+          s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)}"
         )
 
-        timerScheduler.startSingleTimer(CheckExpiry, nextCheckInterval)
+        timerScheduler.startSingleTimer(CheckExpiry, nextCheckIntervalMinutes)
 
         Behaviors.same
       case Stop        =>
@@ -72,32 +85,77 @@ object CertificateExpiryLogger {
         Behaviors.stopped
     }
 
-  // Derives the next interval to check our certificate's expiry time against our configured alert windows.
+  // Derives the next interval to check the certificate's expiry time against our configured alert time thresholds.
   // If the expiry time is within any of our alert windows, the output log is caught and pushed to team-ddcels-alert slack.
-  private def getNextCertificateCheckInterval(
+  // Thresholds are specified with increasing severity and shorter certificate check interval times to raise concern.
+
+  // | <- Early Warning Window -> | <- Warning Window -> | <- Critical Warning Window -> | Expired |
+  // |                            |                      |
+  // └─ Early Warning Threshold   └─  Warning Threshold  └─ Critical Threshold
+  def getNextCertificateCheckIntervalMinutes(
     certificateExpiry: LocalDateTime,
-    timeUntilCertExpiry: Duration,
+    now: LocalDateTime,
     conf: GroAppConfig
-  )(implicit logger: BrmLogger): FiniteDuration = {
+  )(implicit logger: BrmLogger): Long = {
 
-    val hoursTillExpiry = timeUntilCertExpiry.toHours
+    val earlyWarningThreshold = Duration.ofHours(conf.certExpiryEarlyWarningThresholdHours)
+    val timeUntilCertExpiry   = Duration.between(now, certificateExpiry)
 
-    if (hoursTillExpiry > conf.certExpiryEarlyWarningHours) {
-      FiniteDuration(conf.certExpiryEarlyWarningCheckIntervalHours, HOURS)
-    } else {
+    if (isBeforeEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThreshold)) {
+      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(earlyWarningThreshold).toMinutes
+      val windowInterval              = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
+
+      getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
+    } else { // within early warning window or less, log expiry message & get next check interval
 
       logCertificateExpiry(timeUntilCertExpiry, certificateExpiry)
 
-      if (hoursTillExpiry <= conf.certExpiryEarlyWarningHours && hoursTillExpiry > conf.certExpiryWarningHours) {
-        FiniteDuration(conf.certExpiryEarlyWarningCheckIntervalHours, HOURS)
-      } else if (hoursTillExpiry <= conf.certExpiryWarningHours && hoursTillExpiry > conf.certExpiryCriticalHours) {
-        FiniteDuration(conf.certExpiryWarningCheckIntervalHours, HOURS)
-      } else { // in critical window
-        FiniteDuration(conf.certExpiryCriticalCheckIntervalHours, HOURS)
+      val warningThreshold  = Duration.ofHours(conf.certExpiryWarningThresholdHours)
+      val criticalThreshold = Duration.ofHours(conf.certExpiryCriticalThresholdHours)
+
+      if (isWithinEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThreshold, warningThreshold)) {
+
+        val timeUntilWarningThreshold = timeUntilCertExpiry.minus(warningThreshold)
+        val earlyWarningCheckInterval = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
+
+        getSynchronisedCheckIntervalMinutes(timeUntilWarningThreshold.toMinutes, earlyWarningCheckInterval)
+
+      } else if (isWithinWarningWindow(timeUntilCertExpiry, warningThreshold, criticalThreshold)) {
+        val timeUntilCriticalThreshold = timeUntilCertExpiry.minus(criticalThreshold)
+        val warningCheckInterval       = Duration.ofHours(conf.certExpiryWarningCheckIntervalHours).toMinutes
+
+        getSynchronisedCheckIntervalMinutes(timeUntilCriticalThreshold.toMinutes, warningCheckInterval)
+
+      } else { // within critical window or expired
+        Duration.ofHours(conf.certExpiryCriticalCheckIntervalHours).toMinutes
       }
     }
-
   }
+
+  // if we're closer to a window than our current interval, schedule next check at the start of the upcoming window
+  private def getSynchronisedCheckIntervalMinutes(timeUntilNextWindow: Long, windowInterval: Long): Long =
+    if (timeUntilNextWindow < windowInterval) {
+      timeUntilNextWindow
+    } else {
+      windowInterval
+    }
+
+  private def isBeforeEarlyWarningWindow(timeUntilExpiry: Duration, earlyWarningTime: Duration): Boolean =
+    timeUntilExpiry.minus(earlyWarningTime).toMinutes > 0
+
+  private def isWithinEarlyWarningWindow(
+    timeUntilExpiry: Duration,
+    earlyWarningTime: Duration,
+    warningTime: Duration
+  ): Boolean =
+    timeUntilExpiry.minus(earlyWarningTime).toMinutes <= 0 && timeUntilExpiry.minus(warningTime).toMinutes > 0
+
+  private def isWithinWarningWindow(
+    timeUntilExpiry: Duration,
+    warningTime: Duration,
+    criticalWarningTime: Duration
+  ): Boolean =
+    timeUntilExpiry.minus(warningTime).toMinutes <= 0 && timeUntilExpiry.minus(criticalWarningTime).toMinutes > 0
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
     logger: BrmLogger

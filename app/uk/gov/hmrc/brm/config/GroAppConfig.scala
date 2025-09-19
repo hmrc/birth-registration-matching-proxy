@@ -44,15 +44,15 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystorePassword: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystorePassword")
   lazy val tlsEnabled: Boolean                = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
-  lazy val certExpiryEarlyWarningHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryEarlyWarningHours")
+  lazy val certExpiryEarlyWarningThresholdHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryEarlyWarningThresholdHours")
   lazy val certExpiryEarlyWarningCheckIntervalHours: Int =
     servicesConfig.getInt(s"$tlsConfigPath.certExpiryEarlyWarningCheckIntervalHours")
 
-  lazy val certExpiryWarningHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningHours")
+  lazy val certExpiryWarningThresholdHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningThresholdHours")
   lazy val certExpiryWarningCheckIntervalHours: Int =
     servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningCheckIntervalHours")
 
-  lazy val certExpiryCriticalHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalHours")
+  lazy val certExpiryCriticalThresholdHours: Int              = servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalThresholdHours")
   lazy val certExpiryCriticalCheckIntervalHours: Int =
     servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalCheckIntervalHours")
 

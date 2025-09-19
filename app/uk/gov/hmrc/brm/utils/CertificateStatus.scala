@@ -50,7 +50,7 @@ class CertificateStatus @Inject() (
   val typedActorSystem = actorSystem.toTyped
 
   // todo: should this be systemActorOf, seems like this is discouraged in the source?
-  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.Command]] =
+  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.LoggerCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
 

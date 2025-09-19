@@ -30,12 +30,9 @@ import java.nio.file.{Files, Paths}
 import java.security.KeyStore
 import java.security.cert.Certificate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import scala.util.Try
 
 class CertificateStatusSpec extends TestFixture {
-
-  val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
   private val testGroConfigSpy     = spy(testGroConfig)
   private val applicationLifecycle = app.injector.instanceOf[DefaultApplicationLifecycle]
