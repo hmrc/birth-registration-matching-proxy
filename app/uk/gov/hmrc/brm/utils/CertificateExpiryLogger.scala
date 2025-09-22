@@ -46,6 +46,7 @@ object CertificateExpiryLogger {
   def apply(
     certificateExpiry: LocalDateTime,
     groAppConfig: GroAppConfig,
+    timeProvider: TimeProvider,
     timer: TimerScheduler[LoggerCommand] => Timer[LoggerCommand] = new PekkoTimer(_)
   )(implicit
     logger: BrmLogger
@@ -54,21 +55,24 @@ object CertificateExpiryLogger {
       val t = timer(timerScheduler)
       logger.info(CLASS_NAME, "Starting initial check")
       t.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
-      running(certificateExpiry, timerScheduler, groAppConfig)
+      running(certificateExpiry, t, timeProvider, groAppConfig)
     }
 
   private def running(
     certificateExpiry: LocalDateTime,
-    timerScheduler: TimerScheduler[LoggerCommand],
+    timerScheduler: Timer[LoggerCommand],
+    timeProvider: TimeProvider,
     groAppConfig: GroAppConfig
   )(implicit logger: BrmLogger): Behavior[LoggerCommand] =
-
     Behaviors.receiveMessage {
       case CheckExpiry =>
-        val now = LocalDateTime.now()
+        val now = timeProvider.now
 
         val nextCheckIntervalMinutes: FiniteDuration =
-          FiniteDuration(getNextCertificateCheckIntervalMinutes(certificateExpiry, now, groAppConfig), MINUTES)
+          FiniteDuration(
+            getNextCertificateCheckIntervalMinutes(certificateExpiry, now.toLocalDateTime, groAppConfig),
+            MINUTES
+          )
 
         val nextCheckTime = now.plusNanos(nextCheckIntervalMinutes.toNanos)
 
@@ -98,14 +102,16 @@ object CertificateExpiryLogger {
     conf: GroAppConfig
   )(implicit logger: BrmLogger): Long = {
 
-    val earlyWarningThreshold = Duration.ofHours(conf.certExpiryEarlyWarningThresholdHours)
-    val timeUntilCertExpiry   = Duration.between(now, certificateExpiry)
+    val earlyWarningThresholdHours = Duration.ofHours(conf.certExpiryEarlyWarningThresholdHours)
 
-    if (isBeforeEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThreshold)) {
-      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(earlyWarningThreshold).toMinutes
+    val timeUntilCertExpiry = Duration.between(now, certificateExpiry)
+
+    if (isBeforeEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThresholdHours)) {
+      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(earlyWarningThresholdHours).toMinutes
       val windowInterval              = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
 
       getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
+
     } else { // within early warning window or less, log expiry message & get next check interval
 
       logCertificateExpiry(timeUntilCertExpiry, certificateExpiry)
@@ -113,7 +119,7 @@ object CertificateExpiryLogger {
       val warningThreshold  = Duration.ofHours(conf.certExpiryWarningThresholdHours)
       val criticalThreshold = Duration.ofHours(conf.certExpiryCriticalThresholdHours)
 
-      if (isWithinEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThreshold, warningThreshold)) {
+      if (isWithinEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThresholdHours, warningThreshold)) {
 
         val timeUntilWarningThreshold = timeUntilCertExpiry.minus(warningThreshold)
         val earlyWarningCheckInterval = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
@@ -159,21 +165,25 @@ object CertificateExpiryLogger {
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
     logger: BrmLogger
-  ): Unit =
+  ): Unit = {
+
+    val formattedExpiry = certificateExpiry.format(timeFormat)
+
     if (timeUntilCertExpiry.toDays > 0) {
       logger.warn(
         CLASS_NAME,
         "logCertificateExpiry",
-        s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $certificateExpiry"
+        s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $formattedExpiry"
       )
     } else if (!timeUntilCertExpiry.isNegative) {
       logger.warn(
         CLASS_NAME,
         "logCertificateExpiry",
-        s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $certificateExpiry"
+        s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $formattedExpiry"
       )
     } else {
-      logger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $certificateExpiry")
+      logger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $formattedExpiry")
     }
+  }
 
 }

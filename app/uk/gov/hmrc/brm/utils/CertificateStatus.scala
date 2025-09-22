@@ -55,7 +55,7 @@ class CertificateStatus @Inject() (
       info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryLogger(expiryDate, groConfig),
+        CertificateExpiryLogger(expiryDate, groConfig, new TimeProvider),
         "certificate-expiry-logger"
       )
     }

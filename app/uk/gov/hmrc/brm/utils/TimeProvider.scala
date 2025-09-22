@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.brm.utils
 
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 
 class TimeProvider {
-  def now: ZonedDateTime = ZonedDateTime.now()
+  def now: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 }
