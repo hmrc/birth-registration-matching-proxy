@@ -105,11 +105,13 @@ object CertificateExpiryLogger {
     val earlyWarningThresholdHours = Duration.ofHours(conf.certExpiryEarlyWarningThresholdHours)
 
     val timeUntilCertExpiry = Duration.between(now, certificateExpiry)
+    println(s"timeUntilCertExpiry hours: ${timeUntilCertExpiry.toHours}")
 
     if (isBeforeEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThresholdHours)) {
       val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(earlyWarningThresholdHours).toMinutes
       val windowInterval              = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
 
+      println("1 - before early warning")
       getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
 
     } else { // within early warning window or less, log expiry message & get next check interval
@@ -121,6 +123,8 @@ object CertificateExpiryLogger {
 
       if (isWithinEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThresholdHours, warningThreshold)) {
 
+        println("2 - within early warning")
+
         val timeUntilWarningThreshold = timeUntilCertExpiry.minus(warningThreshold)
         val earlyWarningCheckInterval = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
 
@@ -130,9 +134,15 @@ object CertificateExpiryLogger {
         val timeUntilCriticalThreshold = timeUntilCertExpiry.minus(criticalThreshold)
         val warningCheckInterval       = Duration.ofHours(conf.certExpiryWarningCheckIntervalHours).toMinutes
 
+        println("3 - within warning window")
+
+
         getSynchronisedCheckIntervalMinutes(timeUntilCriticalThreshold.toMinutes, warningCheckInterval)
 
+
       } else { // within critical window or expired
+
+        println("4 - within critical window")
         Duration.ofHours(conf.certExpiryCriticalCheckIntervalHours).toMinutes
       }
     }
