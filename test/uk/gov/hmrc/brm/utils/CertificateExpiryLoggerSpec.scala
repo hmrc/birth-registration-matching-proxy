@@ -31,7 +31,7 @@ import uk.gov.hmrc.brm.utils.CertificateExpiryLogger.{CheckExpiry, LoggerCommand
 import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
 import scala.concurrent.duration._
 
-// not using GuiceOneAppPerSuite as the app pops up and instantiates this class by reading our actual test cert, making testing impossible
+// not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
 class CertificateExpiryLoggerSpec
     extends AnyWordSpec
     with AnyWordSpecLike
@@ -42,103 +42,41 @@ class CertificateExpiryLoggerSpec
     with BeforeAndAfterAll
     with BaseUnitSpec {
 
-  val now                     = LocalDateTime.now()
-  val zonedNow: ZonedDateTime = now.atZone(ZoneId.of("UTC"))
-
+  val now: LocalDateTime              = LocalDateTime.now()
+  val zonedNow: ZonedDateTime         = now.atZone(ZoneId.of("UTC"))
   val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
+  implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
 
   implicit val timeProvider: TimeProvider = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
 
-  implicit val brmLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
+  override def beforeEach(): Unit = {
+    reset(timeProvider, brmLogger)
+    super.beforeEach()
+  }
 
   override def afterAll(): Unit = {
     testKit.shutdownTestKit()
     super.afterAll()
   }
 
-  override def afterEach(): Unit = {
-    reset(timeProvider, brmLogger)
-    super.afterEach()
-  }
-
-  private val oneWeekInHours   = 168
-  private val sixtyDaysInHours = 1440
-
+  private val oneWeekInHours                           = 168
+  private val sixtyDaysInHours                         = 1440
   private val certExpiryEarlyWarningThresholdHours     = sixtyDaysInHours
   private val certExpiryEarlyWarningCheckIntervalHours = oneWeekInHours
-
-  private val certExpiryWarningThresholdHours     = oneWeekInHours
-  private val certExpiryWarningCheckIntervalHours = 24
-
-  private val certExpiryCriticalThresholdHours     = 24
-  private val certExpiryCriticalCheckIntervalHours = 1
-
-  // Mock configuration for testing
-  def createMockConfig(): GroAppConfig = {
-    val config = mock[GroAppConfig]
-
-    when(config.certExpiryEarlyWarningThresholdHours).thenReturn(certExpiryEarlyWarningThresholdHours)
-    when(config.certExpiryEarlyWarningCheckIntervalHours).thenReturn(certExpiryEarlyWarningCheckIntervalHours)
-
-    when(config.certExpiryWarningThresholdHours).thenReturn(certExpiryWarningThresholdHours)
-    when(config.certExpiryWarningCheckIntervalHours).thenReturn(certExpiryWarningCheckIntervalHours)
-
-    when(config.certExpiryCriticalThresholdHours).thenReturn(certExpiryCriticalThresholdHours)
-    when(config.certExpiryCriticalCheckIntervalHours).thenReturn(certExpiryCriticalCheckIntervalHours)
-
-    config
-  }
-
-  private def advanceTimeReturningNewTimeProviderTime(timeToAdvanceInHours: Int, previousZonedDateTime: ZonedDateTime)(
-    implicit
-    timeProvider: TimeProvider,
-    manualTime: ManualTime
-  ): ZonedDateTime = {
-    val newZonedDateTime = previousZonedDateTime.plusHours(timeToAdvanceInHours)
-
-    when(timeProvider.now).thenReturn(newZonedDateTime)
-    manualTime.timePasses(FiniteDuration(timeToAdvanceInHours, HOURS))
-
-    newZonedDateTime
-  }
-
-  private def verifyNextCheckIntervalLog(now: ZonedDateTime, expectedIntervalHours: Int)(implicit
-    brmLogger: BrmLogger
-  ): Unit = {
-    val nextCheckTime =
-      now.plusHours(expectedIntervalHours).format(CertificateExpiryLogger.timeFormat)
-
-    verify(brmLogger).info(
-      "CertificateExpiryLogger$",
-      s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime"
-    )
-  }
-
-  private def verifyWarningLog(
-    daysTillExpiry: Option[Long] = None,
-    hoursTillExpiry: Option[Long] = None
-  )(implicit certificateExpiry: ZonedDateTime): Unit = {
-    val formattedCertificateExpiryTime = certificateExpiry.toLocalDateTime.format(CertificateExpiryLogger.timeFormat)
-
-    val certExpiryMessage =
-      if (daysTillExpiry.isDefined) {
-        s"Certificate expires in ${daysTillExpiry.get} days at $formattedCertificateExpiryTime"
-      } else {
-        s"Certificate expires in ${hoursTillExpiry.get} hours at $formattedCertificateExpiryTime"
-      }
-
-    verify(brmLogger).warn("CertificateExpiryLogger$", "logCertificateExpiry", certExpiryMessage)
-  }
+  private val certExpiryWarningThresholdHours          = oneWeekInHours
+  private val certExpiryWarningCheckIntervalHours      = 24
+  private val certExpiryCriticalThresholdHours         = 24
+  private val certExpiryCriticalCheckIntervalHours     = 1
 
   "CertificateExpiryLogger" should {
 
-    "behave as expected for all warning windows" in {
+    "behave as expected when time travelling towards certificate expiry from before early warning window" in {
 
       // set our cert expiry so that we aren't synchronising our interval, and we are outside the early warning window
-      val certExpiryHours            = certExpiryEarlyWarningThresholdHours + certExpiryEarlyWarningCheckIntervalHours
-      implicit val certificateExpiry = zonedNow.plusHours(certExpiryHours)
+      val certExpiryHours                           = certExpiryEarlyWarningThresholdHours + certExpiryEarlyWarningCheckIntervalHours
+      implicit val certificateExpiry: ZonedDateTime = zonedNow.plusHours(certExpiryHours)
 
       val formattedCertificateExpiryTime = certificateExpiry.toLocalDateTime.format(CertificateExpiryLogger.timeFormat)
 
@@ -151,7 +89,7 @@ class CertificateExpiryLoggerSpec
         timerSpy
       }
 
-      testKit.spawn(CertificateExpiryLogger(certificateExpiry.toLocalDateTime, config, timeProvider, timer))
+      val actor = testKit.spawn(CertificateExpiryLogger(certificateExpiry.toLocalDateTime, config, timeProvider, timer))
 
       // initial check & before early warning window assertions
 
@@ -193,7 +131,7 @@ class CertificateExpiryLoggerSpec
 
       // critical window assertions
 
-      // advance 1 extra hour in to window to test hours log
+      // advance 1 extra hour in to window to test 'hours' text in log
       val timeToAdvanceInToCriticalWindow = certExpiryWarningThresholdHours - certExpiryCriticalThresholdHours + 1
 
       val timeAtCriticalThreshold =
@@ -226,6 +164,26 @@ class CertificateExpiryLoggerSpec
       reset(timerSpy, timeProvider, brmLogger)
     }
 
+    "calculate synchronised interval" in {
+
+      val certificateExpiry = LocalDateTime.now().plusHours(certExpiryWarningThresholdHours + 2)
+      val config            = createMockConfig()
+      val mockTimeProvider  = spy(new TimeProvider)
+
+      testKit.spawn(CertificateExpiryLogger(certificateExpiry, config, mockTimeProvider))
+
+      val nextCheckTime =
+        now.plusHours(2).minusMinutes(1).format(CertificateExpiryLogger.timeFormat)
+
+      Thread.sleep(100)
+
+      verify(brmLogger).info(
+        "CertificateExpiryLogger$",
+        s"Setting next check interval to 2 hours at $nextCheckTime"
+      )
+
+    }
+
     "stop when receiving Stop command" in {
       val certificateExpiry = LocalDateTime.now().plusDays(10)
       val config            = createMockConfig()
@@ -242,4 +200,61 @@ class CertificateExpiryLoggerSpec
     }
 
   }
+
+  private def createMockConfig(): GroAppConfig = {
+    val config = mock[GroAppConfig]
+
+    when(config.certExpiryEarlyWarningThresholdHours).thenReturn(certExpiryEarlyWarningThresholdHours)
+    when(config.certExpiryEarlyWarningCheckIntervalHours).thenReturn(certExpiryEarlyWarningCheckIntervalHours)
+
+    when(config.certExpiryWarningThresholdHours).thenReturn(certExpiryWarningThresholdHours)
+    when(config.certExpiryWarningCheckIntervalHours).thenReturn(certExpiryWarningCheckIntervalHours)
+
+    when(config.certExpiryCriticalThresholdHours).thenReturn(certExpiryCriticalThresholdHours)
+    when(config.certExpiryCriticalCheckIntervalHours).thenReturn(certExpiryCriticalCheckIntervalHours)
+
+    config
+  }
+
+  // keep our TimeProvider and Pekko's time in sync by advancing them together
+  private def advanceTimeReturningNewTimeProviderTime(timeToAdvanceInHours: Int, previousNow: ZonedDateTime)(implicit
+    timeProvider: TimeProvider,
+    manualTime: ManualTime
+  ): ZonedDateTime = {
+    val newNow = previousNow.plusHours(timeToAdvanceInHours)
+
+    when(timeProvider.now).thenReturn(newNow)
+    manualTime.timePasses(FiniteDuration(timeToAdvanceInHours, HOURS))
+
+    newNow
+  }
+
+  private def verifyNextCheckIntervalLog(now: ZonedDateTime, expectedIntervalHours: Int)(implicit
+    brmLogger: BrmLogger
+  ): Unit = {
+    val nextCheckTime =
+      now.plusHours(expectedIntervalHours).format(CertificateExpiryLogger.timeFormat)
+
+    verify(brmLogger).info(
+      "CertificateExpiryLogger$",
+      s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime"
+    )
+  }
+
+  private def verifyWarningLog(
+    daysTillExpiry: Option[Long] = None,
+    hoursTillExpiry: Option[Long] = None
+  )(implicit certificateExpiry: ZonedDateTime): Unit = {
+    val formattedCertificateExpiryTime = certificateExpiry.toLocalDateTime.format(CertificateExpiryLogger.timeFormat)
+
+    val certExpiryMessage =
+      if (daysTillExpiry.isDefined) {
+        s"Certificate expires in ${daysTillExpiry.get} days at $formattedCertificateExpiryTime"
+      } else {
+        s"Certificate expires in ${hoursTillExpiry.get} hours at $formattedCertificateExpiryTime"
+      }
+
+    verify(brmLogger).warn("CertificateExpiryLogger$", "logCertificateExpiry", certExpiryMessage)
+  }
+
 }
