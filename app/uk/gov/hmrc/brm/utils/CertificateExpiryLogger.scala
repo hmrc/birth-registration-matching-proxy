@@ -105,7 +105,6 @@ object CertificateExpiryLogger {
     val earlyWarningThresholdHours = Duration.ofHours(conf.certExpiryEarlyWarningThresholdHours)
 
     val timeUntilCertExpiry = Duration.between(now, certificateExpiry)
-    println(s"timeUntilCertExpiry hours: ${timeUntilCertExpiry.toHours}")
 
     if (isBeforeEarlyWarningWindow(timeUntilCertExpiry, earlyWarningThresholdHours)) {
       val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(earlyWarningThresholdHours).toMinutes
