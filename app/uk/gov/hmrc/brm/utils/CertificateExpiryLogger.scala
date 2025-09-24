@@ -24,13 +24,9 @@ import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import scala.concurrent.duration._
 
-// for testing purposes to assert our timer has been called correctly
-trait Timer[T] {
-  def startSingleTimer(msg: T, delay: FiniteDuration): Unit
-}
-
-class PekkoTimer[T](scheduler: TimerScheduler[T]) extends Timer[T] {
-  override def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
+// wraps .startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
+class PekkoTimer[T](scheduler: TimerScheduler[T]) {
+   def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
 }
 
 object CertificateExpiryLogger {
@@ -47,7 +43,7 @@ object CertificateExpiryLogger {
     certificateExpiry: LocalDateTime,
     groAppConfig: GroAppConfig,
     timeProvider: TimeProvider,
-    timer: TimerScheduler[LoggerCommand] => Timer[LoggerCommand] = new PekkoTimer(_)
+    timer: TimerScheduler[LoggerCommand] => PekkoTimer[LoggerCommand] = new PekkoTimer(_)
   )(implicit
     logger: BrmLogger
   ): Behavior[LoggerCommand] =
@@ -60,7 +56,7 @@ object CertificateExpiryLogger {
 
   private def running(
     certificateExpiry: LocalDateTime,
-    timerScheduler: Timer[LoggerCommand],
+    timerScheduler: PekkoTimer[LoggerCommand],
     timeProvider: TimeProvider,
     groAppConfig: GroAppConfig
   )(implicit logger: BrmLogger): Behavior[LoggerCommand] =

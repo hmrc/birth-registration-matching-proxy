@@ -80,8 +80,8 @@ class CertificateExpiryLoggerSpec
 
       val formattedCertificateExpiryTime = certificateExpiry.toLocalDateTime.format(CertificateExpiryLogger.timeFormat)
 
-      val config                         = createMockConfig()
-      var timerSpy: Timer[LoggerCommand] = null
+      val config                              = createMockConfig()
+      var timerSpy: PekkoTimer[LoggerCommand] = null
 
       val timer = (scheduler: TimerScheduler[LoggerCommand]) => {
         val realTimer = new PekkoTimer(scheduler)
@@ -89,7 +89,7 @@ class CertificateExpiryLoggerSpec
         timerSpy
       }
 
-      val actor = testKit.spawn(CertificateExpiryLogger(certificateExpiry.toLocalDateTime, config, timeProvider, timer))
+      testKit.spawn(CertificateExpiryLogger(certificateExpiry.toLocalDateTime, config, timeProvider, timer))
 
       // initial check & before early warning window assertions
 
