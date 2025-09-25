@@ -32,7 +32,6 @@ import scala.concurrent.Future
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
-// temp note: singleton as we shouldn't have two actors with the same name
 @Singleton
 class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
@@ -46,10 +45,8 @@ class CertificateStatus @Inject() (
 
   protected val CLASS_NAME: String = this.getClass.getSimpleName
 
-  // convert play's actor system to typed to use with our typed actor
   val typedActorSystem = actorSystem.toTyped
 
-  // todo: should this be systemActorOf, seems like this is discouraged in the source?
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.LoggerCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryLogger actor")

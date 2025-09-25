@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import scala.concurrent.duration._
 
-// wraps .startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
+// wraps startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
 class PekkoTimer[T](scheduler: TimerScheduler[T]) {
    def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
 }
@@ -48,10 +48,10 @@ object CertificateExpiryLogger {
     logger: BrmLogger
   ): Behavior[LoggerCommand] =
     Behaviors.withTimers { timerScheduler =>
-      val t = timer(timerScheduler)
+      val pekkoTimer = timer(timerScheduler)
       logger.info(CLASS_NAME, "Starting initial check")
-      t.startSingleTimer(CheckExpiry, 0.minutes) // start the initial check
-      running(certificateExpiry, t, timeProvider, groAppConfig)
+      pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
+      running(certificateExpiry, pekkoTimer, timeProvider, groAppConfig)
     }
 
   private def running(
@@ -107,7 +107,7 @@ object CertificateExpiryLogger {
       val windowInterval              = Duration.ofHours(conf.certExpiryEarlyWarningCheckIntervalHours).toMinutes
 
       getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
-    } else { // within early warning window or less, log expiry message & get next check interval
+    } else {
 
       logCertificateExpiry(timeUntilCertExpiry, certificateExpiry)
 

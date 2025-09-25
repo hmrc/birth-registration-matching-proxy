@@ -42,8 +42,10 @@ class CertificateExpiryLoggerSpec
     with BeforeAndAfterAll
     with BaseUnitSpec {
 
-  val now: LocalDateTime              = LocalDateTime.now()
-  val zonedNow: ZonedDateTime         = now.atZone(ZoneId.of("UTC"))
+  val now: LocalDateTime        = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val zonedNow: ZonedDateTime   = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val oneMinute: FiniteDuration = FiniteDuration(1, MINUTES)
+
   val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
   implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
@@ -75,8 +77,11 @@ class CertificateExpiryLoggerSpec
     "behave as expected when time travelling towards certificate expiry from before early warning window" in {
 
       // set our cert expiry so that we aren't synchronising our interval, and we are outside the early warning window
-      val certExpiryHours                           = certExpiryEarlyWarningThresholdHours + certExpiryEarlyWarningCheckIntervalHours
-      implicit val certificateExpiry: ZonedDateTime = zonedNow.plusHours(certExpiryHours)
+      val certExpiryHours = certExpiryEarlyWarningThresholdHours + certExpiryEarlyWarningCheckIntervalHours
+
+      // add one minute to the cert expiry to align with expected intervals and durations for easier testing
+      // - our actor waits one minute before checking certificate expiry
+      implicit val certificateExpiry: ZonedDateTime = zonedNow.plusHours(certExpiryHours).plusMinutes(1)
 
       val formattedCertificateExpiryTime = certificateExpiry.toLocalDateTime.format(CertificateExpiryLogger.timeFormat)
 
@@ -96,7 +101,13 @@ class CertificateExpiryLoggerSpec
       Thread.sleep(100) // allow our actor to pop up
 
       verify(brmLogger).info("CertificateExpiryLogger$", "Starting initial check")
-      verify(timerSpy).startSingleTimer(CheckExpiry, FiniteDuration(0, MINUTES))
+      verify(timerSpy).startSingleTimer(CheckExpiry, oneMinute)
+
+      val timeBeforeEarlyWarningWindow =
+        advanceTimeReturningNewTimeProviderTime(timeToAdvanceInMinutes = Some(1), previousNow = zonedNow)
+
+      Thread.sleep(100)
+
       verifyNextCheckIntervalLog(timeProvider.now, certExpiryEarlyWarningCheckIntervalHours)
       verify(timerSpy).startSingleTimer(CheckExpiry, FiniteDuration(certExpiryEarlyWarningCheckIntervalHours, HOURS))
 
@@ -105,7 +116,10 @@ class CertificateExpiryLoggerSpec
       // early warning window assertions
 
       val timeAtEarlyWarningThreshold =
-        advanceTimeReturningNewTimeProviderTime(certExpiryEarlyWarningCheckIntervalHours, zonedNow)
+        advanceTimeReturningNewTimeProviderTime(
+          timeToAdvanceInHours = Some(certExpiryEarlyWarningCheckIntervalHours),
+          previousNow = timeBeforeEarlyWarningWindow
+        )
 
       Thread.sleep(100)
 
@@ -119,7 +133,10 @@ class CertificateExpiryLoggerSpec
 
       val timeToAdvanceInToWarningWindow = certExpiryEarlyWarningThresholdHours - certExpiryWarningThresholdHours
       val timeAtWarningThreshold         =
-        advanceTimeReturningNewTimeProviderTime(timeToAdvanceInToWarningWindow, timeAtEarlyWarningThreshold)
+        advanceTimeReturningNewTimeProviderTime(
+          timeToAdvanceInHours = Some(timeToAdvanceInToWarningWindow),
+          previousNow = timeAtEarlyWarningThreshold
+        )
 
       Thread.sleep(100)
 
@@ -135,7 +152,10 @@ class CertificateExpiryLoggerSpec
       val timeToAdvanceInToCriticalWindow = certExpiryWarningThresholdHours - certExpiryCriticalThresholdHours + 1
 
       val timeAtCriticalThreshold =
-        advanceTimeReturningNewTimeProviderTime(timeToAdvanceInToCriticalWindow, timeAtWarningThreshold)
+        advanceTimeReturningNewTimeProviderTime(
+          timeToAdvanceInHours = Some(timeToAdvanceInToCriticalWindow),
+          previousNow = timeAtWarningThreshold
+        )
 
       Thread.sleep(100)
 
@@ -147,7 +167,10 @@ class CertificateExpiryLoggerSpec
 
       // expired assertions
 
-      advanceTimeReturningNewTimeProviderTime(timeToAdvanceInToCriticalWindow, timeAtCriticalThreshold)
+      advanceTimeReturningNewTimeProviderTime(
+        timeToAdvanceInHours = Some(timeToAdvanceInToCriticalWindow),
+        previousNow = timeAtCriticalThreshold
+      )
 
       Thread.sleep(100)
 
@@ -166,20 +189,27 @@ class CertificateExpiryLoggerSpec
 
     "calculate synchronised interval" in {
 
-      val certificateExpiry = LocalDateTime.now().plusHours(certExpiryWarningThresholdHours + 2)
+      val now         = LocalDateTime.now(ZoneId.of("UTC"))
+      val hoursOffset = 2
+
+      val certificateExpiry = now.plusHours(certExpiryWarningThresholdHours + hoursOffset)
       val config            = createMockConfig()
       val mockTimeProvider  = spy(new TimeProvider)
 
+      when(mockTimeProvider.now).thenReturn(now.atZone(ZoneId.of("UTC")))
+
       testKit.spawn(CertificateExpiryLogger(certificateExpiry, config, mockTimeProvider))
 
+      advanceTimeReturningNewTimeProviderTime(timeToAdvanceInMinutes = Some(1), previousNow = zonedNow)
+
       val nextCheckTime =
-        now.plusHours(2).minusMinutes(1).format(CertificateExpiryLogger.timeFormat)
+        now.plusHours(hoursOffset).format(CertificateExpiryLogger.timeFormat)
 
       Thread.sleep(100)
 
       verify(brmLogger).info(
         "CertificateExpiryLogger$",
-        s"Setting next check interval to 2 hours at $nextCheckTime"
+        s"Setting next check interval to $hoursOffset hours at $nextCheckTime"
       )
 
     }
@@ -217,14 +247,32 @@ class CertificateExpiryLoggerSpec
   }
 
   // keep our TimeProvider and Pekko's time in sync by advancing them together
-  private def advanceTimeReturningNewTimeProviderTime(timeToAdvanceInHours: Int, previousNow: ZonedDateTime)(implicit
+  private def advanceTimeReturningNewTimeProviderTime(
+    timeToAdvanceInHours: Option[Int] = None,
+    timeToAdvanceInMinutes: Option[Int] = None,
+    previousNow: ZonedDateTime
+  )(implicit
     timeProvider: TimeProvider,
     manualTime: ManualTime
   ): ZonedDateTime = {
-    val newNow = previousNow.plusHours(timeToAdvanceInHours)
+
+    val newNow =
+      if (timeToAdvanceInHours.isDefined) {
+        previousNow.plusHours(timeToAdvanceInHours.get)
+      } else {
+        previousNow.plusMinutes(timeToAdvanceInMinutes.get)
+      }
 
     when(timeProvider.now).thenReturn(newNow)
-    manualTime.timePasses(FiniteDuration(timeToAdvanceInHours, HOURS))
+
+    val durationToAdvance =
+      if (timeToAdvanceInHours.isDefined) {
+        FiniteDuration(timeToAdvanceInHours.get, HOURS)
+      } else {
+        FiniteDuration(timeToAdvanceInMinutes.get, MINUTES)
+      }
+
+    manualTime.timePasses(durationToAdvance)
 
     newNow
   }
