@@ -49,7 +49,7 @@ object CertificateExpiryLogger {
   ): Behavior[LoggerCommand] =
     Behaviors.withTimers { timerScheduler =>
       val pekkoTimer = timer(timerScheduler)
-      logger.info(CLASS_NAME, "Starting initial check")
+      logger.info(CLASS_NAME, "apply", "Starting initial check")
       pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
       running(certificateExpiry, pekkoTimer, timeProvider, groAppConfig)
     }
@@ -74,6 +74,7 @@ object CertificateExpiryLogger {
 
         logger.info(
           CLASS_NAME,
+          "running",
           s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)}"
         )
 
@@ -81,7 +82,7 @@ object CertificateExpiryLogger {
 
         Behaviors.same
       case Stop        =>
-        logger.info(CLASS_NAME, "Stopping certificate expiry monitoring")
+        logger.info(CLASS_NAME, "running", "Stopping certificate expiry monitoring")
         Behaviors.stopped
     }
 

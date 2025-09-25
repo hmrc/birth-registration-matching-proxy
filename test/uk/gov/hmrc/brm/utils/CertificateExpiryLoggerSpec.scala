@@ -100,7 +100,7 @@ class CertificateExpiryLoggerSpec
 
       Thread.sleep(100) // allow our actor to pop up
 
-      verify(brmLogger).info("CertificateExpiryLogger$", "Starting initial check")
+      verify(brmLogger).info("CertificateExpiryLogger$", "apply", "Starting initial check")
       verify(timerSpy).startSingleTimer(CheckExpiry, oneMinute)
 
       val timeBeforeEarlyWarningWindow =
@@ -209,6 +209,7 @@ class CertificateExpiryLoggerSpec
 
       verify(brmLogger).info(
         "CertificateExpiryLogger$",
+        "running",
         s"Setting next check interval to $hoursOffset hours at $nextCheckTime"
       )
 
@@ -229,6 +230,7 @@ class CertificateExpiryLoggerSpec
 
       verify(brmLogger).info(
         "CertificateExpiryLogger$",
+        "running",
         s"Stopping certificate expiry monitoring"
       )
 
@@ -292,6 +294,7 @@ class CertificateExpiryLoggerSpec
 
     verify(brmLogger).info(
       "CertificateExpiryLogger$",
+      "running",
       s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime"
     )
   }
