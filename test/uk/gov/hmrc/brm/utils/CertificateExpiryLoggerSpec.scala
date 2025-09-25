@@ -225,6 +225,13 @@ class CertificateExpiryLoggerSpec
 
       actor ! CertificateExpiryLogger.Stop
 
+      Thread.sleep(100)
+
+      verify(brmLogger).info(
+        "CertificateExpiryLogger$",
+        s"Stopping certificate expiry monitoring"
+      )
+
       val probe = testKit.createTestProbe[Nothing]()
       probe.expectTerminated(actor, 3.seconds)
     }

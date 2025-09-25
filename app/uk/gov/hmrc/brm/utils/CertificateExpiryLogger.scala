@@ -81,7 +81,7 @@ object CertificateExpiryLogger {
 
         Behaviors.same
       case Stop        =>
-        logger.info("Stopping certificate expiry monitoring")
+        logger.info(CLASS_NAME, "Stopping certificate expiry monitoring")
         Behaviors.stopped
     }
 
