@@ -93,7 +93,7 @@ object CertificateExpiryLogger {
   // | <- Early Warning Window -> | <- Warning Window -> | <- Critical Warning Window -> | Expired |
   // |                            |                      |
   // └─ Early Warning Threshold   └─  Warning Threshold  └─ Critical Threshold
-  def getNextCertificateCheckIntervalMinutes(
+  private def getNextCertificateCheckIntervalMinutes(
     certificateExpiry: LocalDateTime,
     now: LocalDateTime,
     conf: GroAppConfig
