@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.certificate
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.scaladsl.{Behaviors, TimerScheduler}
 import uk.gov.hmrc.brm.config.GroAppConfig
-import uk.gov.hmrc.brm.time.{CertificateCheckSchedule, TimeProvider}
+import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.time.format.DateTimeFormatter

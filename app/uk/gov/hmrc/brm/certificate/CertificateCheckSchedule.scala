@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.time
+package uk.gov.hmrc.brm.certificate
 
 import uk.gov.hmrc.brm.config.GroAppConfig
 
