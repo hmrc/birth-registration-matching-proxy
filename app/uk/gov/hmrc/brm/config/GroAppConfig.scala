@@ -17,12 +17,10 @@
 package uk.gov.hmrc.brm.config
 
 import uk.gov.hmrc.brm.certificate.CertificateCheckTimes
-import uk.gov.hmrc.brm.utils.BrmLogger.logger
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
-import java.time.Duration
 import javax.inject.{Inject, Singleton}
-import scala.util.{Failure, Success, Try}
 
 @Singleton
 class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
@@ -48,19 +46,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystorePassword: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystorePassword")
   lazy val tlsEnabled: Boolean                = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
-  lazy val certificateTimes: CertificateCheckTimes = CertificateCheckTimes.loadCertificateCheckTimes()(servicesConfig, tlsConfigPath) match {
-    case Success(value) => value
-    case Failure(exception) =>
-      logger.error(s"Error loading certificate check times. Using defaults. Exception: ${exception.getMessage}")
-
-      CertificateCheckTimes(
-        certExpiryEarlyWarningThresholdHours = Duration.ofHours(1344),
-        certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(168),
-        certExpiryWarningThresholdHours = Duration.ofHours(168),
-        certExpiryWarningCheckIntervalHours = Duration.ofHours(24),
-        certExpiryCriticalThresholdHours = Duration.ofHours(1),
-        certExpiryCriticalCheckIntervalHours = Duration.ofHours(1)
-      )
-  }
+  lazy val certificateTimes: CertificateCheckTimes =
+    CertificateCheckTimes.load()(servicesConfig, tlsConfigPath, BrmLogger)
 
 }

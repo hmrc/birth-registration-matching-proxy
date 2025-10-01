@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.time.Duration
@@ -32,38 +33,59 @@ case class CertificateCheckTimes(
 
 object CertificateCheckTimes {
 
-  def loadCertificateCheckTimes()(implicit servicesConfig: ServicesConfig, tlsConfigPath: String): Try[CertificateCheckTimes] = for {
-    certExpiryEarlyWarningThresholdHours     <- loadHours("certExpiryEarlyWarningThresholdHours")
-    certExpiryEarlyWarningCheckIntervalHours <- loadHours("certExpiryEarlyWarningCheckIntervalHours")
-    certExpiryWarningThresholdHours          <- loadHours("certExpiryWarningThresholdHours")
-    certExpiryWarningCheckIntervalHours      <- loadHours("certExpiryWarningCheckIntervalHours")
-    certExpiryCriticalThresholdHours         <- loadHours("certExpiryCriticalThresholdHours")
-    certExpiryCriticalCheckIntervalHours     <- loadHours("certExpiryCriticalCheckIntervalHours")
-    _                                        <- {
-      val validWindowThresholds =
-        certExpiryEarlyWarningThresholdHours.toHours > certExpiryWarningThresholdHours.toHours &&
-          certExpiryWarningThresholdHours.toHours > certExpiryCriticalThresholdHours.toHours
-
-      if (validWindowThresholds) {
-        Success(true)
-      } else {
-        Failure(
-          new Exception(
-            "Window thresholds are invalid. Early warning threshold should be greater than warning threshold, " +
-              "which should be greater than critical threshold "
-          )
-        )
-      }
-
-    }
-  } yield CertificateCheckTimes(
-    certExpiryEarlyWarningThresholdHours,
-    certExpiryEarlyWarningCheckIntervalHours,
-    certExpiryWarningThresholdHours,
-    certExpiryWarningCheckIntervalHours,
-    certExpiryCriticalThresholdHours,
-    certExpiryCriticalCheckIntervalHours
+  val default: CertificateCheckTimes = CertificateCheckTimes(
+    certExpiryEarlyWarningThresholdHours = Duration.ofHours(1344),
+    certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(168),
+    certExpiryWarningThresholdHours = Duration.ofHours(168),
+    certExpiryWarningCheckIntervalHours = Duration.ofHours(24),
+    certExpiryCriticalThresholdHours = Duration.ofHours(24),
+    certExpiryCriticalCheckIntervalHours = Duration.ofHours(1)
   )
+
+  def load()(implicit servicesConfig: ServicesConfig, tlsConfigPath: String, brmLogger: BrmLogger): CertificateCheckTimes = {
+    val maybeCertificateCheckTimes = for {
+      certExpiryEarlyWarningThresholdHours     <- loadHours("certExpiryEarlyWarningThresholdHours")
+      certExpiryEarlyWarningCheckIntervalHours <- loadHours("certExpiryEarlyWarningCheckIntervalHours")
+      certExpiryWarningThresholdHours          <- loadHours("certExpiryWarningThresholdHours")
+      certExpiryWarningCheckIntervalHours      <- loadHours("certExpiryWarningCheckIntervalHours")
+      certExpiryCriticalThresholdHours         <- loadHours("certExpiryCriticalThresholdHours")
+      certExpiryCriticalCheckIntervalHours     <- loadHours("certExpiryCriticalCheckIntervalHours")
+      _                                        <- {
+        val validWindowThresholds =
+          certExpiryEarlyWarningThresholdHours.toHours > certExpiryWarningThresholdHours.toHours &&
+            certExpiryWarningThresholdHours.toHours > certExpiryCriticalThresholdHours.toHours
+
+        if (validWindowThresholds) {
+          Success(true)
+        } else {
+          Failure(
+            new Exception(
+              "Window thresholds are invalid. Early warning threshold should be greater than warning threshold, " +
+                "which should be greater than critical threshold."
+            )
+          )
+        }
+
+      }
+    } yield CertificateCheckTimes(
+      certExpiryEarlyWarningThresholdHours,
+      certExpiryEarlyWarningCheckIntervalHours,
+      certExpiryWarningThresholdHours,
+      certExpiryWarningCheckIntervalHours,
+      certExpiryCriticalThresholdHours,
+      certExpiryCriticalCheckIntervalHours
+    )
+
+    maybeCertificateCheckTimes match {
+      case Success(value)     =>
+        brmLogger.info("CertificateCheckTimes", "load", "Successfully loaded certificate check times")
+        value
+      case Failure(exception) =>
+        brmLogger.error("CertificateCheckTimes", "load", s"Error loading certificate check times. Using defaults. Exception: ${exception.getMessage}")
+        CertificateCheckTimes.default
+    }
+
+  }
 
   private def loadHours(key: String)(implicit servicesConfig: ServicesConfig, tlsConfigPath: String): Try[Duration] =
     Try(Duration.ofHours(servicesConfig.getInt(s"$tlsConfigPath.$key")))

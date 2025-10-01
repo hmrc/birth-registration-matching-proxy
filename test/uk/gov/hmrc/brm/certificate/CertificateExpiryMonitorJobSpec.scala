@@ -55,13 +55,13 @@ class CertificateExpiryMonitorJobSpec
   when(timeProvider.now).thenReturn(zonedNow)
 
   override def beforeEach(): Unit = {
-    reset(timeProvider, brmLogger)
     super.beforeEach()
+    reset(timeProvider, brmLogger)
   }
 
   override def afterAll(): Unit = {
-    testKit.shutdownTestKit()
     super.afterAll()
+    testKit.shutdownTestKit()
   }
 
   private val oneWeekInHours                           = 168
