@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.utils
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
+import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import javax.inject.Inject

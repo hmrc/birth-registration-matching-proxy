@@ -21,8 +21,10 @@ import org.mockito.Mockito._
 import play.api.http.Status
 import play.api.libs.json.JsObject
 import uk.gov.hmrc.brm.TestFixture
+import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
+import uk.gov.hmrc.brm.time.TimeProvider
+import uk.gov.hmrc.brm.utils.AccessTokenRepository
 import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse}
 

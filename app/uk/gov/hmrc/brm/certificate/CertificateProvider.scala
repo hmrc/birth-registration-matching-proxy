@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.certificate
 
 import java.security.cert.Certificate
 import scala.util.Try

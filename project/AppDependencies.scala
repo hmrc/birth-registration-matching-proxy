@@ -30,8 +30,8 @@ object AppDependencies {
 
   val test: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"      %% "bootstrap-test-play-30"    % bootstrapPlayVersion,
-    "org.apache.pekko" %% "pekko-testkit"             % "1.0.3",
-    "org.apache.pekko" %% "pekko-actor-testkit-typed" % "1.0.3"
+    "org.apache.pekko" %% "pekko-testkit"             % PlayVersion.pekkoVersion,
+    "org.apache.pekko" %% "pekko-actor-testkit-typed" % PlayVersion.pekkoVersion
   ).map(_ % Test)
 
   def apply(): Seq[ModuleID] = compile ++ test

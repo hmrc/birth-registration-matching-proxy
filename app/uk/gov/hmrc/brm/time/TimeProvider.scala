@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.time
 
 import java.time.{ZoneId, ZonedDateTime}
 

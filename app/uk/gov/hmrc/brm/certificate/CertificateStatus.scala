@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.certificate
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter._
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.time.TimeProvider
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import java.io.FileInputStream
@@ -47,12 +49,12 @@ class CertificateStatus @Inject() (
 
   val typedActorSystem = actorSystem.toTyped
 
-  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryLogger.LoggerCommand]] =
+  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryLogger(expiryDate, groConfig, new TimeProvider),
+        CertificateExpiryMonitorJob(expiryDate, new TimeProvider, groConfig),
         "certificate-expiry-logger"
       )
     }
@@ -61,7 +63,7 @@ class CertificateStatus @Inject() (
     lifecycle.addStopHook { () =>
       info(CLASS_NAME, "Stopping CertificateExpiryLogger actor")
       Future.successful {
-        certificateExpiryLoggerActor ! CertificateExpiryLogger.Stop
+        certificateExpiryLoggerActor ! Terminate
       }
     }
   )
