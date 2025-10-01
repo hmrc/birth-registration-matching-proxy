@@ -68,7 +68,7 @@ class CertificateCheckTimesSpec extends TestFixture {
       verify(brmLogger).info("CertificateCheckTimes", "load", "Successfully loaded certificate check times")
     }
 
-    "fallback to default when loading invalid configuration when warning threshold is greater than early warning threshold" in {
+    "fallback to default times when loading invalid configuration when warning threshold is greater than early warning threshold" in {
 
       setConfigValue("certExpiryEarlyWarningThresholdHours", 1)
       setConfigValue("certExpiryEarlyWarningCheckIntervalHours", 1)
@@ -83,7 +83,7 @@ class CertificateCheckTimesSpec extends TestFixture {
       verify(brmLogger).error("CertificateCheckTimes", "load", expectedFailureMessage)
     }
 
-    "fallback to default when loadinginvalid configuration when critical threshold is greater than warning threshold" in {
+    "fallback to default times when loading invalid configuration when critical threshold is greater than warning threshold" in {
 
       setConfigValue("certExpiryEarlyWarningThresholdHours", 3)
       setConfigValue("certExpiryEarlyWarningCheckIntervalHours", 1)
