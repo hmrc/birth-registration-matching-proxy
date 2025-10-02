@@ -14,26 +14,59 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.certificate
 
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.typed.ActorRef
+import org.apache.pekko.actor.typed.scaladsl.adapter._
+import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.time.TimeProvider
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger._
 
 import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.cert.{Certificate, X509Certificate}
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit.DAYS
-import java.time.{Duration, LocalDate, LocalDateTime, Period, ZoneId}
-import javax.inject.Inject
+import java.time.{LocalDateTime, ZoneId}
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
-class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends CertificateProvider {
+@Singleton
+class CertificateStatus @Inject() (
+  val groConfig: GroAppConfig,
+  lifecycle: ApplicationLifecycle,
+  actorSystem: ActorSystem
+) extends CertificateProvider {
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
+  implicit val logger: BrmLogger.type = BrmLogger
+
   protected val CLASS_NAME: String = this.getClass.getSimpleName
+
+  val typedActorSystem = actorSystem.toTyped
+
+  private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
+    getExpiryDate.map { expiryDate =>
+      info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
+
+      typedActorSystem.systemActorOf(
+        CertificateExpiryMonitorJob(expiryDate, new TimeProvider, groConfig),
+        "certificate-expiry-logger"
+      )
+    }
+
+  certificateExpiryLoggerActorOpt.foreach(certificateExpiryLoggerActor =>
+    lifecycle.addStopHook { () =>
+      info(CLASS_NAME, "Stopping CertificateExpiryLogger actor")
+      Future.successful {
+        certificateExpiryLoggerActor ! Terminate
+      }
+    }
+  )
 
   override def loadCertificate(): Try[Certificate] = {
     val keyStore = KeyStore.getInstance("PKCS12")
@@ -66,35 +99,9 @@ class CertificateStatus @Inject() (val groConfig: GroAppConfig) extends Certific
     }
   }
 
-  private def logCertificate(certificateExpiry: LocalDateTime): Unit = {
-    val certificateExpiryDate = certificateExpiry.toLocalDate
-    val daysTillExpiry        = DAYS.between(LocalDateTime.now(), certificateExpiry)
-    val durationMessage       = DateOutput.formatDurations(Period.between(LocalDate.now(), certificateExpiryDate))
-    val formatter             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-
-    if (daysTillExpiry > groConfig.certExpiryWarningThreshold) {
-      info(CLASS_NAME, "logCertificate", s"EXPIRES_IN $durationMessage ($certificateExpiryDate)")
-    } else if (
-      daysTillExpiry > groConfig.certExpiryCriticalThreshold && daysTillExpiry <= groConfig.certExpiryWarningThreshold
-    ) {
-      warn(CLASS_NAME, "logCertificate", s"EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)")
-    } else if (daysTillExpiry > 0 && daysTillExpiry <= groConfig.certExpiryCriticalThreshold) {
-      error(
-        CLASS_NAME,
-        "logCertificate",
-        s"!!!EXPIRES_SOON!!! EXPIRES_WITHIN $durationMessage ($certificateExpiryDate)"
-      )
-    } else if (Duration.between(certificateExpiry, LocalDateTime.now()).toMillis >= 1) {
-      error(CLASS_NAME, "logCertificate", s"EXPIRES_TODAY (${certificateExpiry.format(formatter)})")
-    } else {
-      error(CLASS_NAME, "logCertificate", s"CERTIFICATE_EXPIRED (${certificateExpiry.format(formatter)})")
-    }
-  }
-
   def certificateStatus(): Boolean =
     getExpiryDate match {
       case Some(certificateExpiryDateTime) =>
-        logCertificate(certificateExpiryDateTime)
         certificateExpiryDateTime.isAfter(LocalDateTime.now())
       case None                            =>
         false

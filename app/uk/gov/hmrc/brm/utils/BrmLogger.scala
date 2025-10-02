@@ -25,6 +25,9 @@ class BrmLogger(logger: org.slf4j.Logger) extends Logger(logger) {
   def info(className: String, methodName: String, message: String): Unit =
     logger.info(s"[$BRM_KEY:${KeyHolder.getKey()}], [$className][$methodName] : $message")
 
+  def info(className: String, message: String): Unit =
+    logger.info(s"[$BRM_KEY:${KeyHolder.getKey()}], [$className] : $message")
+
   def warn(className: String, methodName: String, message: String): Unit =
     logger.warn(s"[$BRM_KEY:${KeyHolder.getKey()}],[$className][$methodName] : $message")
 

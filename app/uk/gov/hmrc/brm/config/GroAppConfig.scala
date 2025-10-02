@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.brm.config
 
+import uk.gov.hmrc.brm.certificate.CertificateCheckTimes
+import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
@@ -44,7 +46,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val tlsPrivateKeystorePassword: String = servicesConfig.getString(s"$tlsConfigPath.privateKeystorePassword")
   lazy val tlsEnabled: Boolean                = servicesConfig.getBoolean(s"$tlsConfigPath.tlsEnabled")
 
-  lazy val certExpiryWarningThreshold: Int  = servicesConfig.getInt(s"$tlsConfigPath.certExpiryWarningThreshold")
-  lazy val certExpiryCriticalThreshold: Int = servicesConfig.getInt(s"$tlsConfigPath.certExpiryCriticalThreshold")
+  lazy val certificateTimes: CertificateCheckTimes =
+    CertificateCheckTimes.load()(servicesConfig, tlsConfigPath, BrmLogger)
 
 }

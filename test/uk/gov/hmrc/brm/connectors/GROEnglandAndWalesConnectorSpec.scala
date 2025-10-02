@@ -24,8 +24,10 @@ import play.api.http.Status
 import play.api.libs.json.{JsArray, JsValue}
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.brm.TestFixture
+import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, JsonUtils, TimeProvider}
+import uk.gov.hmrc.brm.time.TimeProvider
+import uk.gov.hmrc.brm.utils.{AccessTokenRepository, JsonUtils}
 import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
 import uk.gov.hmrc.http.{GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse}
 import uk.gov.hmrc.play.audit.http.HttpAuditing

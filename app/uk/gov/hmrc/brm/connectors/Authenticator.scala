@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
+import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger._
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, CertificateStatus, TimeProvider}
+import uk.gov.hmrc.brm.utils.AccessTokenRepository
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 

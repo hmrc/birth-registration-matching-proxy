@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterEach, OptionValues}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -32,6 +32,7 @@ trait TestFixture
     with OptionValues
     with MockitoSugar
     with BeforeAndAfterEach
+    with BeforeAndAfterAll
     with GuiceOneAppPerSuite
     with BaseUnitSpec {
 

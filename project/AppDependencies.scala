@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import play.core.PlayVersion
 import play.sbt.PlayImport.*
 import sbt.*
 
@@ -28,7 +29,9 @@ object AppDependencies {
   )
 
   val test: Seq[ModuleID] = Seq(
-    "uk.gov.hmrc" %% "bootstrap-test-play-30" % bootstrapPlayVersion
+    "uk.gov.hmrc"      %% "bootstrap-test-play-30"    % bootstrapPlayVersion,
+    "org.apache.pekko" %% "pekko-testkit"             % PlayVersion.pekkoVersion,
+    "org.apache.pekko" %% "pekko-actor-testkit-typed" % PlayVersion.pekkoVersion
   ).map(_ % Test)
 
   def apply(): Seq[ModuleID] = compile ++ test

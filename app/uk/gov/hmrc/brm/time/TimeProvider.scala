@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.utils
+package uk.gov.hmrc.brm.time
 
-import java.security.cert.Certificate
-import scala.util.Try
+import java.time.{ZoneId, ZonedDateTime}
 
-trait CertificateProvider {
-  def loadCertificate(): Try[Certificate]
+class TimeProvider {
+  def now: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 }

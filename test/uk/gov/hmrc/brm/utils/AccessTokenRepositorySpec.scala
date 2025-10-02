@@ -18,6 +18,7 @@ package uk.gov.hmrc.brm.utils
 
 import org.mockito.Mockito.when
 import uk.gov.hmrc.brm.TestFixture
+import uk.gov.hmrc.brm.time.TimeProvider
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
