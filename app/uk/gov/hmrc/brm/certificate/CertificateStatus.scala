@@ -29,6 +29,7 @@ import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.cert.{Certificate, X509Certificate}
 import java.time.{LocalDateTime, ZoneId}
+import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
@@ -41,6 +42,8 @@ class CertificateStatus @Inject() (
   actorSystem: ActorSystem
 ) extends CertificateProvider {
 
+  implicit val instanceId: UUID = UUID.randomUUID()
+
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   implicit val logger: BrmLogger.type = BrmLogger
@@ -51,17 +54,21 @@ class CertificateStatus @Inject() (
 
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>
-      info(CLASS_NAME, "Registering CertificateExpiryLogger actor")
+      info(CLASS_NAME, "Registering CertificateExpiryMonitorJob actor")
 
       typedActorSystem.systemActorOf(
         CertificateExpiryMonitorJob(expiryDate, new TimeProvider, groConfig),
-        "certificate-expiry-logger"
+        "certificate-expiry-monitor-job"
       )
     }
 
   certificateExpiryLoggerActorOpt.foreach(certificateExpiryLoggerActor =>
     lifecycle.addStopHook { () =>
-      info(CLASS_NAME, "Stopping CertificateExpiryLogger actor")
+      info(
+        instanceId,
+        CLASS_NAME,
+        "Running application lifecycle shutdown hook - Sending Terminate message to CertificateExpiryMonitorJob actor"
+      )
       Future.successful {
         certificateExpiryLoggerActor ! Terminate
       }

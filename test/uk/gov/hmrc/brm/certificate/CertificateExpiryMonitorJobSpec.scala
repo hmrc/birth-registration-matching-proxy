@@ -30,6 +30,7 @@ import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.{BaseUnitSpec, BrmLogger}
 
 import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
+import java.util.UUID
 import scala.concurrent.duration._
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
@@ -50,6 +51,7 @@ class CertificateExpiryMonitorJobSpec
   val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
   implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val instanceId: UUID       = UUID.randomUUID()
 
   implicit val timeProvider: TimeProvider = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
@@ -103,7 +105,7 @@ class CertificateExpiryMonitorJobSpec
 
       Thread.sleep(100) // allow our actor to pop up
 
-      verify(brmLogger).info("CertificateExpiryMonitorJob$", "apply", "Starting initial check")
+      verify(brmLogger).info(instanceId, "CertificateExpiryMonitorJob", "apply", "Starting initial check")
       verify(timerSpy).startSingleTimer(CheckExpiry, oneMinute)
 
       val timeBeforeEarlyWarningWindow =
@@ -185,7 +187,8 @@ class CertificateExpiryMonitorJobSpec
       verifyNextCheckIntervalLog(timeProvider.now, certExpiryCriticalCheckIntervalHours.toHours)
 
       verify(brmLogger).warn(
-        "CertificateExpiryMonitorJob$",
+        instanceId,
+        "CertificateExpiryMonitorJob",
         "logCertificateExpiry",
         s"Certificate expired at $formattedCertificateExpiryTime"
       )
@@ -217,7 +220,8 @@ class CertificateExpiryMonitorJobSpec
       Thread.sleep(100)
 
       verify(brmLogger).info(
-        "CertificateExpiryMonitorJob$",
+        instanceId,
+        "CertificateExpiryMonitorJob",
         "running",
         s"Setting next check interval to $hoursOffset hours at $nextCheckTime"
       )
@@ -237,11 +241,13 @@ class CertificateExpiryMonitorJobSpec
 
       Thread.sleep(100)
 
-      verify(brmLogger).info(
-        "CertificateExpiryMonitorJob$",
-        "running",
-        s"Terminating certificate expiry monitoring"
-      )
+      verify(brmLogger)
+        .info(
+          instanceId,
+          "CertificateExpiryMonitorJob",
+          "running",
+          s"Received application lifecycle shutdown hook - Terminating certificate expiry monitoring"
+        )
 
       val probe = testKit.createTestProbe[Nothing]()
       probe.expectTerminated(actor, 3.seconds)
@@ -304,7 +310,8 @@ class CertificateExpiryMonitorJobSpec
       now.plusHours(expectedIntervalHours).format(CertificateExpiryMonitorJob.timeFormat)
 
     verify(brmLogger).info(
-      "CertificateExpiryMonitorJob$",
+      instanceId,
+      "CertificateExpiryMonitorJob",
       "running",
       s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime"
     )
@@ -324,7 +331,7 @@ class CertificateExpiryMonitorJobSpec
         s"Certificate expires in ${hoursTillExpiry.get} hours at $formattedCertificateExpiryTime"
       }
 
-    verify(brmLogger).warn("CertificateExpiryMonitorJob$", "logCertificateExpiry", certExpiryMessage)
+    verify(brmLogger).warn(instanceId, "CertificateExpiryMonitorJob", "logCertificateExpiry", certExpiryMessage)
   }
 
 }

@@ -24,6 +24,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
+import java.util.UUID
 import scala.concurrent.duration._
 
 // wraps startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
@@ -33,7 +34,7 @@ class PekkoTimer[T](scheduler: TimerScheduler[T]) {
 
 object CertificateExpiryMonitorJob {
 
-  private val CLASS_NAME = getClass.getSimpleName
+  private val CLASS_NAME = getClass.getSimpleName.dropRight(1)
 
   val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")
 
@@ -44,13 +45,14 @@ object CertificateExpiryMonitorJob {
     timer: TimerScheduler[CertificateExpiryMonitorJobCommand] => PekkoTimer[CertificateExpiryMonitorJobCommand] =
       new PekkoTimer(_)
   )(implicit
-    logger: BrmLogger
+    logger: BrmLogger,
+    instanceId: UUID
   ): Behavior[CertificateExpiryMonitorJobCommand] =
     Behaviors.withTimers { timerScheduler =>
       val pekkoTimer               = timer(timerScheduler)
       val certificateCheckSchedule = new CertificateCheckSchedule(config, certificateExpiry)
 
-      logger.info(CLASS_NAME, "apply", "Starting initial check")
+      logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
       pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
       running(certificateExpiry, pekkoTimer, timeProvider, certificateCheckSchedule)
     }
@@ -60,7 +62,7 @@ object CertificateExpiryMonitorJob {
     timerScheduler: PekkoTimer[CertificateExpiryMonitorJobCommand],
     timeProvider: TimeProvider,
     certificateCheckSchedule: CertificateCheckSchedule
-  )(implicit logger: BrmLogger): Behavior[CertificateExpiryMonitorJobCommand] =
+  )(implicit logger: BrmLogger, instanceId: UUID): Behavior[CertificateExpiryMonitorJobCommand] =
     Behaviors.receiveMessage {
       case CheckExpiry =>
         val now = timeProvider.now.toLocalDateTime
@@ -74,6 +76,7 @@ object CertificateExpiryMonitorJob {
         val nextCheckTime = now.plusNanos(nextCheckIntervalMinutes.toNanos)
 
         logger.info(
+          instanceId,
           CLASS_NAME,
           "running",
           s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)}"
@@ -82,31 +85,40 @@ object CertificateExpiryMonitorJob {
         timerScheduler.startSingleTimer(CheckExpiry, nextCheckIntervalMinutes)
 
         Behaviors.same
-      case Terminate        =>
-        logger.info(CLASS_NAME, "running", "Terminating certificate expiry monitoring")
+      case Terminate   =>
+        logger.info(
+          instanceId,
+          CLASS_NAME,
+          "running",
+          "Received application lifecycle shutdown hook - Terminating certificate expiry monitoring"
+        )
+
         Behaviors.stopped
     }
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
-    logger: BrmLogger
+    logger: BrmLogger,
+    instanceId: UUID
   ): Unit = {
 
     val formattedExpiry = certificateExpiry.format(timeFormat)
 
     if (timeUntilCertExpiry.toDays > 0) {
       logger.warn(
+        instanceId,
         CLASS_NAME,
         "logCertificateExpiry",
         s"Certificate expires in ${timeUntilCertExpiry.toDays} days at $formattedExpiry"
       )
     } else if (!timeUntilCertExpiry.isNegative) {
       logger.warn(
+        instanceId,
         CLASS_NAME,
         "logCertificateExpiry",
         s"Certificate expires in ${timeUntilCertExpiry.toHours} hours at $formattedExpiry"
       )
     } else {
-      logger.warn(CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $formattedExpiry")
+      logger.warn(instanceId, CLASS_NAME, "logCertificateExpiry", s"Certificate expired at $formattedExpiry")
     }
   }
 
