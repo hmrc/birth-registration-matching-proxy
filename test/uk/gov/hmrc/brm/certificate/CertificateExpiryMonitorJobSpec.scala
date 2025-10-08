@@ -223,7 +223,7 @@ class CertificateExpiryMonitorJobSpec
         instanceId,
         "CertificateExpiryMonitorJob",
         "running",
-        s"Setting next check interval to $hoursOffset hours at $nextCheckTime"
+        s"Setting next check interval to $hoursOffset hours at $nextCheckTime UTC"
       )
 
     }
@@ -313,7 +313,7 @@ class CertificateExpiryMonitorJobSpec
       instanceId,
       "CertificateExpiryMonitorJob",
       "running",
-      s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime"
+      s"Setting next check interval to $expectedIntervalHours hours at $nextCheckTime UTC"
     )
   }
 

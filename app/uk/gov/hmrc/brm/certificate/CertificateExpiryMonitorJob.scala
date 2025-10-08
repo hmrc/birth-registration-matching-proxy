@@ -79,7 +79,7 @@ object CertificateExpiryMonitorJob {
           instanceId,
           CLASS_NAME,
           "running",
-          s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)}"
+          s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)} UTC"
         )
 
         timerScheduler.startSingleTimer(CheckExpiry, nextCheckIntervalMinutes)
