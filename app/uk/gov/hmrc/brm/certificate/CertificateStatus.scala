@@ -52,12 +52,14 @@ class CertificateStatus @Inject() (
 
   val typedActorSystem = actorSystem.toTyped
 
+  val timeProvider = new TimeProvider
+
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryMonitorJob actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryMonitorJob(expiryDate, new TimeProvider, groConfig),
+        CertificateExpiryMonitorJob(expiryDate, timeProvider, groConfig),
         "certificate-expiry-monitor-job"
       )
     }
@@ -94,7 +96,7 @@ class CertificateStatus @Inject() (
     loadCertificate() match {
       case Success(certificate: X509Certificate) =>
         val expiryDate    = certificate.getNotAfter
-        val localDateTime = expiryDate.toInstant.atZone(ZoneId.of("UTC")).toLocalDateTime
+        val localDateTime = expiryDate.toInstant.atZone(timeProvider.zoneId).toLocalDateTime
         info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDateTime")
         Some(localDateTime)
       case Success(cert)                         =>
