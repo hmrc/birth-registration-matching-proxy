@@ -1,6 +1,11 @@
+digital-service: BRMS / Birth Registration Matching Service
+description: Backend proxy API to Birth Registration Matching Service which checks a matching birth event recorded for a given name and reference number
 repoVisibility: public_0C3F0CE3E6E6448FAD341E7BFA50FCD333E06A20CFF05FCACE61154DDBBADF71
+type: Service
+service-type: Backend
 test-repositories:
   - birth-registration-matching-acceptance-tests
+  - birth-registration-matching-performance-tests
 
 leakDetectionExemptions:
   - ruleId: 'filename_private_key_1'
