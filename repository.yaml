@@ -3,7 +3,6 @@ description: Backend proxy API to Birth Registration Matching Service which chec
 repoVisibility: public_0C3F0CE3E6E6448FAD341E7BFA50FCD333E06A20CFF05FCACE61154DDBBADF71
 type: Service
 service-type: Backend
-tags: [ 'api' ]
 test-repositories:
   - birth-registration-matching-acceptance-tests
   - birth-registration-matching-performance-tests
