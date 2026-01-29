@@ -54,9 +54,9 @@ object DateOutput {
 
   // Count the number of days, weeks, months, and years of a given period
   def getDurations(initialPeriod: Period): DateOutput =
-    (getYears andThen
+    (getYears   andThen
       getMonths andThen
-      getWeeks andThen
+      getWeeks  andThen
       getDays)(initialPeriod -> DateOutput())._2
 
   private def getYears: PartialFunction[(Period, DateOutput), (Period, DateOutput)] = {

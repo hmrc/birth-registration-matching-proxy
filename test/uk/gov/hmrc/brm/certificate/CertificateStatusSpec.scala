@@ -183,4 +183,5 @@ class CertificateStatusSpec extends TestFixture {
     }
 
   }
+
 }

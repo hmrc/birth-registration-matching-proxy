@@ -42,7 +42,11 @@ object CertificateCheckTimes {
     certExpiryCriticalCheckIntervalHours = Duration.ofHours(1)
   )
 
-  def load()(implicit servicesConfig: ServicesConfig, tlsConfigPath: String, brmLogger: BrmLogger): CertificateCheckTimes = {
+  def load()(implicit
+    servicesConfig: ServicesConfig,
+    tlsConfigPath: String,
+    brmLogger: BrmLogger
+  ): CertificateCheckTimes = {
     val maybeCertificateCheckTimes = for {
       certExpiryEarlyWarningThresholdHours     <- loadHours("certExpiryEarlyWarningThresholdHours")
       certExpiryEarlyWarningCheckIntervalHours <- loadHours("certExpiryEarlyWarningCheckIntervalHours")
@@ -81,7 +85,11 @@ object CertificateCheckTimes {
         brmLogger.info("CertificateCheckTimes", "load", "Successfully loaded certificate check times")
         value
       case Failure(exception) =>
-        brmLogger.error("CertificateCheckTimes", "load", s"Error loading certificate check times. Using defaults. Exception: ${exception.getMessage}")
+        brmLogger.error(
+          "CertificateCheckTimes",
+          "load",
+          s"Error loading certificate check times. Using defaults. Exception: ${exception.getMessage}"
+        )
         CertificateCheckTimes.default
     }
 
@@ -89,4 +97,5 @@ object CertificateCheckTimes {
 
   private def loadHours(key: String)(implicit servicesConfig: ServicesConfig, tlsConfigPath: String): Try[Duration] =
     Try(Duration.ofHours(servicesConfig.getInt(s"$tlsConfigPath.$key")))
+
 }

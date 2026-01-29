@@ -39,4 +39,5 @@ object JsonUtils {
         throw new RuntimeException(s"[JsonUtils][Cannot load json]: $path")
     }
   }
+
 }

@@ -32,8 +32,10 @@ object ErrorResponses {
   val TEAPOT: JsValue              = error("TEAPOT", "Invalid argument sent to GRO")
   val NOT_FOUND: JsValue           = error("NOT_FOUND", "Resource not found")
   val GATEWAY_TIMEOUT: JsValue     = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
+
   val CERTIFICATE_INVALID: JsValue =
     error("INVALID_CERTIFICATE", "TLS certificate was either not provided or was invalid")
+
   val UNKNOWN_ERROR: JsValue       = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
   val BAD_GATEWAY: JsValue         = error("BAD_GATEWAY", "GRO returned bad gateway")
 

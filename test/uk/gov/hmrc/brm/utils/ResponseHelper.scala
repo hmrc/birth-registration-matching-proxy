@@ -25,6 +25,7 @@ object ResponseHelper {
   val notFoundResponse: BirthResponse   = Birth404ErrorResponse(
     UpstreamErrorResponse("", NOT_FOUND, NOT_FOUND)
   )
+
   val badRequestResponse: BirthResponse = BirthErrorResponse(
     UpstreamErrorResponse("", BAD_REQUEST, BAD_REQUEST)
   )

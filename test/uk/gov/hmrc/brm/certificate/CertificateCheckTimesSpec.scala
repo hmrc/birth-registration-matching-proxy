@@ -99,4 +99,5 @@ class CertificateCheckTimesSpec extends TestFixture {
     }
 
   }
+
 }
