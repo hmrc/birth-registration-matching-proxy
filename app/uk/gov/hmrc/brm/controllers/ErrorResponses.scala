@@ -27,16 +27,16 @@ object ErrorResponses {
        |}
      """.stripMargin)
 
-  val CONNECTION_DOWN: JsValue     = error("GRO_CONNECTION_DOWN", "Connection to GRO is down")
-  val BAD_REQUEST: JsValue         = error("BAD_REQUEST", "Invalid payload provided")
-  val TEAPOT: JsValue              = error("TEAPOT", "Invalid argument sent to GRO")
-  val NOT_FOUND: JsValue           = error("NOT_FOUND", "Resource not found")
-  val GATEWAY_TIMEOUT: JsValue     = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
+  val CONNECTION_DOWN: JsValue = error("GRO_CONNECTION_DOWN", "Connection to GRO is down")
+  val BAD_REQUEST: JsValue     = error("BAD_REQUEST", "Invalid payload provided")
+  val TEAPOT: JsValue          = error("TEAPOT", "Invalid argument sent to GRO")
+  val NOT_FOUND: JsValue       = error("NOT_FOUND", "Resource not found")
+  val GATEWAY_TIMEOUT: JsValue = error("GATEWAY_TIMEOUT", "Connection to GRO timed out")
 
   val CERTIFICATE_INVALID: JsValue =
     error("INVALID_CERTIFICATE", "TLS certificate was either not provided or was invalid")
 
-  val UNKNOWN_ERROR: JsValue       = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
-  val BAD_GATEWAY: JsValue         = error("BAD_GATEWAY", "GRO returned bad gateway")
+  val UNKNOWN_ERROR: JsValue = error("UNKNOWN_ERROR", "An unknown exception has been thrown")
+  val BAD_GATEWAY: JsValue   = error("BAD_GATEWAY", "GRO returned bad gateway")
 
 }

@@ -28,19 +28,19 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   private val tlsConfigPath            = "microservice.services.birth-registration-matching.gro.tls"
   private val authenticationConfigPath = "birth-registration-matching.gro.authentication.v2"
 
-  lazy val serviceUrl: String               = servicesConfig.baseUrl("birth-registration-matching")
+  lazy val serviceUrl: String = servicesConfig.baseUrl("birth-registration-matching")
 
   lazy val authenticationServiceUrl: String =
     servicesConfig.baseUrl("birth-registration-matching.gro.authentication.v2")
 
-  lazy val groUsername: String     = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.username")
-  lazy val groPassword: String     = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.key")
-  lazy val groClientID: String     = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.clientID")
+  lazy val groUsername: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.username")
+  lazy val groPassword: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.key")
+  lazy val groClientID: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.clientID")
 
   lazy val groClientSecret: String =
     servicesConfig.getString(s"microservice.services.$authenticationConfigPath.clientSecret")
 
-  lazy val groGrantType: String    = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.grantType")
+  lazy val groGrantType: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.grantType")
 
   lazy val authenticationUri: String = servicesConfig.getString(s"microservice.services.$authenticationConfigPath.uri")
 

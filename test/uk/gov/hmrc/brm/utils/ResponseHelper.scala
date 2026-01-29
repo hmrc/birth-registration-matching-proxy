@@ -22,7 +22,7 @@ import uk.gov.hmrc.http.UpstreamErrorResponse
 
 object ResponseHelper {
 
-  val notFoundResponse: BirthResponse   = Birth404ErrorResponse(
+  val notFoundResponse: BirthResponse = Birth404ErrorResponse(
     UpstreamErrorResponse("", NOT_FOUND, NOT_FOUND)
   )
 

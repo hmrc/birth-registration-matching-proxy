@@ -61,7 +61,7 @@ class AsyncHttpClientProvider @Inject() (
 )(implicit executionContext: ExecutionContext)
     extends Provider[AsyncHttpClient] {
 
-  lazy val get: AsyncHttpClient              = {
+  lazy val get: AsyncHttpClient = {
     configure()
     val cacheProvider = new OptionalAhcHttpCacheProvider(environment, configuration, applicationLifecycle)
     val client        = new DefaultAsyncHttpClient(asyncHttpClientConfig)
