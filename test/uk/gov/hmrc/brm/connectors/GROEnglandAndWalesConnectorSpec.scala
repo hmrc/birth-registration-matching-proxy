@@ -118,6 +118,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
     def result: BirthResponse =
       testConnector.getReference(refNumber).futureValue
+
   }
 
   "BirthConnector" when {
@@ -696,4 +697,5 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
     }
   }
+
 }

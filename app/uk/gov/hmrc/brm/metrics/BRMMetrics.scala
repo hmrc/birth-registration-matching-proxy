@@ -44,4 +44,5 @@ class BRMMetrics {
     val end = System.currentTimeMillis() - start
     time(end, TimeUnit.MILLISECONDS, key)
   }
+
 }

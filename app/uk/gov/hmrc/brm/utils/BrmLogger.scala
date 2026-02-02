@@ -56,6 +56,7 @@ class BrmLogger(logger: org.slf4j.Logger) extends Logger(logger) {
 
   def debug(objectName: Object, methodName: String, message: String): Unit =
     debug(objectName.getClass.getCanonicalName, methodName: String, message: String)
+
 }
 
 object BrmLogger extends BrmLogger(Logger("BrmLogger").logger)

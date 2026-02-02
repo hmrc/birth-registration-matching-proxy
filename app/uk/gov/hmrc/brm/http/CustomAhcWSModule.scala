@@ -30,7 +30,7 @@ import java.net.URI
 import javax.cache.configuration.FactoryBuilder.SingletonFactory
 import javax.cache.configuration.MutableConfiguration
 import javax.cache.expiry.EternalExpiryPolicy
-import javax.cache.{CacheManager, Caching, Cache => JCache}
+import javax.cache.{Cache => JCache, CacheManager, Caching}
 import javax.inject.{Inject, Provider, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -72,6 +72,7 @@ class AsyncHttpClientProvider @Inject() (
         client
     }
   }
+
   private val wsClientConfig: WSClientConfig = new CustomWSConfigParser(configuration, environment).parse()
 
   private val ahcWsClientConfig: AhcWSClientConfig =
@@ -135,7 +136,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
           cacheConfig.cacheManagerURI match {
             case uriString if uriString.nonEmpty => new URI(uriString)
             // null means use #getDefaultURI
-            case _                               => null //scalastyle:ignore null
+            case _                               => null // scalastyle:ignore null
           }
         cachingProvider.getCacheManager(cacheManagerURI, environment.classLoader)
       }
@@ -160,9 +161,8 @@ class OptionalAhcHttpCacheProvider @Inject() (
 
   private def createCache(cacheManager: CacheManager): JCache[EffectiveURIKey, ResponseEntry] = {
     // If there is no preconfigured cache found, then set up a simple cache.
-    val expiryPolicyFactory = {
+    val expiryPolicyFactory =
       new SingletonFactory(new EternalExpiryPolicy())
-    }
 
     val cacheConfiguration = new MutableConfiguration()
       .setTypes(classOf[EffectiveURIKey], classOf[ResponseEntry])
@@ -177,6 +177,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
 
   // Adapter to JCache that assumes HTTP cache only exists in memory, i.e. no blocking IO requiring a different dispatcher
   class JCacheAdapter(jcache: JCache[EffectiveURIKey, ResponseEntry]) extends Cache {
+
     override def get(key: EffectiveURIKey): Future[Option[ResponseEntry]] =
       Future.successful(Option(jcache.get(key)))
 
@@ -198,6 +199,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
   )
 
   object AhcHttpCacheParser {
+
     // For the sake of compatibility, parse both cacheManagerResource and cacheManagerURI, use cacheManagerURI first.
     // Treat cacheManagerResource as a resource on the classpath and convert it to an URI string.
     def fromConfiguration(configuration: Configuration): AhcHttpCacheConfiguration = {
@@ -224,7 +226,9 @@ class OptionalAhcHttpCacheProvider @Inject() (
         cachingProviderName = configuration.get[String]("play.ws.cache.cachingProviderName")
       )
     }
+
   }
+
 }
 
 /**
@@ -234,7 +238,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
 class AhcWSClientProvider @Inject() (asyncHttpClient: AsyncHttpClient)(implicit materializer: Materializer)
     extends Provider[WSClient] {
 
-  lazy val get: WSClient = {
+  lazy val get: WSClient =
     new AhcWSClient(new StandaloneAhcWSClient(asyncHttpClient))
-  }
+
 }

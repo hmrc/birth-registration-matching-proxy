@@ -58,4 +58,5 @@ class ResponseParserSpec extends TestFixture {
     }
 
   }
+
 }
