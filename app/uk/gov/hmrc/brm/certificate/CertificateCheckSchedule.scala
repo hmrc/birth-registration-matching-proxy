@@ -25,7 +25,7 @@ import scala.concurrent.duration.{FiniteDuration, MINUTES}
 @Singleton
 class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateTime) {
 
-  private val times                        = conf.certificateTimes
+  val times                        = conf.certificateTimes
   private val minCheckDurationMinutes: Int = 60
 
   // Derives the next interval to check the certificate's expiry time against our configured alert time thresholds.

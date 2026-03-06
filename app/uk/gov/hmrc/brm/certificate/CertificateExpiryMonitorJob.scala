@@ -27,7 +27,6 @@ import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // wraps startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
@@ -55,7 +54,7 @@ object CertificateExpiryMonitorJob {
       val certificateCheckSchedule = new CertificateCheckSchedule(config, certificateExpiry)
 
       logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
-      pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
+      pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes) //starts after a minute
 
       running(certificateExpiry, pekkoTimer, timeProvider, certificateCheckSchedule, certExpiryJobRepo)
     }
@@ -71,34 +70,23 @@ object CertificateExpiryMonitorJob {
       case CheckExpiry =>
         val now = timeProvider.now.toLocalDateTime
         val nowEpochMs = timeProvider.now.toInstant.toEpochMilli
-        val today = now.toLocalDate.toString
+        val jobId = "certificate-expiry-monitor-job"
 
-        val jobId = s"certificate-expiry-monitor-job-${certificateExpiry.toLocalDate}"
-
-        logger.info(s"val ::::::::::       ${certificateCheckSchedule.isPastEarlyWarningWindow(now)}")
-        if (certificateCheckSchedule.isPastEarlyWarningWindow(now)) {
+        val thresholdValues: Option[String] = getThresholdInStrFormat(now, certificateCheckSchedule)
+        logger.info(instanceId, CLASS_NAME, "running", s"checking for $thresholdValues before insertion in mongo")
+        thresholdValues.foreach { threshold =>
           certExpiryJobRepo
-            .insertExpiryDetails(jobId, nowEpochMs).flatMap {
-              case false =>
-                logger.info(
-                  instanceId,
-                  CLASS_NAME,
-                  "running",
-                  "insertExpiryDetails"
-                )
-                Future.unit
-
+            .markAlertSent(jobId, certificateExpiry.toString, threshold, nowEpochMs)
+            .map {
               case true =>
-                certExpiryJobRepo.sendAlertForJob(jobId, today, nowEpochMs).map {
-                  case false =>
-                    ()
+                logger.info(instanceId, CLASS_NAME, "running", s"logging the alerts threshold=$threshold expiry=$certificateExpiry")
+                logCertificateExpiry(
+                  certificateCheckSchedule.getTimeUntilCertExpiry(now),
+                  certificateExpiry
+                )
+              case false =>
+                logger.info(instanceId, CLASS_NAME, "running", s"Alert already sent threshold=$threshold expiry=$certificateExpiry")
 
-                  case true =>
-                    logCertificateExpiry(
-                      certificateCheckSchedule.getTimeUntilCertExpiry(now),
-                      certificateExpiry
-                    )
-                }
             }.recover { e =>
               logger.error(
                 s"error in running ${e.getMessage}"
@@ -107,7 +95,6 @@ object CertificateExpiryMonitorJob {
         }
 
         val nextCheckIntervalMinutes: FiniteDuration = certificateCheckSchedule.getNextCheckIntervalDurationMinutes(now)
-
         val nextCheckTime = now.plusNanos(nextCheckIntervalMinutes.toNanos)
 
         logger.info(
@@ -130,6 +117,23 @@ object CertificateExpiryMonitorJob {
 
         Behaviors.stopped
     }
+
+
+  private def getThresholdInStrFormat(
+                               now: LocalDateTime,
+                               schedule: CertificateCheckSchedule
+                             ): Option[String] = {
+
+    val timeLeft = schedule.getTimeUntilCertExpiry(now)
+    val hoursLeft = timeLeft.toHours
+
+    if (timeLeft.isNegative) Some("expired")
+    else if (hoursLeft <= schedule.times.certExpiryCriticalThresholdHours.toHours) Some("critical")
+    else if (hoursLeft <= schedule.times.certExpiryWarningThresholdHours.toHours) Some("warning")
+    else if (hoursLeft <= schedule.times.certExpiryEarlyWarningThresholdHours.toHours) Some("early")
+    else None
+  }
+
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
                                                                                                     logger: BrmLogger,

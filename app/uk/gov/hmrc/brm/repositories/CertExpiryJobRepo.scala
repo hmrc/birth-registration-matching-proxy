@@ -26,9 +26,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 
 trait CertExpiryJobRepo {
-  def insertExpiryDetails(jobId: String, nowEpochMs: Long): Future[Boolean]
-
-  def sendAlertForJob(jobId: String, today: String, nowEpochMs: Long): Future[Boolean]
+  def markAlertSent(jobId: String, expiryDate: String, threshold: String, nowEpochMs: Long): Future[Boolean]
 }
 
 @Singleton
@@ -39,18 +37,34 @@ class CertExpiryJobRepoMongo @Inject()(
     collectionName = "cert-expiry-job-details",
     mongoComponent = mongoComponent,
     domainFormat = CertExpiryJobDetails.format,
-    indexes = Nil,
+    indexes = Seq(
+      IndexModel(
+        Indexes.ascending("jobId", "expiryDate", "threshold"),
+        IndexOptions().name("jobId_expiry_threshold_unique").unique(true)
+      )),
     replaceIndexes = false
   ) with CertExpiryJobRepo {
 
+  override def markAlertSent(jobId: String, expiryDate: String, threshold: String, nowEpochMs: Long): Future[Boolean] = {
 
-  override def insertExpiryDetails(jobId: String, nowEpochMs: Long): Future[Boolean] = {
-    Future.successful(false)
+    val filter = Filters.and(
+      Filters.equal("jobId", jobId),
+      Filters.equal("expiryDate", expiryDate),
+      Filters.equal("threshold", threshold)
+    )
+
+    val update = Updates.combine(
+      Updates.setOnInsert("jobId", jobId),
+      Updates.setOnInsert("expiryDate", expiryDate),
+      Updates.setOnInsert("threshold", threshold),
+      Updates.setOnInsert("createdAt", nowEpochMs)
+    )
+
+    collection
+      .updateOne(filter, update, new UpdateOptions().upsert(true))
+      .toFuture()
+      .map(result => result.getUpsertedId != null)
+      .recover { case _ => false }
+
   }
-
-
-  override def sendAlertForJob(jobId: String, today: String, nowEpochMs: Long): Future[Boolean] = {
-    Future.successful(true)
-  }
-
 }
