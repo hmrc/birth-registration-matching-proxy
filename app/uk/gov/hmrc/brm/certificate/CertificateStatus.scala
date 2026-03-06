@@ -32,7 +32,7 @@ import java.security.cert.{Certificate, X509Certificate}
 import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
@@ -42,7 +42,7 @@ class CertificateStatus @Inject()(
                                    lifecycle: ApplicationLifecycle,
                                    actorSystem: ActorSystem,
                                    certExpiryJobRepo: CertExpiryJobRepoMongo
-                                 ) extends CertificateProvider {
+                                 )(implicit executionContext: ExecutionContext) extends CertificateProvider {
 
   implicit val instanceId: UUID = UUID.randomUUID()
 
@@ -57,7 +57,7 @@ class CertificateStatus @Inject()(
       info(CLASS_NAME, "Registering CertificateExpiryMonitorJob actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryMonitorJob(certificateExpiry = expiryDate, timeProvider = timeProvider, config= groConfig, certExpiryJobRepo = certExpiryJobRepo),
+        CertificateExpiryMonitorJob(certificateExpiry = expiryDate, timeProvider = timeProvider, config = groConfig, certExpiryJobRepo = certExpiryJobRepo),
         "certificate-expiry-monitor-job"
       )
     }
@@ -81,7 +81,6 @@ class CertificateStatus @Inject()(
     loadCertificate() match {
       case Success(certificate: X509Certificate) =>
         val expiryDate = certificate.getNotAfter
-        println(s"expiryDate :::::::::::: $expiryDate :::::::::::: timeProvider.zoneId ========== $timeProvider.zoneId")
         val localDateTime = expiryDate.toInstant.atZone(timeProvider.zoneId).toLocalDateTime
         info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDateTime")
         Some(localDateTime)

@@ -19,6 +19,7 @@ package uk.gov.hmrc.brm.certificate
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.{AnyWordSpec, AnyWordSpecLike}
@@ -30,8 +31,10 @@ import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.{BaseUnitSpec, BrmLogger}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
@@ -100,6 +103,8 @@ class CertificateExpiryMonitorJobSpec
         timerSpy = spy(realTimer)
         timerSpy
       }
+
+      when(certExpiryJobRepoMongo.markAlertSent(any,any, any,any)).thenReturn(Future.successful(true))
 
       testKit.spawn(CertificateExpiryMonitorJob(certificateExpiry.toLocalDateTime, timeProvider, config, timer,certExpiryJobRepoMongo))
 
@@ -212,6 +217,8 @@ class CertificateExpiryMonitorJobSpec
       val mockTimeProvider  = spy(new TimeProvider)
 
       when(mockTimeProvider.now).thenReturn(now.atZone(ZoneId.of("UTC")))
+
+      when(certExpiryJobRepoMongo.markAlertSent(any,any, any,any)).thenReturn(Future.successful(true))
 
       testKit.spawn(CertificateExpiryMonitorJob(certificateExpiry, mockTimeProvider, config,certExpiryJobRepo = certExpiryJobRepoMongo))
 

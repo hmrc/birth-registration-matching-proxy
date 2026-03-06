@@ -23,7 +23,9 @@ import play.api.Configuration
 import play.api.inject.DefaultApplicationLifecycle
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
@@ -40,8 +42,10 @@ class CertificateStatusSpec extends TestFixture {
   private val testKit            = ActorTestKit("CertificateStatusSpec")
   private val untypedActorSystem = testKit.system.classicSystem
 
+  val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+
   private val certificateStatus = spy(
-    new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem)
+    new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem, certExpiryJobRepoMongo)
   )
 
   override def afterEach(): Unit = {

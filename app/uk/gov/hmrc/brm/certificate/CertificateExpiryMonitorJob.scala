@@ -26,7 +26,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 // wraps startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
@@ -47,7 +47,8 @@ object CertificateExpiryMonitorJob {
              certExpiryJobRepo: CertExpiryJobRepo
            )(implicit
              logger: BrmLogger,
-             instanceId: UUID
+             instanceId: UUID,
+             ec: ExecutionContext
            ): Behavior[CertificateExpiryMonitorJobCommand] =
     Behaviors.withTimers { timerScheduler =>
       val pekkoTimer = timer(timerScheduler)
@@ -65,7 +66,7 @@ object CertificateExpiryMonitorJob {
                        timeProvider: TimeProvider,
                        certificateCheckSchedule: CertificateCheckSchedule,
                        certExpiryJobRepo: CertExpiryJobRepo
-                     )(implicit logger: BrmLogger, instanceId: UUID): Behavior[CertificateExpiryMonitorJobCommand] =
+                     )(implicit logger: BrmLogger, instanceId: UUID,  ec: ExecutionContext): Behavior[CertificateExpiryMonitorJobCommand] =
     Behaviors.receiveMessage {
       case CheckExpiry =>
         val now = timeProvider.now.toLocalDateTime
@@ -73,13 +74,13 @@ object CertificateExpiryMonitorJob {
         val jobId = "certificate-expiry-monitor-job"
 
         val thresholdValues: Option[String] = getThresholdInStrFormat(now, certificateCheckSchedule)
-        logger.info(instanceId, CLASS_NAME, "running", s"checking for $thresholdValues before insertion in mongo")
+        logger.info(instanceId, CLASS_NAME, "running", s"going to check and insert in mongo this  val $thresholdValues")
         thresholdValues.foreach { threshold =>
           certExpiryJobRepo
             .markAlertSent(jobId, certificateExpiry.toString, threshold, nowEpochMs)
             .map {
               case true =>
-                logger.info(instanceId, CLASS_NAME, "running", s"logging the alerts threshold=$threshold expiry=$certificateExpiry")
+                logger.info(instanceId, CLASS_NAME, "running", s"sending alerts for threshold=$threshold expiry=$certificateExpiry")
                 logCertificateExpiry(
                   certificateCheckSchedule.getTimeUntilCertExpiry(now),
                   certificateExpiry
@@ -120,9 +121,9 @@ object CertificateExpiryMonitorJob {
 
 
   private def getThresholdInStrFormat(
-                               now: LocalDateTime,
-                               schedule: CertificateCheckSchedule
-                             ): Option[String] = {
+                                       now: LocalDateTime,
+                                       schedule: CertificateCheckSchedule
+                                     ): Option[String] = {
 
     val timeLeft = schedule.getTimeUntilCertExpiry(now)
     val hoursLeft = timeLeft.toHours
