@@ -24,28 +24,34 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
 trait CertExpiryJobRepo {
   def markAlertSent(jobId: String, expiryDate: String, threshold: String, nowEpochMs: Long): Future[Boolean]
 }
 
 @Singleton
-class CertExpiryJobRepoMongo @Inject()(
-                                        val mongoComponent: MongoComponent
-                                      )(implicit ec: ExecutionContext)
-  extends PlayMongoRepository[CertExpiryJobDetails](
-    collectionName = "cert-expiry-job-details",
-    mongoComponent = mongoComponent,
-    domainFormat = CertExpiryJobDetails.format,
-    indexes = Seq(
-      IndexModel(
-        Indexes.ascending("jobId", "expiryDate", "threshold"),
-        IndexOptions().name("jobId_expiry_threshold_unique").unique(true)
-      )),
-    replaceIndexes = false
-  ) with CertExpiryJobRepo {
+class CertExpiryJobRepoMongo @Inject() (
+  val mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext)
+    extends PlayMongoRepository[CertExpiryJobDetails](
+      collectionName = "cert-expiry-job-details",
+      mongoComponent = mongoComponent,
+      domainFormat = CertExpiryJobDetails.format,
+      indexes = Seq(
+        IndexModel(
+          Indexes.ascending("jobId", "expiryDate", "threshold"),
+          IndexOptions().name("jobId_expiry_threshold_unique").unique(true)
+        )
+      ),
+      replaceIndexes = false
+    )
+    with CertExpiryJobRepo {
 
-  override def markAlertSent(jobId: String, expiryDate: String, threshold: String, nowEpochMs: Long): Future[Boolean] = {
+  override def markAlertSent(
+    jobId: String,
+    expiryDate: String,
+    threshold: String,
+    nowEpochMs: Long
+  ): Future[Boolean] = {
 
     val filter = Filters.and(
       Filters.equal("jobId", jobId),
@@ -67,4 +73,5 @@ class CertExpiryJobRepoMongo @Inject()(
       .recover { case _ => false }
 
   }
+
 }

@@ -95,7 +95,7 @@ class CertificateExpiryMonitorJobSpec
         certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 
       val config                                                   = createMockConfig()
-      val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val certExpiryJobRepoMongo                                   = mock[CertExpiryJobRepoMongo]
       var timerSpy: PekkoTimer[CertificateExpiryMonitorJobCommand] = null
 
       val timer = (scheduler: TimerScheduler[CertificateExpiryMonitorJobCommand]) => {
@@ -104,9 +104,17 @@ class CertificateExpiryMonitorJobSpec
         timerSpy
       }
 
-      when(certExpiryJobRepoMongo.markAlertSent(any,any, any,any)).thenReturn(Future.successful(true))
+      when(certExpiryJobRepoMongo.markAlertSent(any, any, any, any)).thenReturn(Future.successful(true))
 
-      testKit.spawn(CertificateExpiryMonitorJob(certificateExpiry.toLocalDateTime, timeProvider, config, timer,certExpiryJobRepoMongo))
+      testKit.spawn(
+        CertificateExpiryMonitorJob(
+          certificateExpiry.toLocalDateTime,
+          timeProvider,
+          config,
+          timer,
+          certExpiryJobRepoMongo
+        )
+      )
 
       // initial check & before early warning window assertions
 
@@ -211,16 +219,23 @@ class CertificateExpiryMonitorJobSpec
       val now         = LocalDateTime.now(ZoneId.of("UTC"))
       val hoursOffset = 2
 
-      val certificateExpiry = now.plusHours(certExpiryWarningThresholdHours.toHours + hoursOffset)
-      val config            = createMockConfig()
+      val certificateExpiry      = now.plusHours(certExpiryWarningThresholdHours.toHours + hoursOffset)
+      val config                 = createMockConfig()
       val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider  = spy(new TimeProvider)
+      val mockTimeProvider       = spy(new TimeProvider)
 
       when(mockTimeProvider.now).thenReturn(now.atZone(ZoneId.of("UTC")))
 
-      when(certExpiryJobRepoMongo.markAlertSent(any,any, any,any)).thenReturn(Future.successful(true))
+      when(certExpiryJobRepoMongo.markAlertSent(any, any, any, any)).thenReturn(Future.successful(true))
 
-      testKit.spawn(CertificateExpiryMonitorJob(certificateExpiry, mockTimeProvider, config,certExpiryJobRepo = certExpiryJobRepoMongo))
+      testKit.spawn(
+        CertificateExpiryMonitorJob(
+          certificateExpiry,
+          mockTimeProvider,
+          config,
+          certExpiryJobRepo = certExpiryJobRepoMongo
+        )
+      )
 
       advanceTimeReturningNewTimeProviderTime(timeToAdvanceInMinutes = Some(1), previousNow = zonedNow)
 
@@ -239,13 +254,20 @@ class CertificateExpiryMonitorJobSpec
     }
 
     "stop when receiving Stop command" in {
-      val certificateExpiry = LocalDateTime.now().plusDays(10)
-      val config            = createMockConfig()
+      val certificateExpiry      = LocalDateTime.now().plusDays(10)
+      val config                 = createMockConfig()
       val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider = spy(new TimeProvider)
+      val mockTimeProvider       = spy(new TimeProvider)
 
       val actor: ActorRef[CertificateExpiryMonitorJobCommand] =
-        testKit.spawn(CertificateExpiryMonitorJob(certificateExpiry, mockTimeProvider, config, certExpiryJobRepo = certExpiryJobRepoMongo))
+        testKit.spawn(
+          CertificateExpiryMonitorJob(
+            certificateExpiry,
+            mockTimeProvider,
+            config,
+            certExpiryJobRepo = certExpiryJobRepoMongo
+          )
+        )
 
       actor ! Terminate
 

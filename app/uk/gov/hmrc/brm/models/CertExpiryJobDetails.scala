@@ -19,11 +19,11 @@ package uk.gov.hmrc.brm.models
 import play.api.libs.json.{Format, Json}
 
 case class CertExpiryJobDetails(
-                                 jobId: String,
-                                 expiryDate: String,
-                                 threshold: String,   //  any of this values for early,warning,critical,expired
-                                 createdAt: Long
-                               )
+  jobId: String,
+  expiryDate: String,
+  threshold: String, //  any of this values for early,warning,critical,expired
+  createdAt: Long
+)
 
 object CertExpiryJobDetails {
   implicit val format: Format[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]

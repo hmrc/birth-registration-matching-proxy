@@ -37,27 +37,34 @@ import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
 @Singleton
-class CertificateStatus @Inject()(
-                                   val groConfig: GroAppConfig,
-                                   lifecycle: ApplicationLifecycle,
-                                   actorSystem: ActorSystem,
-                                   certExpiryJobRepo: CertExpiryJobRepoMongo
-                                 )(implicit executionContext: ExecutionContext) extends CertificateProvider {
+class CertificateStatus @Inject() (
+  val groConfig: GroAppConfig,
+  lifecycle: ApplicationLifecycle,
+  actorSystem: ActorSystem,
+  certExpiryJobRepo: CertExpiryJobRepoMongo
+)(implicit executionContext: ExecutionContext)
+    extends CertificateProvider {
 
   implicit val instanceId: UUID = UUID.randomUUID()
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   implicit val logger: BrmLogger.type = BrmLogger
-  val typedActorSystem = actorSystem.toTyped
-  val timeProvider = new TimeProvider
-  protected val CLASS_NAME: String = this.getClass.getSimpleName
+  val typedActorSystem                = actorSystem.toTyped
+  val timeProvider                    = new TimeProvider
+  protected val CLASS_NAME: String    = this.getClass.getSimpleName
+
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryMonitorJob actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryMonitorJob(certificateExpiry = expiryDate, timeProvider = timeProvider, config = groConfig, certExpiryJobRepo = certExpiryJobRepo),
+        CertificateExpiryMonitorJob(
+          certificateExpiry = expiryDate,
+          timeProvider = timeProvider,
+          config = groConfig,
+          certExpiryJobRepo = certExpiryJobRepo
+        ),
         "certificate-expiry-monitor-job"
       )
     }
@@ -80,14 +87,14 @@ class CertificateStatus @Inject()(
 
     loadCertificate() match {
       case Success(certificate: X509Certificate) =>
-        val expiryDate = certificate.getNotAfter
+        val expiryDate    = certificate.getNotAfter
         val localDateTime = expiryDate.toInstant.atZone(timeProvider.zoneId).toLocalDateTime
         info(CLASS_NAME, "extractExpiryDateFromCertificate", s"CERTIFICATE_EXPIRES $localDateTime")
         Some(localDateTime)
-      case Success(cert) =>
+      case Success(cert)                         =>
         error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert, cert was of type: ${cert.getType}")
         None
-      case Failure(exception) =>
+      case Failure(exception)                    =>
         error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert $exception ")
         None
     }
@@ -110,7 +117,7 @@ class CertificateStatus @Inject()(
     getExpiryDate match {
       case Some(certificateExpiryDateTime) =>
         certificateExpiryDateTime.isAfter(LocalDateTime.now())
-      case None =>
+      case None                            =>
         false
     }
 

@@ -21,6 +21,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BaseUnitSpec
 
@@ -35,6 +37,13 @@ trait TestFixture
     with BeforeAndAfterAll
     with GuiceOneAppPerSuite
     with BaseUnitSpec {
+
+  override def fakeApplication(): Application =
+    new GuiceApplicationBuilder()
+      .configure(
+        "mongodb.uri" -> "mongodb://localhost:27017/brms-testing-job"
+      )
+      .build()
 
   def real[T: ClassTag]: T = app.injector.instanceOf[T]
 
