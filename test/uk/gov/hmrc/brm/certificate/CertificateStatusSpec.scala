@@ -25,7 +25,6 @@ import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}

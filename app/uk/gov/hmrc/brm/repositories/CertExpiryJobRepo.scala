@@ -18,10 +18,14 @@ package uk.gov.hmrc.brm.repositories
 
 import com.google.inject.{Inject, Singleton}
 import org.mongodb.scala.model._
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
+import uk.gov.hmrc.brm.utils.BrmLogger.logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CertExpiryJobRepo {
@@ -30,7 +34,8 @@ trait CertExpiryJobRepo {
 
 @Singleton
 class CertExpiryJobRepoMongo @Inject() (
-  val mongoComponent: MongoComponent
+  val mongoComponent: MongoComponent,
+  val groAppConfig: GroAppConfig
 )(implicit ec: ExecutionContext)
     extends PlayMongoRepository[CertExpiryJobDetails](
       collectionName = "cert-expiry-job-details",
@@ -39,7 +44,15 @@ class CertExpiryJobRepoMongo @Inject() (
       indexes = Seq(
         IndexModel(
           Indexes.ascending("jobId", "expiryDate", "threshold"),
-          IndexOptions().name("jobId_expiry_threshold_unique").unique(true)
+          IndexOptions()
+            .name("jobId_expiry_threshold_unique")
+            .unique(true)
+        ),
+        IndexModel(
+          Indexes.ascending("createdAt"),
+          IndexOptions()
+            .name("createdAt_ttl")
+            .expireAfter(groAppConfig.cachettl, TimeUnit.HOURS)
         )
       ),
       replaceIndexes = false
@@ -63,14 +76,20 @@ class CertExpiryJobRepoMongo @Inject() (
       Updates.setOnInsert("jobId", jobId),
       Updates.setOnInsert("expiryDate", expiryDate),
       Updates.setOnInsert("threshold", threshold),
-      Updates.setOnInsert("createdAt", nowEpochMs)
+      Updates.setOnInsert("createdAt", Instant.ofEpochMilli(nowEpochMs))
     )
 
     collection
       .updateOne(filter, update, new UpdateOptions().upsert(true))
       .toFuture()
-      .map(result => result.getUpsertedId != null)
-      .recover { case _ => false }
+      .map { result =>
+        logger.info(s"[CertExpiryJobRepoMongo][markAlertSent] inserted in mongo result= $result")
+        result.getUpsertedId != null
+      }
+      .recover { case e =>
+        logger.info(s"[CertExpiryJobRepoMongo][markAlertSent] failed to insert in mongo ${e.getMessage}")
+        false
+      }
 
   }
 

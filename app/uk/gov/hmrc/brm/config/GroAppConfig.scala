@@ -52,4 +52,6 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
   lazy val certificateTimes: CertificateCheckTimes =
     CertificateCheckTimes.load()(servicesConfig, tlsConfigPath, BrmLogger)
 
+  val cachettl: Long = servicesConfig.getString("mongodb.timeToLiveInSeconds").toLong
+
 }

@@ -21,32 +21,20 @@ import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.{AnyWordSpec, AnyWordSpecLike}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.Logger
+import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.{BaseUnitSpec, BrmLogger}
+import uk.gov.hmrc.brm.utils.BrmLogger
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
-class CertificateExpiryMonitorJobSpec
-    extends AnyWordSpec
-    with AnyWordSpecLike
-    with Matchers
-    with OptionValues
-    with MockitoSugar
-    with BeforeAndAfterEach
-    with BeforeAndAfterAll
-    with BaseUnitSpec {
+class CertificateExpiryMonitorJobSpec extends TestFixture {
 
   val now: LocalDateTime        = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
   val zonedNow: ZonedDateTime   = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
