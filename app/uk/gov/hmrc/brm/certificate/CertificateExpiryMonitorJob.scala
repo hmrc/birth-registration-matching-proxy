@@ -139,10 +139,10 @@ object CertificateExpiryMonitorJob {
     val timeLeft  = schedule.getTimeUntilCertExpiry(now)
     val hoursLeft = timeLeft.toHours
 
-    if (timeLeft.isNegative) Some("expired")
-    else if (hoursLeft <= schedule.times.certExpiryCriticalThresholdHours.toHours) Some("critical")
-    else if (hoursLeft <= schedule.times.certExpiryWarningThresholdHours.toHours) Some("warning")
-    else if (hoursLeft <= schedule.times.certExpiryEarlyWarningThresholdHours.toHours) Some("early")
+    if (timeLeft.isNegative) Some("EXPIRED")
+    else if (hoursLeft <= schedule.times.certExpiryCriticalThresholdHours.toHours) Some("CRITICAL_WARNING")
+    else if (hoursLeft <= schedule.times.certExpiryWarningThresholdHours.toHours) Some("WARNING")
+    else if (hoursLeft <= schedule.times.certExpiryEarlyWarningThresholdHours.toHours) Some("EARLY_WARNING")
     else None
   }
 

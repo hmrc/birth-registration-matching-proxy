@@ -17,12 +17,15 @@
 package uk.gov.hmrc.brm.repositories
 
 import org.mockito.Mockito.when
+import org.mongodb.scala.model.Filters
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+
+import java.time.Instant
 
 class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
@@ -33,7 +36,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    await(repository.collection.drop().toFuture())
+    await(repository.collection.deleteMany(Filters.empty()).toFuture())
   }
 
   "markAlertSent" should {
@@ -49,7 +52,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
             jobId = "certificate-expiry-monitor-job",
             expiryDate = "2026-12-31",
             threshold = "EARLY_WARNING",
-            nowEpochMs = 1770000000000L
+            nowEpochMs = Instant.now().toEpochMilli
           )
           .futureValue
 
@@ -62,7 +65,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
           jobId = "certificate-expiry-monitor-job",
           expiryDate = "2026-12-31",
           threshold = "EARLY_WARNING",
-          nowEpochMs = 1770000000000L
+          nowEpochMs = Instant.now().toEpochMilli
         )
         .futureValue mustBe true
 
@@ -72,7 +75,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
             jobId = "certificate-expiry-monitor-job",
             expiryDate = "2026-12-31",
             threshold = "EARLY_WARNING",
-            nowEpochMs = 1770000005000L
+            nowEpochMs = Instant.now().toEpochMilli
           )
           .futureValue
 
@@ -85,7 +88,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
           jobId = "certificate-expiry-monitor-job",
           expiryDate = "2026-12-31",
           threshold = "EARLY_WARNING",
-          nowEpochMs = 1770000000000L
+          nowEpochMs = Instant.now().toEpochMilli
         )
         .futureValue mustBe true
 
@@ -95,7 +98,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
             jobId = "certificate-expiry-monitor-job",
             expiryDate = "2026-12-31",
             threshold = "WARNING",
-            nowEpochMs = 1770000005000L
+            nowEpochMs = Instant.now().toEpochMilli
           )
           .futureValue
 
@@ -108,7 +111,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
           jobId = "certificate-expiry-monitor-job",
           expiryDate = "2026-12-31",
           threshold = "EARLY_WARNING",
-          nowEpochMs = 1770000000000L
+          nowEpochMs = Instant.now().toEpochMilli
         )
         .futureValue mustBe true
 
@@ -118,7 +121,7 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
             jobId = "certificate-expiry-monitor-job",
             expiryDate = "2027-01-31",
             threshold = "EARLY_WARNING",
-            nowEpochMs = 1770000005000L
+            nowEpochMs = Instant.now().toEpochMilli
           )
           .futureValue
 

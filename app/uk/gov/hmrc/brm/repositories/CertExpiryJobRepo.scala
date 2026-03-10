@@ -87,7 +87,7 @@ class CertExpiryJobRepoMongo @Inject() (
         result.getUpsertedId != null
       }
       .recover { case e =>
-        logger.info(s"[CertExpiryJobRepoMongo][markAlertSent] failed to insert in mongo ${e.getMessage}")
+        logger.error(s"[CertExpiryJobRepoMongo][markAlertSent] failed to insert in mongo ${e.getMessage}")
         false
       }
 
