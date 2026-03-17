@@ -18,7 +18,6 @@ package uk.gov.hmrc.brm.repositories
 
 import org.mockito.Mockito.when
 import org.mongodb.scala.model.Filters
-import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -26,6 +25,7 @@ import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
@@ -39,95 +39,62 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
     await(repository.collection.deleteMany(Filters.empty()).toFuture())
   }
 
-  "markAlertSent" should {
+  private def now(): Instant =
+    Instant.now().truncatedTo(ChronoUnit.MILLIS)
 
-    "return true when alert is inserted for the first time" in {
-      val countBefore = await(repository.collection.countDocuments().toFuture())
-      println("###################### " + countBefore)
-      countBefore mustBe 0L
+  val jobId = "certificate-expiry-monitor-job-test"
 
-      val result =
-        repository
-          .markAlertSent(
-            jobId = "certificate-expiry-monitor-job",
-            expiryDate = "2026-12-31",
-            threshold = "EARLY_WARNING",
-            nowEpochMs = Instant.now().toEpochMilli
-          )
-          .futureValue
+  "getAlertDetails" should {
 
-      result mustBe true
+    "return false when document does not exist" in {
+      val expiry = now()
+
+      val result = await(
+        repository.getAlertDetails(jobId, expiry, "WARNING")
+      )
+
+      result shouldBe false
     }
 
-    "return false when the same jobId, expiryDate and threshold already exists" in {
-      repository
-        .markAlertSent(
-          jobId = "certificate-expiry-monitor-job",
-          expiryDate = "2026-12-31",
-          threshold = "EARLY_WARNING",
-          nowEpochMs = Instant.now().toEpochMilli
-        )
-        .futureValue mustBe true
+    "return true when document exists" in {
+      val expiry = now()
 
-      val result =
-        repository
-          .markAlertSent(
-            jobId = "certificate-expiry-monitor-job",
-            expiryDate = "2026-12-31",
-            threshold = "EARLY_WARNING",
-            nowEpochMs = Instant.now().toEpochMilli
-          )
-          .futureValue
+      await(repository.insertAlertDetails(jobId, expiry, "WARNING"))
 
-      result mustBe false
+      val result = await(
+        repository.getAlertDetails(jobId, expiry, "WARNING")
+      )
+
+      result shouldBe true
     }
-
-    "return true when threshold is different for the same jobId and expiryDate" in {
-      repository
-        .markAlertSent(
-          jobId = "certificate-expiry-monitor-job",
-          expiryDate = "2026-12-31",
-          threshold = "EARLY_WARNING",
-          nowEpochMs = Instant.now().toEpochMilli
-        )
-        .futureValue mustBe true
-
-      val result =
-        repository
-          .markAlertSent(
-            jobId = "certificate-expiry-monitor-job",
-            expiryDate = "2026-12-31",
-            threshold = "WARNING",
-            nowEpochMs = Instant.now().toEpochMilli
-          )
-          .futureValue
-
-      result mustBe true
-    }
-
-    "return true when expiryDate is different for the same jobId and threshold" in {
-      repository
-        .markAlertSent(
-          jobId = "certificate-expiry-monitor-job",
-          expiryDate = "2026-12-31",
-          threshold = "EARLY_WARNING",
-          nowEpochMs = Instant.now().toEpochMilli
-        )
-        .futureValue mustBe true
-
-      val result =
-        repository
-          .markAlertSent(
-            jobId = "certificate-expiry-monitor-job",
-            expiryDate = "2027-01-31",
-            threshold = "EARLY_WARNING",
-            nowEpochMs = Instant.now().toEpochMilli
-          )
-          .futureValue
-
-      result mustBe true
-    }
-
   }
+
+
+  "insertAlertDetails" should {
+
+    "insert document successfully" in {
+      val expiry = now()
+
+      val result = await(
+        repository.insertAlertDetails(jobId, expiry, "WARNING")
+      )
+
+      result shouldBe true
+    }
+
+    "allow retrieval after insert" in {
+      val expiry = now()
+
+      await(repository.insertAlertDetails(jobId, expiry, "CRITICAL_WARNING"))
+
+      val exists = await(
+        repository.getAlertDetails(jobId, expiry, "CRITICAL_WARNING")
+      )
+
+      exists shouldBe true
+    }
+  }
+
+
 
 }

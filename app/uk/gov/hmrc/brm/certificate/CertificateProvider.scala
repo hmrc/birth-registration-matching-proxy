@@ -22,3 +22,13 @@ import scala.util.Try
 trait CertificateProvider {
   def loadCertificate(): Try[Certificate]
 }
+
+
+sealed trait ExpiryThreshold { def value: String }
+
+object ExpiryThreshold {
+  case object Expired extends ExpiryThreshold { val value = "EXPIRED" }
+  case object CriticalWarning extends ExpiryThreshold { val value = "CRITICAL_WARNING" }
+  case object Warning extends ExpiryThreshold { val value = "WARNING" }
+  case object EarlyWarning extends ExpiryThreshold { val value = "EARLY_WARNING" }
+}

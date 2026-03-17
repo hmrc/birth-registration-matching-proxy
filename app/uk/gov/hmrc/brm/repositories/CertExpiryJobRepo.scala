@@ -29,68 +29,84 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CertExpiryJobRepo {
-  def markAlertSent(jobId: String, expiryDate: String, threshold: String, nowEpochMs: Long): Future[Boolean]
+
+  def getAlertDetails(
+                       jobId: String,
+                       expiryDate: Instant,
+                       threshold: String
+                     ): Future[Boolean]
+
+  def insertAlertDetails(
+                          jobId: String,
+                          expiryDate: Instant,
+                          threshold: String
+                        ): Future[Boolean]
 }
 
 @Singleton
-class CertExpiryJobRepoMongo @Inject() (
-  val mongoComponent: MongoComponent,
-  val groAppConfig: GroAppConfig
-)(implicit ec: ExecutionContext)
-    extends PlayMongoRepository[CertExpiryJobDetails](
-      collectionName = "cert-expiry-job-details",
-      mongoComponent = mongoComponent,
-      domainFormat = CertExpiryJobDetails.format,
-      indexes = Seq(
-        IndexModel(
-          Indexes.ascending("jobId", "expiryDate", "threshold"),
-          IndexOptions()
-            .name("jobId_expiry_threshold_unique")
-            .unique(true)
-        ),
-        IndexModel(
-          Indexes.ascending("createdAt"),
-          IndexOptions()
-            .name("createdAt_ttl")
-            .expireAfter(groAppConfig.cachettl, TimeUnit.HOURS)
-        )
-      ),
-      replaceIndexes = false
-    )
+class CertExpiryJobRepoMongo @Inject()(
+                                        val mongoComponent: MongoComponent,
+                                        val groAppConfig: GroAppConfig
+                                      )(implicit ec: ExecutionContext)
+  extends PlayMongoRepository[CertExpiryJobDetails](
+    collectionName = "cert-expiry-job-details",
+    mongoComponent = mongoComponent,
+    domainFormat = CertExpiryJobDetails.format,
+    indexes = Seq(
+      IndexModel(
+        Indexes.ascending("expiryDate"),
+        IndexOptions()
+          .name("expiryDate_ttl")
+          .expireAfter(0, TimeUnit.SECONDS)
+      )
+    ),
+    replaceIndexes = true
+  )
     with CertExpiryJobRepo {
 
-  override def markAlertSent(
-    jobId: String,
-    expiryDate: String,
-    threshold: String,
-    nowEpochMs: Long
-  ): Future[Boolean] = {
+  override def getAlertDetails(
+                                jobId: String,
+                                expiryDate: Instant,
+                                threshold: String
+                              ): Future[Boolean] = {
 
     val filter = Filters.and(
-      Filters.equal("jobId", jobId),
-      Filters.equal("expiryDate", expiryDate),
-      Filters.equal("threshold", threshold)
+      Filters.equal("jobId", jobId)
     )
 
-    val update = Updates.combine(
-      Updates.setOnInsert("jobId", jobId),
-      Updates.setOnInsert("expiryDate", expiryDate),
-      Updates.setOnInsert("threshold", threshold),
-      Updates.setOnInsert("createdAt", Instant.ofEpochMilli(nowEpochMs))
+    val res = collection
+      .find(filter)
+      .headOption()
+      .map(_.isDefined)
+      .recover { case e =>
+        logger.error(s"[CertExpiryJobRepoMongo][getAlertDetails] failed: ${e.getMessage}")
+        false
+      }
+    res
+  }
+
+  override def insertAlertDetails(
+                                   jobId: String,
+                                   expiryDate: Instant,
+                                   threshold: String
+                                 ): Future[Boolean] = {
+    val doc = CertExpiryJobDetails(
+      jobId = jobId,
+      expiryDate = expiryDate,
+      threshold = threshold
     )
 
     collection
-      .updateOne(filter, update, new UpdateOptions().upsert(true))
+      .insertOne(doc)
       .toFuture()
-      .map { result =>
-        logger.info(s"[CertExpiryJobRepoMongo][markAlertSent] inserted in mongo result= $result")
-        result.getUpsertedId != null
+      .map { _ =>
+        logger.info(s"[CertExpiryJobRepoMongo][insertAlertDetails] inserted")
+        true
       }
       .recover { case e =>
-        logger.error(s"[CertExpiryJobRepoMongo][markAlertSent] failed to insert in mongo ${e.getMessage}")
+        logger.error(s"[CertExpiryJobRepoMongo][insertAlertDetails] failed: ${e.getMessage}")
         false
       }
-
   }
 
 }

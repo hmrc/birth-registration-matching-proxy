@@ -16,17 +16,19 @@
 
 package uk.gov.hmrc.brm.models
 
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Format, Json, OFormat}
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
 import java.time.Instant
 
 case class CertExpiryJobDetails(
-  jobId: String,
-  expiryDate: String,
-  threshold: String, //  any of this values for early,warning,critical,expired
-  createdAt: Instant
-)
+                                 jobId: String,
+                                 expiryDate: Instant,
+                                 threshold: String //  any of this values for early,warning,critical,expired
+                               )
 
 object CertExpiryJobDetails {
-  implicit val format: Format[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]
+  implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
+
+  implicit val format: OFormat[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]
 }
