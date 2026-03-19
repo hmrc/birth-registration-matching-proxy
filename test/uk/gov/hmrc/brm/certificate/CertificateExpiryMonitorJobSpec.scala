@@ -37,26 +37,26 @@ import scala.concurrent.duration._
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
 class CertificateExpiryMonitorJobSpec extends TestFixture {
 
-  val now: LocalDateTime = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
-  val zonedNow: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
-  val oneMinute: FiniteDuration = FiniteDuration(1, MINUTES)
+  val now: LocalDateTime             = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val zonedNow: ZonedDateTime        = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val oneMinute: FiniteDuration      = FiniteDuration(1, MINUTES)
   val fifteenMinutes: FiniteDuration = FiniteDuration(15, MINUTES)
 
-  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
+  val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
-  implicit val brmLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val instanceId: UUID = UUID.randomUUID()
+  implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val instanceId: UUID       = UUID.randomUUID()
 
-  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
+  implicit val timeProvider: TimeProvider              = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
-  private val oneWeekInHours = 168
-  private val sixtyDaysInHours = 1440
-  private val certExpiryEarlyWarningThresholdHours = Duration.ofHours(sixtyDaysInHours)
+  private val oneWeekInHours                           = 168
+  private val sixtyDaysInHours                         = 1440
+  private val certExpiryEarlyWarningThresholdHours     = Duration.ofHours(sixtyDaysInHours)
   private val certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(oneWeekInHours)
-  private val certExpiryWarningThresholdHours = Duration.ofHours(oneWeekInHours)
-  private val certExpiryWarningCheckIntervalHours = Duration.ofHours(24)
-  private val certExpiryCriticalThresholdHours = Duration.ofHours(24)
-  private val certExpiryCriticalCheckIntervalHours = Duration.ofHours(1)
+  private val certExpiryWarningThresholdHours          = Duration.ofHours(oneWeekInHours)
+  private val certExpiryWarningCheckIntervalHours      = Duration.ofHours(24)
+  private val certExpiryCriticalThresholdHours         = Duration.ofHours(24)
+  private val certExpiryCriticalCheckIntervalHours     = Duration.ofHours(1)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -83,8 +83,8 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       val formattedCertificateExpiryTime =
         certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 
-      val config = createMockConfig()
-      val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val config                                                   = createMockConfig()
+      val certExpiryJobRepoMongo                                   = mock[CertExpiryJobRepoMongo]
       var timerSpy: PekkoTimer[CertificateExpiryMonitorJobCommand] = null
 
       val timer = (scheduler: TimerScheduler[CertificateExpiryMonitorJobCommand]) => {
@@ -120,7 +120,12 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
       Thread.sleep(100)
 
-      verify(brmLogger).info(instanceId, "CertificateExpiryMonitorJob", "running", s"no threshold matched for actualCertExpiryDate=$formattedCertificateExpiry")
+      verify(brmLogger).info(
+        instanceId,
+        "CertificateExpiryMonitorJob",
+        "running",
+        s"no threshold matched for actualCertExpiryDate=$formattedCertificateExpiry"
+      )
       verify(timerSpy)
         .startSingleTimer(CheckExpiry, fifteenMinutes)
 
@@ -145,7 +150,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       // warning window assertions
       val timeToAdvanceInToWarningWindow =
         certExpiryEarlyWarningThresholdHours.toHours - certExpiryWarningThresholdHours.toHours
-      val timeAtWarningThreshold =
+      val timeAtWarningThreshold         =
         advanceTimeReturningNewTimeProviderTime(
           timeToAdvanceInHours = Some(timeToAdvanceInToWarningWindow.toInt),
           previousNow = timeAtEarlyWarningThreshold
@@ -205,13 +210,13 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
     "calculate synchronised interval" in {
 
-      val now = LocalDateTime.now(ZoneId.of("UTC"))
+      val now         = LocalDateTime.now(ZoneId.of("UTC"))
       val hoursOffset = 2
 
-      val certificateExpiry = now.plusHours(certExpiryWarningThresholdHours.toHours + hoursOffset)
-      val config = createMockConfig()
+      val certificateExpiry      = now.plusHours(certExpiryWarningThresholdHours.toHours + hoursOffset)
+      val config                 = createMockConfig()
       val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider = spy(new TimeProvider)
+      val mockTimeProvider       = spy(new TimeProvider)
 
       when(mockTimeProvider.now).thenReturn(now.atZone(ZoneId.of("UTC")))
 
@@ -219,7 +224,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       when(certExpiryJobRepoMongo.insertAlertDetails(any, any, any)).thenReturn(Future.successful(true))
 
       val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
-
 
       testKit.spawn(
         CertificateExpiryMonitorJob(
@@ -244,10 +248,10 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
 
     "stop when receiving Stop command" in {
-      val certificateExpiry = LocalDateTime.now().plusDays(10)
-      val config = createMockConfig()
+      val certificateExpiry      = LocalDateTime.now().plusDays(10)
+      val config                 = createMockConfig()
       val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider = spy(new TimeProvider)
+      val mockTimeProvider       = spy(new TimeProvider)
 
       val actor: ActorRef[CertificateExpiryMonitorJobCommand] =
         testKit.spawn(
@@ -276,7 +280,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
   }
 
-
   private def createMockConfig(): GroAppConfig = {
     val config = mock[GroAppConfig]
 
@@ -296,13 +299,13 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
   // keep our TimeProvider and Pekko's time in sync by advancing them together
   private def advanceTimeReturningNewTimeProviderTime(
-                                                       timeToAdvanceInHours: Option[Int] = None,
-                                                       timeToAdvanceInMinutes: Option[Int] = None,
-                                                       previousNow: ZonedDateTime
-                                                     )(implicit
-                                                       timeProvider: TimeProvider,
-                                                       manualTime: ManualTime
-                                                     ): ZonedDateTime = {
+    timeToAdvanceInHours: Option[Int] = None,
+    timeToAdvanceInMinutes: Option[Int] = None,
+    previousNow: ZonedDateTime
+  )(implicit
+    timeProvider: TimeProvider,
+    manualTime: ManualTime
+  ): ZonedDateTime = {
 
     val newNow =
       if (timeToAdvanceInHours.isDefined) {
@@ -325,25 +328,21 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     newNow
   }
 
-
-  private def verifyNextCheckIntervalLog(threshold: ExpiryThreshold,
-                                         certificateExpiry: String)
-                                        (implicit brmLogger: BrmLogger
-                                        ): Unit = {
+  private def verifyNextCheckIntervalLog(threshold: ExpiryThreshold, certificateExpiry: String)(implicit
+    brmLogger: BrmLogger
+  ): Unit =
 
     verify(brmLogger).info(
       instanceId,
       "CertificateExpiryMonitorJob",
       "running",
       s"sending alerts for threshold=${threshold.value} actualCertExpiryDate=$certificateExpiry"
-
     )
-  }
 
   private def verifyWarningLog(
-                                daysTillExpiry: Option[Long] = None,
-                                hoursTillExpiry: Option[Long] = None
-                              )(implicit certificateExpiry: ZonedDateTime): Unit = {
+    daysTillExpiry: Option[Long] = None,
+    hoursTillExpiry: Option[Long] = None
+  )(implicit certificateExpiry: ZonedDateTime): Unit = {
     val formattedCertificateExpiryTime =
       certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 

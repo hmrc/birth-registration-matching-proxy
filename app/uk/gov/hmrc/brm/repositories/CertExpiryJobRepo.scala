@@ -30,43 +30,43 @@ import scala.concurrent.{ExecutionContext, Future}
 trait CertExpiryJobRepo {
 
   def getAlertDetails(
-                       jobId: String,
-                       expiryDate: Instant,
-                       threshold: String
-                     ): Future[Boolean]
+    jobId: String,
+    expiryDate: Instant,
+    threshold: String
+  ): Future[Boolean]
 
   def insertAlertDetails(
-                          jobId: String,
-                          expiryDate: Instant,
-                          threshold: String
-                        ): Future[Boolean]
+    jobId: String,
+    expiryDate: Instant,
+    threshold: String
+  ): Future[Boolean]
+
 }
 
 @Singleton
-class CertExpiryJobRepoMongo @Inject()(val mongoComponent: MongoComponent
-                                      )(implicit ec: ExecutionContext)
-  extends PlayMongoRepository[CertExpiryJobDetails](
-    collectionName = "cert-expiry-job-details",
-    mongoComponent = mongoComponent,
-    domainFormat = CertExpiryJobDetails.format,
-    indexes = Seq(
-      IndexModel(Indexes.ascending("jobId")),
-      IndexModel(
-        Indexes.ascending("expiryDate"),
-        IndexOptions()
-          .name("expiryDate_ttl")
-          .expireAfter(0, TimeUnit.SECONDS)
-      )
-    ),
-    replaceIndexes = true
-  )
+class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoRepository[CertExpiryJobDetails](
+      collectionName = "cert-expiry-job-details",
+      mongoComponent = mongoComponent,
+      domainFormat = CertExpiryJobDetails.format,
+      indexes = Seq(
+        IndexModel(Indexes.ascending("jobId")),
+        IndexModel(
+          Indexes.ascending("expiryDate"),
+          IndexOptions()
+            .name("expiryDate_ttl")
+            .expireAfter(0, TimeUnit.SECONDS)
+        )
+      ),
+      replaceIndexes = true
+    )
     with CertExpiryJobRepo {
 
   override def getAlertDetails(
-                                jobId: String,
-                                expiryDate: Instant,
-                                threshold: String
-                              ): Future[Boolean] = {
+    jobId: String,
+    expiryDate: Instant,
+    threshold: String
+  ): Future[Boolean] = {
 
     val filter = Filters.and(
       Filters.equal("jobId", jobId)
@@ -84,10 +84,10 @@ class CertExpiryJobRepoMongo @Inject()(val mongoComponent: MongoComponent
   }
 
   override def insertAlertDetails(
-                                   jobId: String,
-                                   expiryDate: Instant,
-                                   threshold: String
-                                 ): Future[Boolean] = {
+    jobId: String,
+    expiryDate: Instant,
+    threshold: String
+  ): Future[Boolean] = {
     val doc = CertExpiryJobDetails(
       jobId = jobId,
       expiryDate = expiryDate,

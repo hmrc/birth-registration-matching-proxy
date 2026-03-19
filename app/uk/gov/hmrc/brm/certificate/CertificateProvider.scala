@@ -23,7 +23,6 @@ trait CertificateProvider {
   def loadCertificate(): Try[Certificate]
 }
 
-
 sealed trait ExpiryThreshold { def value: String }
 
 object ExpiryThreshold {

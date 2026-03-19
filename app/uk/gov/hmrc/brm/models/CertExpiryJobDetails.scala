@@ -22,10 +22,10 @@ import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import java.time.Instant
 
 case class CertExpiryJobDetails(
-                                 jobId: String,
-                                 expiryDate: Instant,
-                                 threshold: String //  any of this values for early,warning,critical,expired
-                               )
+  jobId: String,
+  expiryDate: Instant,
+  threshold: String //  any of this values for early,warning,critical,expired
+)
 
 object CertExpiryJobDetails {
   implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat

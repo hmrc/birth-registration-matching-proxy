@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.brm.repositories
 
+import org.mongodb.scala._
 import org.mongodb.scala.model.Filters
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
@@ -28,7 +29,7 @@ import java.time.temporal.ChronoUnit
 class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
   override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent)
-  val jobId = "certificate-expiry-monitor-job-test"
+  val jobId                    = "certificate-expiry-monitor-job-test"
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -41,53 +42,37 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
   "getAlertDetails" should {
 
     "return false when document does not exist" in {
-
-
       val result = await(
         repository.getAlertDetails(jobId, now(), "WARNING")
       )
-
       result shouldBe false
     }
 
     "return true when document exists" in {
-
-
       await(repository.insertAlertDetails(jobId, now(), "WARNING"))
-
       val result = await(
         repository.getAlertDetails(jobId, now(), "WARNING")
       )
-
       result shouldBe true
     }
   }
-
 
   "insertAlertDetails" should {
 
     "insert document successfully" in {
-
-
       val result = await(
         repository.insertAlertDetails(jobId, now(), "WARNING")
       )
-
       result shouldBe true
     }
 
     "allow retrieval after insert" in {
-
-
       await(repository.insertAlertDetails(jobId, now(), "CRITICAL_WARNING"))
-
       val exists = await(
         repository.getAlertDetails(jobId, now(), "CRITICAL_WARNING")
       )
-
       exists shouldBe true
     }
   }
-
 
 }

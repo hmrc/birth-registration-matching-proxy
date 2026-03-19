@@ -38,22 +38,22 @@ class PekkoTimer[T](scheduler: TimerScheduler[T]) {
 object CertificateExpiryMonitorJob {
 
   val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")
-  private val CLASS_NAME = getClass.getSimpleName.dropRight(1)
+  private val CLASS_NAME            = getClass.getSimpleName.dropRight(1)
 
   def apply(
-             certificateExpiry: LocalDateTime,
-             timeProvider: TimeProvider,
-             config: GroAppConfig,
-             timer: TimerScheduler[CertificateExpiryMonitorJobCommand] => PekkoTimer[CertificateExpiryMonitorJobCommand] =
-             new PekkoTimer(_),
-             certExpiryJobRepo: CertExpiryJobRepo
-           )(implicit
-             logger: BrmLogger,
-             instanceId: UUID,
-             ec: ExecutionContext
-           ): Behavior[CertificateExpiryMonitorJobCommand] =
+    certificateExpiry: LocalDateTime,
+    timeProvider: TimeProvider,
+    config: GroAppConfig,
+    timer: TimerScheduler[CertificateExpiryMonitorJobCommand] => PekkoTimer[CertificateExpiryMonitorJobCommand] =
+      new PekkoTimer(_),
+    certExpiryJobRepo: CertExpiryJobRepo
+  )(implicit
+    logger: BrmLogger,
+    instanceId: UUID,
+    ec: ExecutionContext
+  ): Behavior[CertificateExpiryMonitorJobCommand] =
     Behaviors.withTimers { timerScheduler =>
-      val pekkoTimer = timer(timerScheduler)
+      val pekkoTimer               = timer(timerScheduler)
       val certificateCheckSchedule = new CertificateCheckSchedule(config, certificateExpiry)
 
       logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
@@ -63,19 +63,24 @@ object CertificateExpiryMonitorJob {
     }
 
   private def running(
-                       certificateExpiry: LocalDateTime,
-                       timerScheduler: PekkoTimer[CertificateExpiryMonitorJobCommand],
-                       timeProvider: TimeProvider,
-                       certificateCheckSchedule: CertificateCheckSchedule,
-                       certExpiryJobRepo: CertExpiryJobRepo
-                     )(implicit logger: BrmLogger, instanceId: UUID, ec: ExecutionContext): Behavior[CertificateExpiryMonitorJobCommand] = {
+    certificateExpiry: LocalDateTime,
+    timerScheduler: PekkoTimer[CertificateExpiryMonitorJobCommand],
+    timeProvider: TimeProvider,
+    certificateCheckSchedule: CertificateCheckSchedule,
+    certExpiryJobRepo: CertExpiryJobRepo
+  )(implicit
+    logger: BrmLogger,
+    instanceId: UUID,
+    ec: ExecutionContext
+  ): Behavior[CertificateExpiryMonitorJobCommand] = {
     val formattedExpiry = certificateExpiry.format(timeFormat)
     Behaviors.receiveMessage {
 
       case CheckExpiry =>
-        val now = timeProvider.now.toLocalDateTime
-        val jobId = "certificate-expiry-monitor-job"
-        val thresholdValues: Option[(ExpiryThreshold, Duration)] = getThresholdAndIntervalTime(now, certificateCheckSchedule)
+        val now                                                  = timeProvider.now.toLocalDateTime
+        val jobId                                                = "certificate-expiry-monitor-job"
+        val thresholdValues: Option[(ExpiryThreshold, Duration)] =
+          getThresholdAndIntervalTime(now, certificateCheckSchedule)
         thresholdValues match {
           case Some((threshold, leftTime)) =>
 
@@ -85,10 +90,10 @@ object CertificateExpiryMonitorJob {
             for {
               exists <- certExpiryJobRepo.getAlertDetails(jobId, expiryDateInstant, threshold.value)
               result <- if (!exists)
-                certExpiryJobRepo.insertAlertDetails(jobId, expiryDateInstant, threshold.value)
-              else
-                Future.successful(false)
-            } yield {
+                          certExpiryJobRepo.insertAlertDetails(jobId, expiryDateInstant, threshold.value)
+                        else
+                          Future.successful(false)
+            } yield
               if (result) {
                 logger.info(
                   instanceId,
@@ -108,7 +113,6 @@ object CertificateExpiryMonitorJob {
                   s"alert already sent for threshold=${threshold.value} actualCertExpiryDate=$formattedExpiry"
                 )
               }
-            }
           case None =>
             Future.successful(
               logger.info(
@@ -120,10 +124,10 @@ object CertificateExpiryMonitorJob {
             )
         }
 
-        timerScheduler.startSingleTimer(CheckExpiry, 15.minutes) //runs every 15 minutes
+        timerScheduler.startSingleTimer(CheckExpiry, 15.minutes) // runs every 15 minutes
 
         Behaviors.same
-      case Terminate =>
+      case Terminate   =>
         logger.info(
           instanceId,
           CLASS_NAME,
@@ -135,13 +139,12 @@ object CertificateExpiryMonitorJob {
     }
   }
 
-
   private def getThresholdAndIntervalTime(
-                                           now: LocalDateTime,
-                                           schedule: CertificateCheckSchedule
-                                         ): Option[(ExpiryThreshold, Duration)] = {
+    now: LocalDateTime,
+    schedule: CertificateCheckSchedule
+  ): Option[(ExpiryThreshold, Duration)] = {
 
-    val timeLeft = schedule.getTimeUntilCertExpiry(now)
+    val timeLeft  = schedule.getTimeUntilCertExpiry(now)
     val hoursLeft = timeLeft.toHours
 
     if (timeLeft.isNegative) Some(Expired, timeLeft)
@@ -155,8 +158,8 @@ object CertificateExpiryMonitorJob {
   }
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
-                                                                                                    logger: BrmLogger,
-                                                                                                    instanceId: UUID
+    logger: BrmLogger,
+    instanceId: UUID
   ): Unit = {
 
     val formattedExpiry = certificateExpiry.format(timeFormat)
