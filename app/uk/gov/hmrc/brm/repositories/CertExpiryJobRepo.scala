@@ -18,7 +18,6 @@ package uk.gov.hmrc.brm.repositories
 
 import com.google.inject.{Inject, Singleton}
 import org.mongodb.scala.model._
-import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.brm.utils.BrmLogger.logger
 import uk.gov.hmrc.mongo.MongoComponent
@@ -44,15 +43,14 @@ trait CertExpiryJobRepo {
 }
 
 @Singleton
-class CertExpiryJobRepoMongo @Inject()(
-                                        val mongoComponent: MongoComponent,
-                                        val groAppConfig: GroAppConfig
+class CertExpiryJobRepoMongo @Inject()(val mongoComponent: MongoComponent
                                       )(implicit ec: ExecutionContext)
   extends PlayMongoRepository[CertExpiryJobDetails](
     collectionName = "cert-expiry-job-details",
     mongoComponent = mongoComponent,
     domainFormat = CertExpiryJobDetails.format,
     indexes = Seq(
+      IndexModel(Indexes.ascending("jobId")),
       IndexModel(
         Indexes.ascending("expiryDate"),
         IndexOptions()

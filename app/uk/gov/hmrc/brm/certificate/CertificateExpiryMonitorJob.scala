@@ -68,8 +68,10 @@ object CertificateExpiryMonitorJob {
                        timeProvider: TimeProvider,
                        certificateCheckSchedule: CertificateCheckSchedule,
                        certExpiryJobRepo: CertExpiryJobRepo
-                     )(implicit logger: BrmLogger, instanceId: UUID, ec: ExecutionContext): Behavior[CertificateExpiryMonitorJobCommand] =
+                     )(implicit logger: BrmLogger, instanceId: UUID, ec: ExecutionContext): Behavior[CertificateExpiryMonitorJobCommand] = {
+    val formattedExpiry = certificateExpiry.format(timeFormat)
     Behaviors.receiveMessage {
+
       case CheckExpiry =>
         val now = timeProvider.now.toLocalDateTime
         val jobId = "certificate-expiry-monitor-job"
@@ -92,7 +94,7 @@ object CertificateExpiryMonitorJob {
                   instanceId,
                   CLASS_NAME,
                   "running",
-                  s"sending alerts for threshold=${threshold.value} actualCertExpiryDate=$certificateExpiry mongo doc expiryDate=$expiryDateInstant"
+                  s"sending alerts for threshold=${threshold.value} actualCertExpiryDate=$formattedExpiry"
                 )
                 logCertificateExpiry(
                   certificateCheckSchedule.getTimeUntilCertExpiry(now),
@@ -103,7 +105,7 @@ object CertificateExpiryMonitorJob {
                   instanceId,
                   CLASS_NAME,
                   "running",
-                  s"alert already sent for threshold=${threshold.value} actualCertExpiryDate=$certificateExpiry mongo doc expiryDate=$expiryDateInstant"
+                  s"alert already sent for threshold=${threshold.value} actualCertExpiryDate=$formattedExpiry"
                 )
               }
             }
@@ -113,12 +115,12 @@ object CertificateExpiryMonitorJob {
                 instanceId,
                 CLASS_NAME,
                 "running",
-                s"no threshold matched for actualCertExpiryDate=$certificateExpiry"
+                s"no threshold matched for actualCertExpiryDate=$formattedExpiry"
               )
             )
         }
 
-        timerScheduler.startSingleTimer(CheckExpiry, 1.minutes) //runs every 15 minutes
+        timerScheduler.startSingleTimer(CheckExpiry, 15.minutes) //runs every 15 minutes
 
         Behaviors.same
       case Terminate =>
@@ -131,11 +133,13 @@ object CertificateExpiryMonitorJob {
 
         Behaviors.stopped
     }
+  }
+
 
   private def getThresholdAndIntervalTime(
-                                       now: LocalDateTime,
-                                       schedule: CertificateCheckSchedule
-                                     ): Option[(ExpiryThreshold, Duration)] = {
+                                           now: LocalDateTime,
+                                           schedule: CertificateCheckSchedule
+                                         ): Option[(ExpiryThreshold, Duration)] = {
 
     val timeLeft = schedule.getTimeUntilCertExpiry(now)
     val hoursLeft = timeLeft.toHours

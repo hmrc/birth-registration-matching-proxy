@@ -16,11 +16,9 @@
 
 package uk.gov.hmrc.brm.repositories
 
-import org.mockito.Mockito.when
 import org.mongodb.scala.model.Filters
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
@@ -29,10 +27,8 @@ import java.time.temporal.ChronoUnit
 
 class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent, testGroConfig)
-
-  private val testGroAppConfig: GroAppConfig = mock[GroAppConfig]
-  when(testGroAppConfig.cachettl).thenReturn(24)
+  override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent)
+  val jobId = "certificate-expiry-monitor-job-test"
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -42,27 +38,25 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
   private def now(): Instant =
     Instant.now().truncatedTo(ChronoUnit.MILLIS)
 
-  val jobId = "certificate-expiry-monitor-job-test"
-
   "getAlertDetails" should {
 
     "return false when document does not exist" in {
-      val expiry = now()
+
 
       val result = await(
-        repository.getAlertDetails(jobId, expiry, "WARNING")
+        repository.getAlertDetails(jobId, now(), "WARNING")
       )
 
       result shouldBe false
     }
 
     "return true when document exists" in {
-      val expiry = now()
 
-      await(repository.insertAlertDetails(jobId, expiry, "WARNING"))
+
+      await(repository.insertAlertDetails(jobId, now(), "WARNING"))
 
       val result = await(
-        repository.getAlertDetails(jobId, expiry, "WARNING")
+        repository.getAlertDetails(jobId, now(), "WARNING")
       )
 
       result shouldBe true
@@ -73,28 +67,27 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
   "insertAlertDetails" should {
 
     "insert document successfully" in {
-      val expiry = now()
+
 
       val result = await(
-        repository.insertAlertDetails(jobId, expiry, "WARNING")
+        repository.insertAlertDetails(jobId, now(), "WARNING")
       )
 
       result shouldBe true
     }
 
     "allow retrieval after insert" in {
-      val expiry = now()
 
-      await(repository.insertAlertDetails(jobId, expiry, "CRITICAL_WARNING"))
+
+      await(repository.insertAlertDetails(jobId, now(), "CRITICAL_WARNING"))
 
       val exists = await(
-        repository.getAlertDetails(jobId, expiry, "CRITICAL_WARNING")
+        repository.getAlertDetails(jobId, now(), "CRITICAL_WARNING")
       )
 
       exists shouldBe true
     }
   }
-
 
 
 }
