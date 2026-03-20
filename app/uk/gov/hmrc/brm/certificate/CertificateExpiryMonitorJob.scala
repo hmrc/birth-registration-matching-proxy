@@ -147,14 +147,15 @@ object CertificateExpiryMonitorJob {
     val timeLeft  = schedule.getTimeUntilCertExpiry(now)
     val hoursLeft = timeLeft.toHours
 
-    if (timeLeft.isNegative) Some(Expired, timeLeft)
-    else if (hoursLeft <= schedule.times.certExpiryCriticalThresholdHours.toHours)
+    if (timeLeft.isNegative) {
+      Some(Expired, timeLeft)
+    } else if (hoursLeft <= schedule.times.certExpiryCriticalThresholdHours.toHours) {
       Some(CriticalWarning, schedule.times.certExpiryCriticalCheckIntervalHours)
-    else if (hoursLeft <= schedule.times.certExpiryWarningThresholdHours.toHours)
+    } else if (hoursLeft <= schedule.times.certExpiryWarningThresholdHours.toHours) {
       Some(Warning, schedule.times.certExpiryWarningCheckIntervalHours)
-    else if (hoursLeft <= schedule.times.certExpiryEarlyWarningThresholdHours.toHours)
+    } else if (hoursLeft <= schedule.times.certExpiryEarlyWarningThresholdHours.toHours) {
       Some(EarlyWarning, schedule.times.certExpiryEarlyWarningCheckIntervalHours)
-    else None
+    } else None
   }
 
   private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit

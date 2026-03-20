@@ -20,7 +20,6 @@ import uk.gov.hmrc.brm.config.GroAppConfig
 
 import java.time.{Duration, LocalDateTime}
 import javax.inject.Singleton
-import scala.concurrent.duration.{FiniteDuration, MINUTES}
 
 @Singleton
 class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateTime) {
@@ -35,71 +34,71 @@ class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateT
   // | <- Early Warning Window -> | <- Warning Window -> | <- Critical Warning Window -> | Expired |
   // |                            |                      |
   // └─ Early Warning Threshold   └─  Warning Threshold  └─ Critical Threshold
-  private def getNextCertificateCheckIntervalMinutes(now: LocalDateTime): Long = {
-
-    val timeUntilCertExpiry = getTimeUntilCertExpiry(now)
-
-    if (isBeforeEarlyWarningWindow(now)) {
-      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(times.certExpiryEarlyWarningThresholdHours)
-      val windowInterval              = times.certExpiryEarlyWarningCheckIntervalHours
-
-      getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
-    } else {
-
-      if (isWithinEarlyWarningWindow(timeUntilCertExpiry)) {
-        val timeUntilWarningThreshold = timeUntilCertExpiry.minus(times.certExpiryWarningThresholdHours)
-
-        getSynchronisedCheckIntervalMinutes(timeUntilWarningThreshold, times.certExpiryEarlyWarningCheckIntervalHours)
-
-      } else if (isWithinWarningWindow(timeUntilCertExpiry)) {
-        val timeUntilCriticalThreshold = timeUntilCertExpiry.minus(times.certExpiryCriticalThresholdHours)
-
-        getSynchronisedCheckIntervalMinutes(timeUntilCriticalThreshold, times.certExpiryWarningCheckIntervalHours)
-
-      } else { // within critical window or expired
-        times.certExpiryCriticalCheckIntervalHours.toMinutes
-      }
-    }
-  }
+//  private def getNextCertificateCheckIntervalMinutes(now: LocalDateTime): Long = {
+//
+//    val timeUntilCertExpiry = getTimeUntilCertExpiry(now)
+//
+//    if (isBeforeEarlyWarningWindow(now)) {
+//      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(times.certExpiryEarlyWarningThresholdHours)
+//      val windowInterval              = times.certExpiryEarlyWarningCheckIntervalHours
+//
+//      getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
+//    } else {
+//
+//      if (isWithinEarlyWarningWindow(timeUntilCertExpiry)) {
+//        val timeUntilWarningThreshold = timeUntilCertExpiry.minus(times.certExpiryWarningThresholdHours)
+//
+//        getSynchronisedCheckIntervalMinutes(timeUntilWarningThreshold, times.certExpiryEarlyWarningCheckIntervalHours)
+//
+//      } else if (isWithinWarningWindow(timeUntilCertExpiry)) {
+//        val timeUntilCriticalThreshold = timeUntilCertExpiry.minus(times.certExpiryCriticalThresholdHours)
+//
+//        getSynchronisedCheckIntervalMinutes(timeUntilCriticalThreshold, times.certExpiryWarningCheckIntervalHours)
+//
+//      } else { // within critical window or expired
+//        times.certExpiryCriticalCheckIntervalHours.toMinutes
+//      }
+//    }
+//  }
 
   def getTimeUntilCertExpiry(now: LocalDateTime): Duration = Duration.between(now, certificateExpiry)
 
   // if we're closer to a window than our current interval, schedule next check at the start of the upcoming window
-  private def getSynchronisedCheckIntervalMinutes(timeUntilNextWindow: Duration, windowInterval: Duration): Long =
-    if (timeUntilNextWindow.toMinutes < windowInterval.toMinutes) {
-      timeUntilNextWindow.toMinutes
-    } else {
-      windowInterval.toMinutes
-    }
+//  private def getSynchronisedCheckIntervalMinutes(timeUntilNextWindow: Duration, windowInterval: Duration): Long =
+//    if (timeUntilNextWindow.toMinutes < windowInterval.toMinutes) {
+//      timeUntilNextWindow.toMinutes
+//    } else {
+//      windowInterval.toMinutes
+//    }
+//
+//  private def isBeforeEarlyWarningWindow(now: LocalDateTime): Boolean =
+//    Duration.between(now, certificateExpiry).minus(times.certExpiryEarlyWarningThresholdHours).toMinutes > 0
+//
+//  def isPastEarlyWarningWindow(now: LocalDateTime): Boolean = !isBeforeEarlyWarningWindow(now)
+//
+//  private def isWithinEarlyWarningWindow(timeUntilExpiry: Duration): Boolean =
+//    timeUntilExpiry.minus(times.certExpiryEarlyWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
+//      .minus(times.certExpiryWarningThresholdHours)
+//      .toMinutes > 0
+//
+//  private def isWithinWarningWindow(timeUntilExpiry: Duration): Boolean =
+//    timeUntilExpiry.minus(times.certExpiryWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
+//      .minus(times.certExpiryCriticalThresholdHours)
+//      .toMinutes > 0
 
-  private def isBeforeEarlyWarningWindow(now: LocalDateTime): Boolean =
-    Duration.between(now, certificateExpiry).minus(times.certExpiryEarlyWarningThresholdHours).toMinutes > 0
-
-  def isPastEarlyWarningWindow(now: LocalDateTime): Boolean = !isBeforeEarlyWarningWindow(now)
-
-  private def isWithinEarlyWarningWindow(timeUntilExpiry: Duration): Boolean =
-    timeUntilExpiry.minus(times.certExpiryEarlyWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
-      .minus(times.certExpiryWarningThresholdHours)
-      .toMinutes > 0
-
-  private def isWithinWarningWindow(timeUntilExpiry: Duration): Boolean =
-    timeUntilExpiry.minus(times.certExpiryWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
-      .minus(times.certExpiryCriticalThresholdHours)
-      .toMinutes > 0
-
-  def getNextCheckIntervalDurationMinutes(now: LocalDateTime): FiniteDuration = {
-    val calculatedNextCheckIntervalMinutes = getNextCertificateCheckIntervalMinutes(now)
-
-    val nextCheckMinutes = if (calculatedNextCheckIntervalMinutes < minCheckDurationMinutes) {
-      minCheckDurationMinutes
-    } else {
-      calculatedNextCheckIntervalMinutes
-    }
-
-    FiniteDuration(
-      nextCheckMinutes,
-      MINUTES
-    )
-  }
+//  def getNextCheckIntervalDurationMinutes(now: LocalDateTime): FiniteDuration = {
+//    val calculatedNextCheckIntervalMinutes = getNextCertificateCheckIntervalMinutes(now)
+//
+//    val nextCheckMinutes = if (calculatedNextCheckIntervalMinutes < minCheckDurationMinutes) {
+//      minCheckDurationMinutes
+//    } else {
+//      calculatedNextCheckIntervalMinutes
+//    }
+//
+//    FiniteDuration(
+//      nextCheckMinutes,
+//      MINUTES
+//    )
+//  }
 
 }
