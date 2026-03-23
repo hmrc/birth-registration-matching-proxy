@@ -16,89 +16,98 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.ExpiryThreshold.{CriticalWarning, EarlyWarning, Expired, Warning}
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.models.ThresholdStatus
 
 import java.time.{Duration, LocalDateTime}
 import javax.inject.Singleton
+import scala.concurrent.duration.{FiniteDuration, MINUTES}
 
 @Singleton
 class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateTime) {
 
-  val times                                = conf.certificateTimes
+  val times = conf.certificateTimes
+
   private val minCheckDurationMinutes: Int = 60
 
-  // Derives the next interval to check the certificate's expiry time against our configured alert time thresholds.
-  // If the expiry time is within any of our alert windows, the output log is caught and pushed to team-ddcels-alert slack.
-  // Thresholds are specified with increasing severity and shorter certificate check interval times to raise concern.
+  def getTimeUntilCertExpiry(now: LocalDateTime): Duration =
+    Duration.between(now, certificateExpiry)
 
-  // | <- Early Warning Window -> | <- Warning Window -> | <- Critical Warning Window -> | Expired |
-  // |                            |                      |
-  // └─ Early Warning Threshold   └─  Warning Threshold  └─ Critical Threshold
-//  private def getNextCertificateCheckIntervalMinutes(now: LocalDateTime): Long = {
-//
-//    val timeUntilCertExpiry = getTimeUntilCertExpiry(now)
-//
-//    if (isBeforeEarlyWarningWindow(now)) {
-//      val timeUntilEarlyWarningWindow = timeUntilCertExpiry.minus(times.certExpiryEarlyWarningThresholdHours)
-//      val windowInterval              = times.certExpiryEarlyWarningCheckIntervalHours
-//
-//      getSynchronisedCheckIntervalMinutes(timeUntilEarlyWarningWindow, windowInterval)
-//    } else {
-//
-//      if (isWithinEarlyWarningWindow(timeUntilCertExpiry)) {
-//        val timeUntilWarningThreshold = timeUntilCertExpiry.minus(times.certExpiryWarningThresholdHours)
-//
-//        getSynchronisedCheckIntervalMinutes(timeUntilWarningThreshold, times.certExpiryEarlyWarningCheckIntervalHours)
-//
-//      } else if (isWithinWarningWindow(timeUntilCertExpiry)) {
-//        val timeUntilCriticalThreshold = timeUntilCertExpiry.minus(times.certExpiryCriticalThresholdHours)
-//
-//        getSynchronisedCheckIntervalMinutes(timeUntilCriticalThreshold, times.certExpiryWarningCheckIntervalHours)
-//
-//      } else { // within critical window or expired
-//        times.certExpiryCriticalCheckIntervalHours.toMinutes
-//      }
-//    }
-//  }
+  /**
+   * Determines which alert threshold the certificate currently falls into,
+   * along with the configured check interval for that threshold.
+   *
+   * Returns None if the certificate expiry is still outside all warning windows.
+   */
+  def currentThreshold(now: LocalDateTime): Option[ThresholdStatus] = {
+    val timeLeft  = getTimeUntilCertExpiry(now)
+    val hoursLeft = timeLeft.toHours
 
-  def getTimeUntilCertExpiry(now: LocalDateTime): Duration = Duration.between(now, certificateExpiry)
+    // Ordered most severe first — the first threshold whose boundary
+    // contains the current time wins.
+    // Expired has thresholdHours of ZERO, so it only matches when
+    // hoursLeft <= 0, i.e. the certificate has expired.
+    val orderedThresholds = Seq(Expired, CriticalWarning, Warning, EarlyWarning)
 
-  // if we're closer to a window than our current interval, schedule next check at the start of the upcoming window
-//  private def getSynchronisedCheckIntervalMinutes(timeUntilNextWindow: Duration, windowInterval: Duration): Long =
-//    if (timeUntilNextWindow.toMinutes < windowInterval.toMinutes) {
-//      timeUntilNextWindow.toMinutes
-//    } else {
-//      windowInterval.toMinutes
-//    }
-//
-//  private def isBeforeEarlyWarningWindow(now: LocalDateTime): Boolean =
-//    Duration.between(now, certificateExpiry).minus(times.certExpiryEarlyWarningThresholdHours).toMinutes > 0
-//
-//  def isPastEarlyWarningWindow(now: LocalDateTime): Boolean = !isBeforeEarlyWarningWindow(now)
-//
-//  private def isWithinEarlyWarningWindow(timeUntilExpiry: Duration): Boolean =
-//    timeUntilExpiry.minus(times.certExpiryEarlyWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
-//      .minus(times.certExpiryWarningThresholdHours)
-//      .toMinutes > 0
-//
-//  private def isWithinWarningWindow(timeUntilExpiry: Duration): Boolean =
-//    timeUntilExpiry.minus(times.certExpiryWarningThresholdHours).toMinutes <= 0 && timeUntilExpiry
-//      .minus(times.certExpiryCriticalThresholdHours)
-//      .toMinutes > 0
+    val matchedThreshold = orderedThresholds.find { threshold =>
+      val boundary = times.thresholdHours(threshold).toHours
+      hoursLeft <= boundary
+    }
 
-//  def getNextCheckIntervalDurationMinutes(now: LocalDateTime): FiniteDuration = {
-//    val calculatedNextCheckIntervalMinutes = getNextCertificateCheckIntervalMinutes(now)
-//
-//    val nextCheckMinutes = if (calculatedNextCheckIntervalMinutes < minCheckDurationMinutes) {
-//      minCheckDurationMinutes
-//    } else {
-//      calculatedNextCheckIntervalMinutes
-//    }
-//
-//    FiniteDuration(
-//      nextCheckMinutes,
-//      MINUTES
-//    )
-//  }
+    matchedThreshold.map { threshold =>
+      val interval = times.checkInterval(threshold)
+      ThresholdStatus(threshold, interval)
+    }
+  }
 
+  /**
+   * Computes the next timer interval based on the current threshold.
+   *
+   * Within a warning window, the interval is the shorter of:
+   *   - the configured check interval for that window
+   *   - the time remaining until the next (more severe) window begins
+   *
+   * This synchronises checks to window boundaries so that escalations
+   * are detected promptly rather than waiting for a full interval to elapse.
+   */
+  def getNextCheckIntervalDurationMinutes(now: LocalDateTime): FiniteDuration = {
+    val timeLeft = getTimeUntilCertExpiry(now)
+
+    val minutes = currentThreshold(now) match {
+      case None =>
+        // Before any warning window — schedule to arrive at the early warning boundary
+        val timeUntilEarlyWarning = timeLeft.minus(times.thresholdHours(EarlyWarning))
+        val earlyWarningInterval  = times.checkInterval(EarlyWarning)
+        synchronise(timeUntilEarlyWarning, earlyWarningInterval)
+
+      case Some(ThresholdStatus(EarlyWarning, _)) =>
+        // Within early warning — synchronise to the warning boundary
+        val timeUntilWarning     = timeLeft.minus(times.thresholdHours(Warning))
+        val earlyWarningInterval = times.checkInterval(EarlyWarning)
+        synchronise(timeUntilWarning, earlyWarningInterval)
+
+      case Some(ThresholdStatus(Warning, _)) =>
+        // Within warning — synchronise to the critical boundary
+        val timeUntilCritical = timeLeft.minus(times.thresholdHours(CriticalWarning))
+        val warningInterval   = times.checkInterval(Warning)
+        synchronise(timeUntilCritical, warningInterval)
+
+      case Some(ThresholdStatus(CriticalWarning | Expired, _)) =>
+        // Critical or expired — check at the fastest configured interval
+        times.checkInterval(CriticalWarning).toMinutes
+    }
+
+    val clamped = if (minutes < minCheckDurationMinutes) minCheckDurationMinutes else minutes
+    FiniteDuration(clamped, MINUTES)
+  }
+
+  // If we're closer to the next window than our current interval, schedule
+  // the check at the window boundary instead so we detect the escalation promptly.
+  private def synchronise(timeUntilNextWindow: Duration, windowInterval: Duration): Long =
+    if (timeUntilNextWindow.toMinutes < windowInterval.toMinutes) {
+      timeUntilNextWindow.toMinutes
+    } else {
+      windowInterval.toMinutes
+    }
 }

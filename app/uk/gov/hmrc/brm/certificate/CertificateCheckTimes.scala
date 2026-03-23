@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.ExpiryThreshold._
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
@@ -29,7 +30,22 @@ case class CertificateCheckTimes(
   certExpiryWarningCheckIntervalHours: Duration,
   certExpiryCriticalThresholdHours: Duration,
   certExpiryCriticalCheckIntervalHours: Duration
-)
+) {
+
+  def thresholdHours(threshold: ExpiryThreshold): Duration = threshold match {
+    case EarlyWarning    => certExpiryEarlyWarningThresholdHours
+    case Warning         => certExpiryWarningThresholdHours
+    case CriticalWarning => certExpiryCriticalThresholdHours
+    case Expired         => Duration.ZERO
+  }
+
+  def checkInterval(threshold: ExpiryThreshold): Duration = threshold match {
+    case EarlyWarning    => certExpiryEarlyWarningCheckIntervalHours
+    case Warning         => certExpiryWarningCheckIntervalHours
+    case CriticalWarning => certExpiryCriticalCheckIntervalHours
+    case Expired         => certExpiryCriticalCheckIntervalHours
+  }
+}
 
 object CertificateCheckTimes {
 

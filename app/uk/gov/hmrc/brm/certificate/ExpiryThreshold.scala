@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import play.api.libs.json._
+
 sealed trait ExpiryThreshold { def value: String }
 
 object ExpiryThreshold {
@@ -23,4 +25,17 @@ object ExpiryThreshold {
   case object CriticalWarning extends ExpiryThreshold { val value = "CRITICAL_WARNING" }
   case object Warning extends ExpiryThreshold { val value = "WARNING" }
   case object EarlyWarning extends ExpiryThreshold { val value = "EARLY_WARNING" }
+
+  val allConditions: Seq[ExpiryThreshold] = Seq(Expired, CriticalWarning, Warning, EarlyWarning)
+
+  def fromString(stringFromMongo: String): Option[ExpiryThreshold] =
+    allConditions.find(_.value == stringFromMongo)
+
+  // Serialise to/from the string value (e.g. "WARNING") for MongoDB storage.
+  implicit val format: Format[ExpiryThreshold] = new Format[ExpiryThreshold] {
+    def reads(json: JsValue): JsResult[ExpiryThreshold] =
+      json.validate[String].flatMap(s => fromString(s).map(JsSuccess(_)).getOrElse(JsError(s"Unknown threshold: $s")))
+    def writes(t: ExpiryThreshold): JsValue             = JsString(t.value)
+  }
+
 }

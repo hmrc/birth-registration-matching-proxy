@@ -16,6 +16,17 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import java.time.Duration
+
 sealed trait CertificateExpiryMonitorJobCommand
+
 case object CheckExpiry extends CertificateExpiryMonitorJobCommand
-case object Terminate extends CertificateExpiryMonitorJobCommand
+case object Terminate   extends CertificateExpiryMonitorJobCommand
+
+// Internal message — delivers the async Mongo result back into the actor via pipeToSelf.
+// Private to the certificate package so it can't be sent from outside.
+private[certificate] case class AlertResult(
+                                             claimed: Boolean,
+                                             threshold: ExpiryThreshold,
+                                             timeLeft: Duration
+                                           ) extends CertificateExpiryMonitorJobCommand
