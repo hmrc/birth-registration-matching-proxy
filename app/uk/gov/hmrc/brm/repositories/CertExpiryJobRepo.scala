@@ -117,10 +117,10 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
       }
       .recover {
         case _: com.mongodb.MongoWriteException =>
-          logger.info(s"[CertExpiryJobRepoMongo][tryClaimAlert] lost upsert race for $jobId")
+          logger.info(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] lost upsert race for $jobId")
           false
         case e                                  =>
-          logger.error(s"[CertExpiryJobRepoMongo][tryClaimAlert] failed: ${e.getMessage}")
+          logger.error(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] failed: ${e.getMessage}")
           false
       }
   }

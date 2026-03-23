@@ -86,7 +86,7 @@ class CertExpiryJobRepoMongoSpec
     }
 
     "allow only one winner when called concurrently" in {
-      // Simulate two instances calling tryClaimAlert at the same time
+      // Simulate two instances calling shouldPerformCertExpiryCheck at the same time
       val instantA = now()
       val instantB = instantA.plusMillis(1) // slightly different timestamps
 
