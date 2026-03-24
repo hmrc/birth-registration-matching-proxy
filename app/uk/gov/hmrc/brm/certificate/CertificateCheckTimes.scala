@@ -25,7 +25,7 @@ import scala.util.{Failure, Success, Try}
 
 final case class ThresholdConfig(
   threshold: ExpiryThreshold,
-  thresholdHours: Duration,
+  thresholdDurationHours: Duration,
   checkInterval: Duration
 )
 
