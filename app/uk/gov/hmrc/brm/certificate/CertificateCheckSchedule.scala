@@ -16,26 +16,34 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import uk.gov.hmrc.brm.certificate.ExpiryThreshold.{CriticalWarning, EarlyWarning, Expired, Warning}
 import uk.gov.hmrc.brm.config.GroAppConfig
-import uk.gov.hmrc.brm.models.ThresholdStatus
 
 import java.time.{Duration, LocalDateTime}
 import javax.inject.Singleton
-import scala.concurrent.duration.{FiniteDuration, MINUTES}
 
 @Singleton
 class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateTime) {
 
-  val times = conf.certificateTimes
+  val times: CertificateCheckTimes = conf.certificateTimes
 
   def getTimeUntilCertExpiry(now: LocalDateTime): Duration =
     Duration.between(now, certificateExpiry)
 
-  def currentThreshold(now: LocalDateTime): Option[ExpiryThreshold] = {
-    val hoursLeft = getTimeUntilCertExpiry(now).toHours
+  def currentThreshold(now: LocalDateTime): Option[ThresholdConfig] = {
+    val timeLeft: Duration = getTimeUntilCertExpiry(now)
+    val hoursLeft: Long    = timeLeft.toHours
 
-    Seq(Expired, CriticalWarning, Warning, EarlyWarning)
-      .find(expiryThreshold => hoursLeft <= times.thresholdHours(expiryThreshold).toHours)
+    if (timeLeft.isNegative) {
+      Some(times.ExpiredConfig)
+    } else if (hoursLeft <= times.certExpiryCriticalThresholdHours.toHours) {
+      Some(times.CriticalConfig)
+    } else if (hoursLeft <= times.certExpiryWarningThresholdHours.toHours) {
+      Some(times.WarningConfig)
+    } else if (hoursLeft <= times.certExpiryEarlyWarningThresholdHours.toHours) {
+      Some(times.EarlyWarningConfig)
+    } else {
+      None
+    }
   }
+
 }

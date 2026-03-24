@@ -81,39 +81,35 @@ object CertificateExpiryMonitorJob {
 
   // determine threshold, attempt to claim, schedule next check
   private def onCheckExpiry(
-    pekkoTimer: PekkoTimer[CertificateExpiryMonitorJobCommand],
-    timeProvider: TimeProvider,
-    certificateCheckSchedule: CertificateCheckSchedule,
-    certExpiryJobRepo: CertExpiryJobRepo,
-    certificateExpiry: LocalDateTime
-  )(implicit
-    logger: BrmLogger,
-    instanceId: UUID,
-    ec: ExecutionContext
-  ): Behavior[CertificateExpiryMonitorJobCommand] = {
-    val nowAsLocalDateTime = timeProvider.now.toLocalDateTime
+                             pekkoTimer: PekkoTimer[CertificateExpiryMonitorJobCommand],
+                             timeProvider: TimeProvider,
+                             certificateCheckSchedule: CertificateCheckSchedule,
+                             certExpiryJobRepo: CertExpiryJobRepo,
+                             certificateExpiry: LocalDateTime
+                           )(implicit
+                             logger: BrmLogger,
+                             instanceId: UUID,
+                             ec: ExecutionContext
+                           ): Behavior[CertificateExpiryMonitorJobCommand] = {
+    val zonedNow = timeProvider.now
+    val now      = zonedNow.toLocalDateTime
+    val instant  = zonedNow.toInstant
 
-    certificateCheckSchedule.currentThreshold(nowAsLocalDateTime) match {
-      case Some(threshold: ExpiryThreshold) =>
-        val now = timeProvider.now.toInstant
-
-        val checkInterval: Duration       = certificateCheckSchedule.times.checkInterval(threshold)
-        val timeUntilCertExpiry: Duration = certificateCheckSchedule.getTimeUntilCertExpiry(nowAsLocalDateTime)
-
+    certificateCheckSchedule.currentThreshold(now) match {
+      case Some(config: ThresholdConfig) =>
         attemptClaim(
           certExpiryJobRepo,
-          threshold,
-          checkInterval,
-          now,
-          timeUntilCertExpiry,
+          config.threshold,
+          config.checkInterval,
+          instant,
+          certificateCheckSchedule.getTimeUntilCertExpiry(now),
           certificateExpiry
         )
-      case None                             =>
+      case None =>
         logNoThresholdMatched(certificateExpiry)
     }
 
     pekkoTimer.startSingleTimer(CheckExpiry, 15.minutes)
-
     Behaviors.same
   }
 

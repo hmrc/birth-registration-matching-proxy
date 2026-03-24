@@ -23,6 +23,12 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import java.time.Duration
 import scala.util.{Failure, Success, Try}
 
+final case class ThresholdConfig(
+  threshold: ExpiryThreshold,
+  thresholdHours: Duration,
+  checkInterval: Duration
+)
+
 case class CertificateCheckTimes(
   certExpiryEarlyWarningThresholdHours: Duration,
   certExpiryEarlyWarningCheckIntervalHours: Duration,
@@ -32,19 +38,16 @@ case class CertificateCheckTimes(
   certExpiryCriticalCheckIntervalHours: Duration
 ) {
 
-  def thresholdHours(threshold: ExpiryThreshold): Duration = threshold match {
-    case EarlyWarning    => certExpiryEarlyWarningThresholdHours
-    case Warning         => certExpiryWarningThresholdHours
-    case CriticalWarning => certExpiryCriticalThresholdHours
-    case Expired         => Duration.ZERO
-  }
+  val ExpiredConfig = ThresholdConfig(Expired, Duration.ZERO, certExpiryCriticalCheckIntervalHours)
 
-  def checkInterval(threshold: ExpiryThreshold): Duration = threshold match {
-    case EarlyWarning    => certExpiryEarlyWarningCheckIntervalHours
-    case Warning         => certExpiryWarningCheckIntervalHours
-    case CriticalWarning => certExpiryCriticalCheckIntervalHours
-    case Expired         => certExpiryCriticalCheckIntervalHours
-  }
+  val CriticalConfig =
+    ThresholdConfig(CriticalWarning, certExpiryCriticalThresholdHours, certExpiryCriticalCheckIntervalHours)
+
+  val WarningConfig = ThresholdConfig(Warning, certExpiryWarningThresholdHours, certExpiryWarningCheckIntervalHours)
+
+  val EarlyWarningConfig =
+    ThresholdConfig(EarlyWarning, certExpiryEarlyWarningThresholdHours, certExpiryEarlyWarningCheckIntervalHours)
+
 }
 
 object CertificateCheckTimes {
