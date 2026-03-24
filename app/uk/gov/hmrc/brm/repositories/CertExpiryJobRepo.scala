@@ -79,23 +79,19 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
   override def shouldPerformCertExpiryCheck(
     jobId: String,
     threshold: ExpiryThreshold,
-    interval: Duration,
+    checkInterval: Duration,
     now: Instant
   ): Future[Boolean] = {
 
-    val bsonNow    = BsonDateTime(now.toEpochMilli)
-    val bsonCutoff = BsonDateTime(now.minus(interval).toEpochMilli)
+    val bsonNow           = BsonDateTime(now.toEpochMilli)
+    val bsonCheckInterval = BsonDateTime(now.minus(checkInterval).toEpochMilli)
 
-    // Matches when this instance should fire an alert:
-    // - threshold has changed: cert moved into a more severe window (e.g. EARLY_WARNING -> WARNING)
-    // - interval elapsed: enough time has passed to re-alert at the same severity level
-    // If neither is true, the filter matches nothing and the upsert is blocked by the unique index.
     val filter = Filters.and(
       Filters.equal("jobId", jobId),
       Filters.or(
-        Filters.ne("threshold", threshold.value),
-        Filters.lt("lastAlertedAt", bsonCutoff)
-      )
+        Filters.ne("threshold", threshold.value), //  we have a new threshold value
+        Filters.lt("lastAlertedAt", bsonCheckInterval) // enough time has passed to re-alert at the same severity level
+      ) // if neither is true, the filter matches nothing and the upsert is blocked by the unique index.
     )
 
     val update = Updates.combine(

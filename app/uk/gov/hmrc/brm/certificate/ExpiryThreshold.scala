@@ -18,7 +18,9 @@ package uk.gov.hmrc.brm.certificate
 
 import play.api.libs.json._
 
-sealed trait ExpiryThreshold { def value: String }
+sealed trait ExpiryThreshold {
+  def value: String
+}
 
 object ExpiryThreshold {
   case object Expired extends ExpiryThreshold { val value = "EXPIRED" }
