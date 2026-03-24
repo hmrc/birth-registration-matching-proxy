@@ -26,8 +26,8 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import java.time.{Duration, Instant}
 import scala.concurrent.{ExecutionContext, Future}
-
 import org.mongodb.scala.bson.BsonDateTime
+import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.UpdateOptions
 
 trait CertExpiryJobRepo {
@@ -83,7 +83,6 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
     now: Instant
   ): Future[Boolean] = {
 
-    val bsonNow           = BsonDateTime(now.toEpochMilli)
     val bsonCheckInterval = BsonDateTime(now.minus(checkInterval).toEpochMilli)
 
     val filter = Filters.and(
@@ -94,10 +93,12 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
       ) // if neither is true, the filter matches nothing and the upsert is blocked by the unique index.
     )
 
-    val update = Updates.combine(
+    val lastAlertedAt = BsonDateTime(now.toEpochMilli)
+
+    val update: Bson = Updates.combine(
       Updates.set("jobId", jobId),
       Updates.set("threshold", threshold.value),
-      Updates.set("lastAlertedAt", bsonNow)
+      Updates.set("lastAlertedAt", lastAlertedAt)
     )
 
     collection
