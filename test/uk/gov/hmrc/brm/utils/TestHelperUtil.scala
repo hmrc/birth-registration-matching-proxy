@@ -16,17 +16,53 @@
 
 package uk.gov.hmrc.brm.utils
 
-import uk.gov.hmrc.brm.connectors.Encoder
+import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
+import org.mockito.Mockito.{spy, when}
+import org.scalatestplus.mockito.MockitoSugar.mock
+import play.api.Logger
+import uk.gov.hmrc.brm.certificate.CertificateCheckTimes
+import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.time.TimeProvider
 
-object TestHelperUtil {
+import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
+import java.util.UUID
 
-  def getUrlEncodeString(firstName: String, lastname: String, dateOfBirth: String): String = {
-    val details = Map(
-      "forenames"   -> firstName,
-      "lastname"    -> lastname,
-      "dateofbirth" -> dateOfBirth
+class TestHelperUtil {
+
+  val now: LocalDateTime      = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val zonedNow: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val testKit: ActorTestKit   = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
+
+  implicit val brmLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val instanceId: UUID     = UUID.randomUUID()
+
+  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
+  when(timeProvider.now).thenReturn(zonedNow)
+
+  private val oneWeekInHours                   = 168
+  private val sixtyDaysInHours                 = 1440
+  val certExpiryEarlyWarningThresholdHours     = Duration.ofHours(sixtyDaysInHours)
+  val certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(oneWeekInHours)
+  val certExpiryWarningThresholdHours          = Duration.ofHours(oneWeekInHours)
+  val certExpiryWarningCheckIntervalHours      = Duration.ofHours(24)
+  val certExpiryCriticalThresholdHours         = Duration.ofHours(24)
+  val certExpiryCriticalCheckIntervalHours     = Duration.ofHours(1)
+
+  def createMockConfig(): GroAppConfig = {
+    val config = mock[GroAppConfig]
+
+    when(config.certificateTimes).thenReturn(
+      CertificateCheckTimes(
+        certExpiryEarlyWarningThresholdHours,
+        certExpiryEarlyWarningCheckIntervalHours,
+        certExpiryWarningThresholdHours,
+        certExpiryWarningCheckIntervalHours,
+        certExpiryCriticalThresholdHours,
+        certExpiryCriticalCheckIntervalHours
+      )
     )
-    Encoder.encode(details)
+
+    config
   }
 
 }
