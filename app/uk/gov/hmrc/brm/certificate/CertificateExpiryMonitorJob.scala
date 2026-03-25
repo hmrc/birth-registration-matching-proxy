@@ -46,7 +46,8 @@ object CertificateExpiryMonitorJob {
     config: GroAppConfig,
     timer: TimerScheduler[CertificateExpiryMonitorJobCommand] => PekkoTimer[CertificateExpiryMonitorJobCommand] =
       new PekkoTimer(_),
-    certExpiryJobRepo: CertExpiryJobRepo
+    certExpiryJobRepo: CertExpiryJobRepo,
+    jobId: String = "certificate-expiry-monitor-job"
   )(implicit
     logger: BrmLogger,
     instanceId: UUID,
@@ -59,7 +60,7 @@ object CertificateExpiryMonitorJob {
       logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
       pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes) // starts after a minute
 
-      running(certificateExpiry, pekkoTimer, timeProvider, certificateCheckSchedule, certExpiryJobRepo)
+      running(certificateExpiry, pekkoTimer, timeProvider, certificateCheckSchedule, certExpiryJobRepo, jobId)
     }
 
   private def running(
@@ -67,7 +68,8 @@ object CertificateExpiryMonitorJob {
     timerScheduler: PekkoTimer[CertificateExpiryMonitorJobCommand],
     timeProvider: TimeProvider,
     certificateCheckSchedule: CertificateCheckSchedule,
-    certExpiryJobRepo: CertExpiryJobRepo
+    certExpiryJobRepo: CertExpiryJobRepo,
+    jobId: String
   )(implicit
     logger: BrmLogger,
     instanceId: UUID,
@@ -77,20 +79,18 @@ object CertificateExpiryMonitorJob {
     Behaviors.receiveMessage {
 
       case CheckExpiry =>
-        val now                                                  = timeProvider.now.toLocalDateTime
-        val jobId                                                = "certificate-expiry-monitor-job"
+        val now = timeProvider.now.toLocalDateTime
+
         val thresholdValues: Option[(ExpiryThreshold, Duration)] =
           getThresholdAndIntervalTime(now, certificateCheckSchedule)
         thresholdValues match {
           case Some((threshold, leftTime)) =>
-
-            val expiryDateInstant: Instant =
+            val mongoExpiryDate: Instant =
               Instant.now().plus(leftTime).truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
-
             for {
-              exists <- certExpiryJobRepo.getAlertDetails(jobId, expiryDateInstant, threshold.value)
+              exists <- certExpiryJobRepo.getAlertDetails(jobId, mongoExpiryDate, threshold.value)
               result <- if (!exists)
-                          certExpiryJobRepo.insertAlertDetails(jobId, expiryDateInstant, threshold.value)
+                          certExpiryJobRepo.insertAlertDetails(jobId, mongoExpiryDate, threshold.value)
                         else
                           Future.successful(false)
             } yield
@@ -105,15 +105,8 @@ object CertificateExpiryMonitorJob {
                   certificateCheckSchedule.getTimeUntilCertExpiry(now),
                   certificateExpiry
                 )
-              } else {
-                logger.info(
-                  instanceId,
-                  CLASS_NAME,
-                  "running",
-                  s"alert already sent for threshold=${threshold.value} actualCertExpiryDate=$formattedExpiry"
-                )
               }
-          case None =>
+          case None                        =>
             Future.successful(
               logger.info(
                 instanceId,

@@ -23,7 +23,7 @@ import java.time.Instant
 
 case class CertExpiryJobDetails(
   jobId: String,
-  expiryDate: Instant,
+  mongoExpiryDate: Instant,
   threshold: String //  any of this values for early,warning,critical,expired
 )
 

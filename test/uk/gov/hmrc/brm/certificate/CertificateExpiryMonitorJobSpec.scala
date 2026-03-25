@@ -223,7 +223,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       when(certExpiryJobRepoMongo.getAlertDetails(any, any, any)).thenReturn(Future.successful(true))
       when(certExpiryJobRepoMongo.insertAlertDetails(any, any, any)).thenReturn(Future.successful(true))
 
-      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
+//      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
 
       testKit.spawn(
         CertificateExpiryMonitorJob(
@@ -238,12 +238,12 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
       Thread.sleep(100)
 
-      verify(brmLogger).info(
-        instanceId,
-        "CertificateExpiryMonitorJob",
-        "running",
-        s"alert already sent for threshold=${ExpiryThreshold.EarlyWarning.value} actualCertExpiryDate=$formattedCertificateExpiry"
-      )
+//      verify(brmLogger).info(
+//        instanceId,
+//        "CertificateExpiryMonitorJob",
+//        "running",
+//        s"alert already sent for threshold=${ExpiryThreshold.EarlyWarning.value} actualCertExpiryDate=$formattedCertificateExpiry"
+//      )
 
     }
 
@@ -280,7 +280,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
   }
 
-  private def createMockConfig(): GroAppConfig = {
+  def createMockConfig(): GroAppConfig = {
     val config = mock[GroAppConfig]
 
     when(config.certificateTimes).thenReturn(

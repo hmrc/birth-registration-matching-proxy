@@ -31,13 +31,13 @@ trait CertExpiryJobRepo {
 
   def getAlertDetails(
     jobId: String,
-    expiryDate: Instant,
+    mongoExpiryDate: Instant,
     threshold: String
   ): Future[Boolean]
 
   def insertAlertDetails(
     jobId: String,
-    expiryDate: Instant,
+    mongoExpiryDate: Instant,
     threshold: String
   ): Future[Boolean]
 
@@ -50,11 +50,16 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
       mongoComponent = mongoComponent,
       domainFormat = CertExpiryJobDetails.format,
       indexes = Seq(
-        IndexModel(Indexes.ascending("jobId")),
         IndexModel(
-          Indexes.ascending("expiryDate"),
+          Indexes.ascending("jobId", "threshold"),
           IndexOptions()
-            .name("expiryDate_ttl")
+            .name("jobId_threshold_unique")
+            .unique(true)
+        ),
+        IndexModel(
+          Indexes.ascending("mongoExpiryDate"),
+          IndexOptions()
+            .name("mongoExpiryDate_ttl")
             .expireAfter(0, TimeUnit.SECONDS)
         )
       ),
@@ -64,7 +69,7 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
 
   override def getAlertDetails(
     jobId: String,
-    expiryDate: Instant,
+    mongoExpiryDate: Instant,
     threshold: String
   ): Future[Boolean] = {
 
@@ -85,12 +90,12 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
 
   override def insertAlertDetails(
     jobId: String,
-    expiryDate: Instant,
+    mongoExpiryDate: Instant,
     threshold: String
   ): Future[Boolean] = {
     val doc = CertExpiryJobDetails(
       jobId = jobId,
-      expiryDate = expiryDate,
+      mongoExpiryDate = mongoExpiryDate,
       threshold = threshold
     )
 
