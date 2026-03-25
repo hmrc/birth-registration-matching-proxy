@@ -16,47 +16,28 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
+import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJob.timeFormat
-import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.BrmLogger
+import uk.gov.hmrc.brm.utils.{BrmLogger, TestHelperUtil}
 
 import java.time.{Duration, _}
-import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
-class CertificateExpiryMonitorJobSpec extends TestFixture {
+class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
 
-  val now: LocalDateTime             = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
-  val zonedNow: ZonedDateTime        = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
   val oneMinute: FiniteDuration      = FiniteDuration(1, MINUTES)
   val fifteenMinutes: FiniteDuration = FiniteDuration(15, MINUTES)
 
-  val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
-  implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val instanceId: UUID       = UUID.randomUUID()
-
-  implicit val timeProvider: TimeProvider              = spy(new TimeProvider)
-  when(timeProvider.now).thenReturn(zonedNow)
-  private val oneWeekInHours                           = 168
-  private val sixtyDaysInHours                         = 1440
-  private val certExpiryEarlyWarningThresholdHours     = Duration.ofHours(sixtyDaysInHours)
-  private val certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(oneWeekInHours)
-  private val certExpiryWarningThresholdHours          = Duration.ofHours(oneWeekInHours)
-  private val certExpiryWarningCheckIntervalHours      = Duration.ofHours(24)
-  private val certExpiryCriticalThresholdHours         = Duration.ofHours(24)
-  private val certExpiryCriticalCheckIntervalHours     = Duration.ofHours(1)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -223,7 +204,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       when(certExpiryJobRepoMongo.getAlertDetails(any, any, any)).thenReturn(Future.successful(true))
       when(certExpiryJobRepoMongo.insertAlertDetails(any, any, any)).thenReturn(Future.successful(true))
 
-//      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
+      //      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
 
       testKit.spawn(
         CertificateExpiryMonitorJob(
@@ -237,13 +218,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       advanceTimeReturningNewTimeProviderTime(timeToAdvanceInMinutes = Some(1), previousNow = zonedNow)
 
       Thread.sleep(100)
-
-//      verify(brmLogger).info(
-//        instanceId,
-//        "CertificateExpiryMonitorJob",
-//        "running",
-//        s"alert already sent for threshold=${ExpiryThreshold.EarlyWarning.value} actualCertExpiryDate=$formattedCertificateExpiry"
-//      )
 
     }
 
@@ -278,23 +252,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
       val probe = testKit.createTestProbe[Nothing]()
       probe.expectTerminated(actor, 3.seconds)
     }
-  }
-
-  def createMockConfig(): GroAppConfig = {
-    val config = mock[GroAppConfig]
-
-    when(config.certificateTimes).thenReturn(
-      CertificateCheckTimes(
-        certExpiryEarlyWarningThresholdHours,
-        certExpiryEarlyWarningCheckIntervalHours,
-        certExpiryWarningThresholdHours,
-        certExpiryWarningCheckIntervalHours,
-        certExpiryCriticalThresholdHours,
-        certExpiryCriticalCheckIntervalHours
-      )
-    )
-
-    config
   }
 
   // keep our TimeProvider and Pekko's time in sync by advancing them together

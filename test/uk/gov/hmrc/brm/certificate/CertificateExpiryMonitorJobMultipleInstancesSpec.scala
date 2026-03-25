@@ -18,22 +18,24 @@ package uk.gov.hmrc.brm.certificate
 
 import org.mongodb.scala.model.Filters
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
+import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.certificate.ExpiryThreshold.CriticalWarning
+import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
+import uk.gov.hmrc.brm.utils.TestHelperUtil
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
-class CertificateExpiryMonitorJobMultipleInstancesSpec extends CertificateExpiryMonitorJobSpec {
+class CertificateExpiryMonitorJobMultipleInstancesSpec
+    extends TestHelperUtil with TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  val stubConfig             = createMockConfig()
-  val certExpiryJobRepoMongo = real[CertExpiryJobRepoMongo]
-  val jobID                  = "certificate-expiry-monitor-job-test"
+  override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent)
 
-  override def afterEach(): Unit = {
-    super.afterEach()
-    await(
-      certExpiryJobRepoMongo.collection
-        .deleteMany(Filters.equal("jobId", jobID))
-        .toFuture()
-    )
+  val stubConfig = createMockConfig()
+  val jobID      = "certificate-expiry-monitor-job"
+
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
+    await(repository.collection.deleteMany(Filters.empty()).toFuture())
   }
 
   "CertificateExpiryMonitorJob with real mongo" should {
@@ -48,7 +50,7 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec extends CertificateExpiry
             certificateExpiry = certificateExpiry,
             timeProvider = timeProvider,
             config = stubConfig,
-            certExpiryJobRepo = certExpiryJobRepoMongo,
+            certExpiryJobRepo = repository,
             jobId = jobID
           )
         )
@@ -57,7 +59,7 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec extends CertificateExpiry
       actorLoop.foreach(eachActor => eachActor ! CheckExpiry)
 
       val count = await(
-        certExpiryJobRepoMongo.collection
+        repository.collection
           .countDocuments(
             Filters.and(
               Filters.equal("jobId", jobID),

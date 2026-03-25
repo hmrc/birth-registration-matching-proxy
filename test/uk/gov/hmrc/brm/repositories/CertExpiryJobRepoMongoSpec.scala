@@ -20,6 +20,7 @@ import org.mongodb.scala._
 import org.mongodb.scala.model.Filters
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
+import uk.gov.hmrc.brm.certificate.ExpiryThreshold._
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
@@ -43,15 +44,15 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
 
     "return false when document does not exist" in {
       val result = await(
-        repository.getAlertDetails(jobId, now(), "WARNING")
+        repository.getAlertDetails(jobId, now(), Warning.value)
       )
       result shouldBe false
     }
 
     "return true when document exists" in {
-      await(repository.insertAlertDetails(jobId, now(), "WARNING"))
+      await(repository.insertAlertDetails(jobId, now(), Warning.value))
       val result = await(
-        repository.getAlertDetails(jobId, now(), "WARNING")
+        repository.getAlertDetails(jobId, now(), Warning.value)
       )
       result shouldBe true
     }
@@ -61,15 +62,15 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
 
     "insert document successfully" in {
       val result = await(
-        repository.insertAlertDetails(jobId, now(), "WARNING")
+        repository.insertAlertDetails(jobId, now(), Warning.value)
       )
       result shouldBe true
     }
 
     "allow retrieval after insert" in {
-      await(repository.insertAlertDetails(jobId, now(), "CRITICAL_WARNING"))
+      await(repository.insertAlertDetails(jobId, now(), CriticalWarning.value))
       val exists = await(
-        repository.getAlertDetails(jobId, now(), "CRITICAL_WARNING")
+        repository.getAlertDetails(jobId, now(), CriticalWarning.value)
       )
       exists shouldBe true
     }
