@@ -29,17 +29,17 @@ class CertificateCheckSchedule(conf: GroAppConfig, certificateExpiry: LocalDateT
   def getTimeUntilCertExpiry(now: LocalDateTime): Duration =
     Duration.between(now, certificateExpiry)
 
-  def currentThreshold(now: LocalDateTime): Option[ThresholdConfig] = {
+  def getCurrentThreshold(now: LocalDateTime): Option[ThresholdConfig] = {
     val timeLeft: Duration = getTimeUntilCertExpiry(now)
     val hoursLeft: Long    = timeLeft.toHours
 
     if (timeLeft.isNegative) {
       Some(times.ExpiredConfig)
-    } else if (hoursLeft <= times.certExpiryCriticalThresholdHours.toHours) {
+    } else if (timeLeft.compareTo(times.certExpiryCriticalThresholdHours) <= 0) {
       Some(times.CriticalConfig)
-    } else if (hoursLeft <= times.certExpiryWarningThresholdHours.toHours) {
+    } else if (timeLeft.compareTo(times.certExpiryWarningThresholdHours) <= 0) {
       Some(times.WarningConfig)
-    } else if (hoursLeft <= times.certExpiryEarlyWarningThresholdHours.toHours) {
+    } else if (timeLeft.compareTo(times.certExpiryEarlyWarningThresholdHours) <= 0) {
       Some(times.EarlyWarningConfig)
     } else {
       None

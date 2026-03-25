@@ -29,31 +29,16 @@ import scala.concurrent.{ExecutionContext, Future}
 import org.mongodb.scala.bson.BsonDateTime
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.UpdateOptions
+import java.util.concurrent.TimeUnit.DAYS
 
 trait CertExpiryJobRepo {
 
-  /**
-   * Manages distributed coordination for certificate expiry alerting across
-   * multiple service instances.
-   *
-   * Uses a single MongoDB document per job to deduplicate alerts. The document
-   * stores the current threshold level and the time the last alert was sent.
-   * A new alert fires when:
-   *   - the threshold escalates (e.g. EARLY_WARNING -> WARNING), or
-   *   - the configured check interval for the current threshold elapses
-   *
-   * Coordination is achieved via an atomic findOneAndUpdate with upsert,
-   * guarded by a unique index on jobId. When multiple instances poll
-   * simultaneously, only one can match and update the document — the rest
-   * see no match and skip.
-   */
-  def shouldPerformCertExpiryCheck(
+  def instanceShouldPerformCertExpiryCheck(
     jobId: String,
     threshold: ExpiryThreshold,
     interval: Duration,
     now: Instant
   ): Future[Boolean]
-
 }
 
 @Singleton
@@ -69,48 +54,49 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
         ),
         IndexModel(
           Indexes.ascending("lastAlertedAt"),
-          IndexOptions().name("lastAlertedAt_ttl").expireAfter(90, java.util.concurrent.TimeUnit.DAYS)
+          IndexOptions()
+            .name("lastAlertedAt_ttl") // ttl not used for alerting logic, to clean up orphaned records
+            .expireAfter(90, DAYS)
         )
       ),
       replaceIndexes = true
     )
     with CertExpiryJobRepo {
 
-  override def shouldPerformCertExpiryCheck(
+  // By using a single jobId and making the field a unique index, an upsert with filter ensures the following operations happen:
+  // A - if it's the first time we interact with the DB, we insert a record and return true
+  // B - if the existing record matched the filter and was modified, return true
+  override def instanceShouldPerformCertExpiryCheck(
     jobId: String,
     threshold: ExpiryThreshold,
     checkInterval: Duration,
     now: Instant
   ): Future[Boolean] = {
 
-    val bsonCheckInterval = BsonDateTime(now.minus(checkInterval).toEpochMilli)
+    val bsonIntervalExpiry = BsonDateTime(now.minus(checkInterval).toEpochMilli)
 
     val filter = Filters.and(
       Filters.equal("jobId", jobId),
       Filters.or(
         Filters.ne("threshold", threshold.value), //  we have a new threshold value
-        Filters.lt("lastAlertedAt", bsonCheckInterval) // enough time has passed to re-alert at the same severity level
-      ) // if neither is true, the filter matches nothing and the upsert is blocked by the unique index.
+        Filters.lt("lastAlertedAt", bsonIntervalExpiry) // enough time has passed to re-alert at the same severity level
+      )
     )
-
-    val lastAlertedAt = BsonDateTime(now.toEpochMilli)
 
     val update: Bson = Updates.combine(
       Updates.set("jobId", jobId),
       Updates.set("threshold", threshold.value),
-      Updates.set("lastAlertedAt", lastAlertedAt)
+      Updates.set("lastAlertedAt", BsonDateTime(now.toEpochMilli))
     )
 
     collection
       .updateOne(filter, update, UpdateOptions().upsert(true))
       .toFuture()
-      .map { result =>
-        // getUpsertedId is non-null when no document existed and one was inserted (first ever check).
-        // getModifiedCount > 0 when an existing document matched the filter and was updated
-        // (threshold escalated or interval elapsed).
-        // Both being false means the filter didn't match and the unique index blocked the insert —
-        // another instance already handled this check.
-        result.getModifiedCount > 0 || Option(result.getUpsertedId).isDefined
+      .map { record =>
+        val isFirstInsert       = record.getUpsertedId != null
+        val existingDocModified = record.getModifiedCount > 0
+
+        isFirstInsert || existingDocModified
       }
       .recover {
         case _: com.mongodb.MongoWriteException =>

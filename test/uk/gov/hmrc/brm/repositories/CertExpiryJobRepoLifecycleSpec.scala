@@ -45,10 +45,10 @@ class CertExpiryJobRepoLifecycleSpec
   }
 
   private def claim(threshold: ExpiryThreshold, interval: Duration, time: Instant): Boolean =
-    await(repository.shouldPerformCertExpiryCheck(jobId, threshold, interval, time))
+    await(repository.instanceShouldPerformCertExpiryCheck(jobId, threshold, interval, time))
 
   private def claimAsync(threshold: ExpiryThreshold, interval: Duration, time: Instant): Future[Boolean] =
-    repository.shouldPerformCertExpiryCheck(jobId, threshold, interval, time)
+    repository.instanceShouldPerformCertExpiryCheck(jobId, threshold, interval, time)
 
   private def documentCount(): Long =
     await(repository.collection.find(Filters.equal("jobId", jobId)).toFuture()).size

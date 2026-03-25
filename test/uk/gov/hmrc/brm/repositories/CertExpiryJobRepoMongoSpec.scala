@@ -49,39 +49,39 @@ class CertExpiryJobRepoMongoSpec
   "shouldPerformCertExpiryCheck" should {
 
     "return true when no record exists (first ever check)" in {
-      val result = await(repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
+      val result = await(repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
       result shouldBe true
     }
 
     "return false on the second call with the same threshold (suppression)" in {
       val instant = now()
-      await(repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant))
+      await(repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant))
 
-      val result = await(repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
+      val result = await(repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
       result shouldBe false
     }
 
     "return true when the threshold escalates" in {
-      await(repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
+      await(repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, now()))
 
-      val result = await(repository.shouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
+      val result = await(repository.instanceShouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
       result shouldBe true
     }
 
     "return false when the threshold has not changed and the interval has not elapsed" in {
-      await(repository.shouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
+      await(repository.instanceShouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
 
-      val result = await(repository.shouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
+      val result = await(repository.instanceShouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
       result shouldBe false
     }
 
     "return true when the interval has elapsed for the same threshold" in {
       // Insert a record with a lastAlertedAt far enough in the past
       val staleTime = now().minus(warningInterval).minusSeconds(1)
-      await(repository.shouldPerformCertExpiryCheck(jobId, Warning, warningInterval, staleTime))
+      await(repository.instanceShouldPerformCertExpiryCheck(jobId, Warning, warningInterval, staleTime))
 
       // Now a fresh check should succeed because the interval has elapsed
-      val result = await(repository.shouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
+      val result = await(repository.instanceShouldPerformCertExpiryCheck(jobId, Warning, warningInterval, now()))
       result shouldBe true
     }
 
@@ -90,8 +90,8 @@ class CertExpiryJobRepoMongoSpec
       val instantA = now()
       val instantB = instantA.plusMillis(1) // slightly different timestamps
 
-      val futureA = repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instantA)
-      val futureB = repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instantB)
+      val futureA = repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instantA)
+      val futureB = repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instantB)
 
       val results = await(Future.sequence(Seq(futureA, futureB)))
 
@@ -105,7 +105,7 @@ class CertExpiryJobRepoMongoSpec
       val instants = (0 until 5).map(i => now().plusMillis(i))
 
       val futures = instants.map { instant =>
-        repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant)
+        repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant)
       }
 
       val results = await(Future.sequence(futures))
@@ -118,7 +118,7 @@ class CertExpiryJobRepoMongoSpec
     "only store one document regardless of how many calls are made" in {
       val instants = (0 until 5).map(i => now().plusMillis(i))
       val futures  = instants.map { instant =>
-        repository.shouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant)
+        repository.instanceShouldPerformCertExpiryCheck(jobId, EarlyWarning, earlyWarningInterval, instant)
       }
       await(Future.sequence(futures))
 
