@@ -24,7 +24,7 @@ import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.time.format.DateTimeFormatter
-import java.time.{Duration, Instant, LocalDateTime}
+import java.time.{Duration, LocalDateTime}
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -92,10 +92,10 @@ object CertificateExpiryMonitorJob {
     val zonedNow                          = timeProvider.now
     val nowAsLocalDateTime: LocalDateTime = zonedNow.toLocalDateTime
 
-    certificateCheckSchedule.getCurrentThreshold(nowAsLocalDateTime) match {
-      case Some(thresholdConfig: ThresholdConfig) =>
-        attemptClaim(
-          config = thresholdConfig,
+    certificateCheckSchedule.getCurrentCheckInterval(nowAsLocalDateTime) match {
+      case Some(checkInterval: Duration) =>
+        attemptCertExpiryCheck(
+          checkInterval = checkInterval,
           now = zonedNow.toInstant,
           timeLeft = certificateCheckSchedule.getTimeUntilCertExpiry(nowAsLocalDateTime),
           certificateExpiry = certificateExpiry
@@ -113,20 +113,20 @@ object CertificateExpiryMonitorJob {
     Behaviors.same
   }
 
-  private def attemptClaim(
-    config: ThresholdConfig,
+  private def attemptCertExpiryCheck(
+    checkInterval: Duration,
     now: java.time.Instant,
     timeLeft: Duration,
     certificateExpiry: LocalDateTime
   )(implicit ec: ExecutionContext, logger: BrmLogger, instanceId: UUID, certExpiryJobRepo: CertExpiryJobRepo): Unit =
 
     certExpiryJobRepo
-      .instanceShouldPerformCertExpiryCheck(JOB_ID, config.threshold, config.checkInterval, now)
+      .instanceShouldPerformCertExpiryCheck(JOB_ID, checkInterval, now)
       .collect { case true =>
         logCertificateExpiry(timeLeft, certificateExpiry)
       }
       .recover { case e: Exception =>
-        logger.error(s"error reading from mongo: $e")
+        logger.error(instanceId, CLASS_NAME, "attemptCertExpiryCheck", s"Error reading from mongo: $e")
       }
 
   private def onTerminate()(implicit

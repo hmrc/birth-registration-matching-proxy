@@ -36,6 +36,9 @@ class BrmLogger(logger: org.slf4j.Logger) extends Logger(logger) {
   def warn(uuid: UUID, className: String, methodName: String, message: String): Unit =
     logger.info(s"[INSTANCE_ID: ${uuid.toString}], [$className][$methodName] : $message")
 
+  def error(uuid: UUID, className: String, methodName: String, message: String): Unit =
+    logger.info(s"[INSTANCE_ID: ${uuid.toString}], [$className][$methodName] : $message")
+
   def warn(className: String, methodName: String, message: String): Unit =
     logger.warn(s"[$BRM_KEY:${KeyHolder.getKey()}],[$className][$methodName] : $message")
 

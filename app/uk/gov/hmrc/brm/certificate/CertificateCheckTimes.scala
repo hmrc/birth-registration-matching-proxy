@@ -16,18 +16,11 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import uk.gov.hmrc.brm.certificate.ExpiryThreshold._
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.time.Duration
 import scala.util.{Failure, Success, Try}
-
-final case class ThresholdConfig(
-  threshold: ExpiryThreshold,
-  thresholdDurationHours: Duration,
-  checkInterval: Duration
-)
 
 case class CertificateCheckTimes(
   certExpiryEarlyWarningThresholdHours: Duration,
@@ -36,19 +29,7 @@ case class CertificateCheckTimes(
   certExpiryWarningCheckIntervalHours: Duration,
   certExpiryCriticalThresholdHours: Duration,
   certExpiryCriticalCheckIntervalHours: Duration
-) {
-
-  val ExpiredConfig = ThresholdConfig(Expired, Duration.ZERO, certExpiryCriticalCheckIntervalHours)
-
-  val CriticalConfig =
-    ThresholdConfig(CriticalWarning, certExpiryCriticalThresholdHours, certExpiryCriticalCheckIntervalHours)
-
-  val WarningConfig = ThresholdConfig(Warning, certExpiryWarningThresholdHours, certExpiryWarningCheckIntervalHours)
-
-  val EarlyWarningConfig =
-    ThresholdConfig(EarlyWarning, certExpiryEarlyWarningThresholdHours, certExpiryEarlyWarningCheckIntervalHours)
-
-}
+)
 
 object CertificateCheckTimes {
 

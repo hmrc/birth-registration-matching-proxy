@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import java.time.Duration
-
 sealed trait CertificateExpiryMonitorJobCommand
 
 case object CheckExpiry extends CertificateExpiryMonitorJobCommand
