@@ -27,9 +27,9 @@ import java.time.Duration
 
 class CertificateCheckTimesSpec extends TestFixture {
 
-  implicit val servicesConfig = spy(app.injector.instanceOf[ServicesConfig])
-  implicit val brmLogger      = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val tlsConfigPath  = "microservice.services.birth-registration-matching.gro.tls"
+  implicit val servicesConfig: ServicesConfig = spy(app.injector.instanceOf[ServicesConfig])
+  implicit val brmLogger: BrmLogger           = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val tlsConfigPath: String          = "microservice.services.birth-registration-matching.gro.tls"
 
   private def ofHours(hours: Int): Duration = Duration.ofHours(hours)
 

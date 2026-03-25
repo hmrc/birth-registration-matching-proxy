@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
+import org.mockito.Mockito.spy
 import org.mongodb.scala.model.Filters
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.brm.certificate.ExpiryThreshold.CriticalWarning
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.utils.TestHelperUtil
@@ -28,14 +29,21 @@ import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 class CertificateExpiryMonitorJobMultipleInstancesSpec
     extends TestHelperUtil with TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent)
+  implicit override lazy val repository: CertExpiryJobRepoMongo = new CertExpiryJobRepoMongo(mongoComponent)
 
-  val stubConfig = createMockConfig()
-  val jobID      = "certificate-expiry-monitor-job"
+  val jobID = "certificate-expiry-monitor-job"
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     await(repository.collection.deleteMany(Filters.empty()).toFuture())
+  }
+
+  var timerSpy: PekkoTimer[CertificateExpiryMonitorJobCommand] = null
+
+  val timer = (scheduler: TimerScheduler[CertificateExpiryMonitorJobCommand]) => {
+    val realTimer = new PekkoTimer(scheduler)
+    timerSpy = spy(realTimer)
+    timerSpy
   }
 
   "CertificateExpiryMonitorJob with real mongo" should {
@@ -49,9 +57,8 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec
           CertificateExpiryMonitorJob(
             certificateExpiry = certificateExpiry,
             timeProvider = timeProvider,
-            config = stubConfig,
-            certExpiryJobRepo = repository,
-            jobId = jobID
+            config = createMockConfig(),
+            timer
           )
         )
       }
@@ -61,10 +68,7 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec
       val count = await(
         repository.collection
           .countDocuments(
-            Filters.and(
-              Filters.equal("jobId", jobID),
-              Filters.equal("threshold", CriticalWarning.value)
-            )
+            Filters.equal("jobId", jobID)
           )
           .toFuture()
       )

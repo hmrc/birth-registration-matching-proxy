@@ -42,13 +42,13 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
   val oneMinute: FiniteDuration      = FiniteDuration(1, MINUTES)
   val fifteenMinutes: FiniteDuration = FiniteDuration(15, MINUTES)
 
-  val testKit: ActorTestKit           = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
+  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
 
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
   implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
   implicit val instanceId: UUID       = UUID.randomUUID()
 
-  implicit val timeProvider: TimeProvider              = spy(new TimeProvider)
+  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
 
   private val oneWeekInHours                           = 168
@@ -204,10 +204,10 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
 
     "stop when receiving Stop command" in {
-      val certificateExpiry               = LocalDateTime.now().plusDays(10)
-      val config                          = createMockConfig()
-      implicit val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider                = spy(new TimeProvider)
+      val certificateExpiry                                       = LocalDateTime.now().plusDays(10)
+      val config                                                  = createMockConfig()
+      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val mockTimeProvider                                        = spy(new TimeProvider)
 
       val actor: ActorRef[CertificateExpiryMonitorJobCommand] =
         testKit.spawn(
@@ -235,9 +235,9 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
 
     "log an error if reading from Mongo fails" in {
-      val certificateExpiry               = LocalDateTime.now().plusDays(1)
-      val config                          = createMockConfig()
-      implicit val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val certificateExpiry                                       = LocalDateTime.now().plusDays(1)
+      val config                                                  = createMockConfig()
+      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
 
       when(certExpiryJobRepoMongo.instanceShouldPerformCertExpiryCheck(any, any, any))
         .thenReturn(Future.failed(new Exception("It is snowing in March")))
