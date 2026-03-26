@@ -77,13 +77,13 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
       Filters.lt("lastAlertedAt", bsonIntervalExpiry) // enough time has passed to perform a cert expiry check
     )
 
-    val update: Bson = Updates.combine(
-      Updates.set("jobId", jobId),
-      Updates.set("lastAlertedAt", BsonDateTime(now.toEpochMilli))
+    val document = CertExpiryJobDetails(
+      jobId = jobId,
+      lastAlertedAt = now
     )
 
     collection
-      .updateOne(filter, update, UpdateOptions().upsert(true))
+      .replaceOne(filter, document, ReplaceOptions().upsert(true))
       .toFuture()
       .map { record =>
         val isFirstInsert       = record.getUpsertedId != null

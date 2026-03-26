@@ -42,7 +42,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
   val oneMinute: FiniteDuration      = FiniteDuration(1, MINUTES)
   val fifteenMinutes: FiniteDuration = FiniteDuration(15, MINUTES)
 
-  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
+  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryMonitorJobSpec", ManualTime.config)
 
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
   implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))

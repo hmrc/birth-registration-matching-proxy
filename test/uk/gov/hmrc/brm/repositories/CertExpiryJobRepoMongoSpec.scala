@@ -20,7 +20,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{spy, when}
 import org.mongodb.scala.{MongoCollection, SingleObservable}
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.{Filters, UpdateOptions}
+import org.mongodb.scala.model.{Filters, ReplaceOptions, UpdateOptions}
 import org.mongodb.scala.result.UpdateResult
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -120,10 +120,10 @@ class CertExpiryJobRepoMongoSpec
       val repo = spy(new CertExpiryJobRepoMongo(mongoComponent))
 
       val singleObservableMock = mock[SingleObservable[UpdateResult]]
-      when(singleObservableMock.toFuture()).thenReturn(Future.failed(new Exception("!")))
+      when(singleObservableMock.toFuture()).thenReturn(Future.failed(new Exception("generic exception from Mongo")))
 
       when(repo.collection).thenReturn(mockCollection)
-      when(mockCollection.updateOne(any[Bson], any[Bson], any[UpdateOptions])).thenReturn(singleObservableMock)
+      when(mockCollection.replaceOne(any[Bson], any[CertExpiryJobDetails], any[ReplaceOptions])).thenReturn(singleObservableMock)
 
       val result = await(repo.instanceShouldPerformCertExpiryCheck(jobId, criticalCheckInterval, now()))
       result shouldBe false
