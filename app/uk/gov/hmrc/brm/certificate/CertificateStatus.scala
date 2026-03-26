@@ -41,8 +41,7 @@ class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
   lifecycle: ApplicationLifecycle,
   actorSystem: ActorSystem,
-  certExpiryJobRepo: CertExpiryJobRepoMongo
-)(implicit executionContext: ExecutionContext)
+)(implicit executionContext: ExecutionContext, certExpiryJobRepo: CertExpiryJobRepoMongo)
     extends CertificateProvider {
 
   implicit val instanceId: UUID = UUID.randomUUID()
@@ -63,7 +62,6 @@ class CertificateStatus @Inject() (
           certificateExpiry = expiryDate,
           timeProvider = timeProvider,
           config = groConfig,
-          certExpiryJobRepo = certExpiryJobRepo
         ),
         "certificate-expiry-monitor-job"
       )

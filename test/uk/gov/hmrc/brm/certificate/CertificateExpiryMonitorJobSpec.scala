@@ -16,28 +16,49 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
+import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
+import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJob.timeFormat
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.{BrmLogger, TestHelperUtil}
+import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.time.{Duration, _}
+import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
-class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
+class CertificateExpiryMonitorJobSpec extends TestFixture {
 
+  val now: LocalDateTime             = LocalDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
+  val zonedNow: ZonedDateTime        = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
   val oneMinute: FiniteDuration      = FiniteDuration(1, MINUTES)
   val fifteenMinutes: FiniteDuration = FiniteDuration(15, MINUTES)
 
+  val testKit: ActorTestKit = ActorTestKit("CertificateExpiryMonitorJobSpec", ManualTime.config)
+
   implicit val manualTime: ManualTime = ManualTime()(testKit.system)
+  implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
+  implicit val instanceId: UUID       = UUID.randomUUID()
+
+  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
+  when(timeProvider.now).thenReturn(zonedNow)
+
+  private val oneWeekInHours                           = 168
+  private val sixtyDaysInHours                         = 1440
+  private val certExpiryEarlyWarningThresholdHours     = Duration.ofHours(sixtyDaysInHours)
+  private val certExpiryEarlyWarningCheckIntervalHours = Duration.ofHours(oneWeekInHours)
+  private val certExpiryWarningThresholdHours          = Duration.ofHours(oneWeekInHours)
+  private val certExpiryWarningCheckIntervalHours      = Duration.ofHours(24)
+  private val certExpiryCriticalThresholdHours         = Duration.ofHours(24)
+  private val certExpiryCriticalCheckIntervalHours     = Duration.ofHours(1)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -49,11 +70,11 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
     testKit.shutdownTestKit()
   }
 
-  "CertificateExpiryLogger" should {
+  "CertificateExpiryMonitorJob" should {
 
     "behave as expected when time travelling towards certificate expiry from before early warning window" in {
 
-      // set our cert expiry so that we aren't synchronising our interval, and we are outside the early warning window
+      // set our cert expiry so we are outside the early warning window
       val certExpiryHours =
         certExpiryEarlyWarningThresholdHours.toHours + certExpiryEarlyWarningCheckIntervalHours.toHours
 
@@ -65,7 +86,7 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 
       val config                                                   = createMockConfig()
-      val certExpiryJobRepoMongo                                   = mock[CertExpiryJobRepoMongo]
+      implicit val certExpiryJobRepoMongo                          = mock[CertExpiryJobRepoMongo]
       var timerSpy: PekkoTimer[CertificateExpiryMonitorJobCommand] = null
 
       val timer = (scheduler: TimerScheduler[CertificateExpiryMonitorJobCommand]) => {
@@ -74,16 +95,15 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         timerSpy
       }
 
-      when(certExpiryJobRepoMongo.getAlertDetails(any, any, any)).thenReturn(Future.successful(false))
-      when(certExpiryJobRepoMongo.insertAlertDetails(any, any, any)).thenReturn(Future.successful(true))
+      when(certExpiryJobRepoMongo.instanceShouldPerformCertExpiryCheck(any, any, any))
+        .thenReturn(Future.successful(true))
 
       testKit.spawn(
         CertificateExpiryMonitorJob(
           certificateExpiry.toLocalDateTime,
           timeProvider,
           config,
-          timer,
-          certExpiryJobRepoMongo
+          timer
         )
       )
 
@@ -104,15 +124,15 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
       verify(brmLogger).info(
         instanceId,
         "CertificateExpiryMonitorJob",
-        "running",
-        s"no threshold matched for actualCertExpiryDate=$formattedCertificateExpiry"
+        "onCheckExpiry",
+        s"before EarlyWarningThreshold, actualCertExpiryDate=$formattedCertificateExpiry"
       )
-      verify(timerSpy)
-        .startSingleTimer(CheckExpiry, fifteenMinutes)
+
+      verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
 
       reset(timerSpy, timeProvider, brmLogger)
 
-      // early warning window assertions
+      //  early warning window assertions
 
       val timeAtEarlyWarningThreshold =
         advanceTimeReturningNewTimeProviderTime(
@@ -121,17 +141,17 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         )
 
       Thread.sleep(100)
+
       verifyWarningLog(daysTillExpiry = Some(Duration.between(timeProvider.now, certificateExpiry).toDays))
-      verifyNextCheckIntervalLog(ExpiryThreshold.EarlyWarning, formattedCertificateExpiry)
-      verify(timerSpy)
-        .startSingleTimer(CheckExpiry, fifteenMinutes)
+      verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
 
       reset(timerSpy, timeProvider, brmLogger)
 
       // warning window assertions
       val timeToAdvanceInToWarningWindow =
         certExpiryEarlyWarningThresholdHours.toHours - certExpiryWarningThresholdHours.toHours
-      val timeAtWarningThreshold         =
+
+      val timeAtWarningThreshold =
         advanceTimeReturningNewTimeProviderTime(
           timeToAdvanceInHours = Some(timeToAdvanceInToWarningWindow.toInt),
           previousNow = timeAtEarlyWarningThreshold
@@ -140,14 +160,12 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
       Thread.sleep(100)
 
       verifyWarningLog(daysTillExpiry = Some(Duration.between(timeProvider.now, certificateExpiry).toDays))
-      verifyNextCheckIntervalLog(ExpiryThreshold.Warning, formattedCertificateExpiry)
       verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
-
       reset(timerSpy, timeProvider, brmLogger)
 
       // critical window assertions
 
-      // advance 1 extra hour in to window to test 'hours' text in log
+      //  advance 1 extra hour in to window to test 'hours' text in log
       val timeToAdvanceInToCriticalWindow =
         certExpiryWarningThresholdHours.toHours - certExpiryCriticalThresholdHours.toHours + 1
 
@@ -160,9 +178,7 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
       Thread.sleep(100)
 
       verifyWarningLog(hoursTillExpiry = Some(Duration.between(timeProvider.now, certificateExpiry).toHours))
-      verifyNextCheckIntervalLog(ExpiryThreshold.CriticalWarning, formattedCertificateExpiry)
-      verify(timerSpy)
-        .startSingleTimer(CheckExpiry, fifteenMinutes)
+      verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
 
       reset(timerSpy, timeProvider, brmLogger)
 
@@ -172,9 +188,8 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         timeToAdvanceInHours = Some(timeToAdvanceInToCriticalWindow.toInt),
         previousNow = timeAtCriticalThreshold
       )
-      Thread.sleep(100)
 
-      verifyNextCheckIntervalLog(ExpiryThreshold.Expired, formattedCertificateExpiry)
+      Thread.sleep(100)
 
       verify(brmLogger).warn(
         instanceId,
@@ -183,57 +198,23 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         s"Certificate expired at $formattedCertificateExpiryTime"
       )
 
-      verify(timerSpy)
-        .startSingleTimer(CheckExpiry, fifteenMinutes)
+      verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
 
       reset(timerSpy, timeProvider, brmLogger)
     }
 
-    "calculate synchronised interval" in {
-
-      val now         = LocalDateTime.now(ZoneId.of("UTC"))
-      val hoursOffset = 2
-
-      val certificateExpiry      = now.plusHours(certExpiryWarningThresholdHours.toHours + hoursOffset)
-      val config                 = createMockConfig()
-      val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider       = spy(new TimeProvider)
-
-      when(mockTimeProvider.now).thenReturn(now.atZone(ZoneId.of("UTC")))
-
-      when(certExpiryJobRepoMongo.getAlertDetails(any, any, any)).thenReturn(Future.successful(true))
-      when(certExpiryJobRepoMongo.insertAlertDetails(any, any, any)).thenReturn(Future.successful(true))
-
-      //      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
-
-      testKit.spawn(
-        CertificateExpiryMonitorJob(
-          certificateExpiry,
-          mockTimeProvider,
-          config,
-          certExpiryJobRepo = certExpiryJobRepoMongo
-        )
-      )
-
-      advanceTimeReturningNewTimeProviderTime(timeToAdvanceInMinutes = Some(1), previousNow = zonedNow)
-
-      Thread.sleep(100)
-
-    }
-
     "stop when receiving Stop command" in {
-      val certificateExpiry      = LocalDateTime.now().plusDays(10)
-      val config                 = createMockConfig()
-      val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider       = spy(new TimeProvider)
+      val certificateExpiry                                       = LocalDateTime.now().plusDays(10)
+      val config                                                  = createMockConfig()
+      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val mockTimeProvider                                        = spy(new TimeProvider)
 
       val actor: ActorRef[CertificateExpiryMonitorJobCommand] =
         testKit.spawn(
           CertificateExpiryMonitorJob(
             certificateExpiry,
             mockTimeProvider,
-            config,
-            certExpiryJobRepo = certExpiryJobRepoMongo
+            config
           )
         )
 
@@ -245,13 +226,61 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
         .info(
           instanceId,
           "CertificateExpiryMonitorJob",
-          "running",
+          "onTerminate",
           s"Received application lifecycle shutdown hook - Terminating certificate expiry monitoring"
         )
 
       val probe = testKit.createTestProbe[Nothing]()
       probe.expectTerminated(actor, 3.seconds)
     }
+
+    "log an error if reading from Mongo fails" in {
+      val certificateExpiry                                       = LocalDateTime.now().plusDays(1)
+      val config                                                  = createMockConfig()
+      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+
+      when(certExpiryJobRepoMongo.instanceShouldPerformCertExpiryCheck(any, any, any))
+        .thenReturn(Future.failed(new Exception("It is snowing in March")))
+
+      val mockTimeProvider = spy(new TimeProvider)
+
+      testKit.spawn(
+        CertificateExpiryMonitorJob(
+          certificateExpiry,
+          mockTimeProvider,
+          config
+        )
+      )
+
+      Thread.sleep(100)
+      manualTime.timePasses(1.minute)
+      Thread.sleep(100)
+
+      verify(brmLogger)
+        .error(
+          instanceId,
+          "CertificateExpiryMonitorJob",
+          "attemptCertExpiryCheck",
+          s"Error reading from mongo: java.lang.Exception: It is snowing in March"
+        )
+    }
+  }
+
+  private def createMockConfig(): GroAppConfig = {
+    val config = mock[GroAppConfig]
+
+    when(config.certificateTimes).thenReturn(
+      CertificateCheckTimes(
+        certExpiryEarlyWarningThresholdHours,
+        certExpiryEarlyWarningCheckIntervalHours,
+        certExpiryWarningThresholdHours,
+        certExpiryWarningCheckIntervalHours,
+        certExpiryCriticalThresholdHours,
+        certExpiryCriticalCheckIntervalHours
+      )
+    )
+
+    config
   }
 
   // keep our TimeProvider and Pekko's time in sync by advancing them together
@@ -284,17 +313,6 @@ class CertificateExpiryMonitorJobSpec extends TestHelperUtil with TestFixture {
 
     newNow
   }
-
-  private def verifyNextCheckIntervalLog(threshold: ExpiryThreshold, certificateExpiry: String)(implicit
-    brmLogger: BrmLogger
-  ): Unit =
-
-    verify(brmLogger).info(
-      instanceId,
-      "CertificateExpiryMonitorJob",
-      "running",
-      s"sending alerts for threshold=${threshold.value} actualCertExpiryDate=$certificateExpiry"
-    )
 
   private def verifyWarningLog(
     daysTillExpiry: Option[Long] = None,

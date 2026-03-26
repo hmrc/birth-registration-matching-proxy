@@ -17,5 +17,6 @@
 package uk.gov.hmrc.brm.certificate
 
 sealed trait CertificateExpiryMonitorJobCommand
+
 case object CheckExpiry extends CertificateExpiryMonitorJobCommand
 case object Terminate extends CertificateExpiryMonitorJobCommand

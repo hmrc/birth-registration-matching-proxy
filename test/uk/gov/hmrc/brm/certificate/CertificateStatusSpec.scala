@@ -41,10 +41,10 @@ class CertificateStatusSpec extends TestFixture {
   private val testKit            = ActorTestKit("CertificateStatusSpec")
   private val untypedActorSystem = testKit.system.classicSystem
 
-  val certExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+  implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
 
   private val certificateStatus = spy(
-    new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem, certExpiryJobRepoMongo)
+    new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem)
   )
 
   override def afterEach(): Unit = {

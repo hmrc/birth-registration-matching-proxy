@@ -17,28 +17,24 @@
 package uk.gov.hmrc.brm.repositories
 
 import com.google.inject.{Inject, Singleton}
+import org.mongodb.scala.bson.BsonDateTime
+import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model._
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.brm.utils.BrmLogger.logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
-import java.time.Instant
-import java.util.concurrent.TimeUnit
+import java.time.{Duration, Instant}
+import java.util.concurrent.TimeUnit.DAYS
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CertExpiryJobRepo {
 
-  def getAlertDetails(
+  def instanceShouldPerformCertExpiryCheck(
     jobId: String,
-    mongoExpiryDate: Instant,
-    threshold: String
-  ): Future[Boolean]
-
-  def insertAlertDetails(
-    jobId: String,
-    mongoExpiryDate: Instant,
-    threshold: String
+    interval: Duration,
+    now: Instant
   ): Future[Boolean]
 
 }
@@ -51,64 +47,57 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
       domainFormat = CertExpiryJobDetails.format,
       indexes = Seq(
         IndexModel(
-          Indexes.ascending("jobId", "threshold"),
-          IndexOptions()
-            .name("jobId_threshold_unique")
-            .unique(true)
+          Indexes.ascending("jobId"),
+          IndexOptions().name("jobId_idx").unique(true) // unique index
         ),
         IndexModel(
-          Indexes.ascending("mongoExpiryDate"),
+          Indexes.ascending("lastAlertedAt"),
           IndexOptions()
-            .name("mongoExpiryDate_ttl")
-            .expireAfter(0, TimeUnit.SECONDS)
+            .name("lastAlertedAt_ttl") // ttl not used for alerting logic, to clean up orphaned records
+            .expireAfter(90, DAYS)
         )
       ),
       replaceIndexes = true
     )
     with CertExpiryJobRepo {
 
-  override def getAlertDetails(
+  // By using a single jobId and making the field a unique index, an upsert with filter ensures the following operations happen:
+  // A - if it's the first time we interact with the DB, we insert a record and return true
+  // B - if the existing record matched the filter and was modified, return true, else false
+  override def instanceShouldPerformCertExpiryCheck(
     jobId: String,
-    mongoExpiryDate: Instant,
-    threshold: String
+    checkInterval: Duration,
+    now: Instant
   ): Future[Boolean] = {
+
+    val bsonIntervalExpiry = BsonDateTime(now.minus(checkInterval).toEpochMilli)
 
     val filter = Filters.and(
-      Filters.equal("jobId", jobId)
+      Filters.equal("jobId", jobId),
+      Filters.lt("lastAlertedAt", bsonIntervalExpiry) // enough time has passed to perform a cert expiry check
     )
 
-    val res = collection
-      .find(filter)
-      .headOption()
-      .map(_.isDefined)
-      .recover { case e =>
-        logger.error(s"[CertExpiryJobRepoMongo][getAlertDetails] failed: ${e.getMessage}")
-        false
-      }
-    res
-  }
-
-  override def insertAlertDetails(
-    jobId: String,
-    mongoExpiryDate: Instant,
-    threshold: String
-  ): Future[Boolean] = {
-    val doc = CertExpiryJobDetails(
+    val document = CertExpiryJobDetails(
       jobId = jobId,
-      mongoExpiryDate = mongoExpiryDate,
-      threshold = threshold
+      lastAlertedAt = now
     )
 
     collection
-      .insertOne(doc)
+      .replaceOne(filter, document, ReplaceOptions().upsert(true))
       .toFuture()
-      .map { _ =>
-        logger.info(s"[CertExpiryJobRepoMongo][insertAlertDetails] inserted")
-        true
+      .map { record =>
+        val isFirstInsert       = record.getUpsertedId != null
+        val existingDocModified = record.getModifiedCount > 0
+
+        isFirstInsert || existingDocModified
       }
-      .recover { case e =>
-        logger.error(s"[CertExpiryJobRepoMongo][insertAlertDetails] failed: ${e.getMessage}")
-        false
+      .recover {
+        case _: com.mongodb.MongoWriteException =>
+          logger.info(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] lost upsert race for $jobId")
+          false
+        case e                                  =>
+          logger.error(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] failed: ${e.getMessage}")
+          false
       }
   }
 
