@@ -18,14 +18,12 @@ package uk.gov.hmrc.brm.repositories
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{spy, when}
-import org.mongodb.scala.{MongoCollection, SingleObservable}
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.{Filters, ReplaceOptions, UpdateOptions}
+import org.mongodb.scala.model.{Filters, ReplaceOptions}
 import org.mongodb.scala.result.UpdateResult
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatestplus.mockito.MockitoSugar.mock
+import org.mongodb.scala.{MongoCollection, SingleObservable}
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
+import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
@@ -33,12 +31,11 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant}
 import scala.concurrent.{ExecutionContext, Future}
 
-class CertExpiryJobRepoMongoSpec
-    extends AnyWordSpecLike with Matchers with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
+class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  override lazy val repository = new CertExpiryJobRepoMongo(mongoComponent)
+  override lazy val repository = new CertExpiryJobRepoMongo(testGroConfig, mongoComponent)
 
   val jobId                               = "certificate-expiry-monitor-job-test"
   val earlyWarningCheckInterval: Duration = Duration.ofHours(168)
@@ -117,13 +114,14 @@ class CertExpiryJobRepoMongoSpec
 
     "return false when an error that is not a MongoWriteException occurs" in {
       val mockCollection = mock[MongoCollection[CertExpiryJobDetails]]
-      val repo = spy(new CertExpiryJobRepoMongo(mongoComponent))
+      val repo           = spy(new CertExpiryJobRepoMongo(testGroConfig, mongoComponent))
 
       val singleObservableMock = mock[SingleObservable[UpdateResult]]
       when(singleObservableMock.toFuture()).thenReturn(Future.failed(new Exception("generic exception from Mongo")))
 
       when(repo.collection).thenReturn(mockCollection)
-      when(mockCollection.replaceOne(any[Bson], any[CertExpiryJobDetails], any[ReplaceOptions])).thenReturn(singleObservableMock)
+      when(mockCollection.replaceOne(any[Bson], any[CertExpiryJobDetails], any[ReplaceOptions]))
+        .thenReturn(singleObservableMock)
 
       val result = await(repo.instanceShouldPerformCertExpiryCheck(jobId, criticalCheckInterval, now()))
       result shouldBe false

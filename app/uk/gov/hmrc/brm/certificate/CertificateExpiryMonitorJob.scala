@@ -100,7 +100,7 @@ object CertificateExpiryMonitorJob {
           timeLeft = certificateCheckSchedule.getTimeUntilCertExpiry(nowAsLocalDateTime),
           certificateExpiry = certificateExpiry
         )
-      case None                                   =>
+      case None                          =>
         logger.info(
           instanceId,
           CLASS_NAME,

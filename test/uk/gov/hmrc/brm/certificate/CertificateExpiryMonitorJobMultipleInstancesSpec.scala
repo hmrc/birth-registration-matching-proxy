@@ -29,7 +29,8 @@ import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 class CertificateExpiryMonitorJobMultipleInstancesSpec
     extends TestHelperUtil with TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  implicit override lazy val repository: CertExpiryJobRepoMongo = new CertExpiryJobRepoMongo(mongoComponent)
+  implicit override lazy val repository: CertExpiryJobRepoMongo =
+    new CertExpiryJobRepoMongo(testGroConfig, mongoComponent)
 
   val jobID = "certificate-expiry-monitor-job"
 

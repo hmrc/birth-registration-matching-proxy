@@ -40,7 +40,7 @@ import scala.util.{Failure, Success, Try, Using}
 class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
   lifecycle: ApplicationLifecycle,
-  actorSystem: ActorSystem,
+  actorSystem: ActorSystem
 )(implicit executionContext: ExecutionContext, certExpiryJobRepo: CertExpiryJobRepoMongo)
     extends CertificateProvider {
 
@@ -61,7 +61,7 @@ class CertificateStatus @Inject() (
         CertificateExpiryMonitorJob(
           certificateExpiry = expiryDate,
           timeProvider = timeProvider,
-          config = groConfig,
+          config = groConfig
         ),
         "certificate-expiry-monitor-job"
       )

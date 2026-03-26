@@ -18,15 +18,15 @@ package uk.gov.hmrc.brm.repositories
 
 import com.google.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDateTime
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model._
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.brm.utils.BrmLogger.logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import java.time.{Duration, Instant}
-import java.util.concurrent.TimeUnit.DAYS
+import java.util.concurrent.TimeUnit.HOURS
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CertExpiryJobRepo {
@@ -40,8 +40,9 @@ trait CertExpiryJobRepo {
 }
 
 @Singleton
-class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoRepository[CertExpiryJobDetails](
+class CertExpiryJobRepoMongo @Inject() (groAppConfig: GroAppConfig, mongoComponent: MongoComponent)(implicit
+  ec: ExecutionContext
+) extends PlayMongoRepository[CertExpiryJobDetails](
       collectionName = "cert-expiry-job-details",
       mongoComponent = mongoComponent,
       domainFormat = CertExpiryJobDetails.format,
@@ -54,7 +55,7 @@ class CertExpiryJobRepoMongo @Inject() (val mongoComponent: MongoComponent)(impl
           Indexes.ascending("lastAlertedAt"),
           IndexOptions()
             .name("lastAlertedAt_ttl") // ttl not used for alerting logic, to clean up orphaned records
-            .expireAfter(90, DAYS)
+            .expireAfter(groAppConfig.expireMongo.toHours, HOURS)
         )
       ),
       replaceIndexes = true
