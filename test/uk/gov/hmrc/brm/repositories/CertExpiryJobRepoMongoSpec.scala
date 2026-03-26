@@ -16,9 +16,15 @@
 
 package uk.gov.hmrc.brm.repositories
 
-import org.mongodb.scala.model.Filters
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{spy, when}
+import org.mongodb.scala.{MongoCollection, SingleObservable}
+import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.model.{Filters, UpdateOptions}
+import org.mongodb.scala.result.UpdateResult
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar.mock
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
@@ -107,6 +113,20 @@ class CertExpiryJobRepoMongoSpec
       shouldPerformExpiryCheck(criticalCheckInterval, t2.plus(Duration.ofHours(1)).plusSeconds(1)) shouldBe true
 
       documentCount() shouldBe 1
+    }
+
+    "return false when an error that is not a MongoWriteException occurs" in {
+      val mockCollection = mock[MongoCollection[CertExpiryJobDetails]]
+      val repo = spy(new CertExpiryJobRepoMongo(mongoComponent))
+
+      val singleObservableMock = mock[SingleObservable[UpdateResult]]
+      when(singleObservableMock.toFuture()).thenReturn(Future.failed(new Exception("!")))
+
+      when(repo.collection).thenReturn(mockCollection)
+      when(mockCollection.updateOne(any[Bson], any[Bson], any[UpdateOptions])).thenReturn(singleObservableMock)
+
+      val result = await(repo.instanceShouldPerformCertExpiryCheck(jobId, criticalCheckInterval, now()))
+      result shouldBe false
     }
 
   }
