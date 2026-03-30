@@ -14,9 +14,19 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.brm.certificate
+package uk.gov.hmrc.brm.models
 
-sealed trait CertificateExpiryMonitorJobCommand
+import play.api.libs.json.{Format, Json}
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
-case object CheckExpiry extends CertificateExpiryMonitorJobCommand
-case object Terminate extends CertificateExpiryMonitorJobCommand
+import java.time.Instant
+
+case class CertExpiryJobDetails(
+  jobId: String,
+  lastAlertedAt: Instant
+)
+
+object CertExpiryJobDetails {
+  implicit val instantFormat: Format[Instant]       = MongoJavatimeFormats.instantFormat
+  implicit val format: Format[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]
+}

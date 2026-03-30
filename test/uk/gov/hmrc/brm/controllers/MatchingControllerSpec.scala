@@ -31,8 +31,6 @@ import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.JsonUtils
 import uk.gov.hmrc.brm.utils.ResponseHelper._
 import uk.gov.hmrc.http.{HeaderCarrier, JsValidationException}
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 class MatchingControllerSpec extends TestFixture {

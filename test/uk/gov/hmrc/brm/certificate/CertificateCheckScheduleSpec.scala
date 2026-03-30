@@ -16,7 +16,23 @@
 
 package uk.gov.hmrc.brm.certificate
 
-sealed trait CertificateExpiryMonitorJobCommand
+import uk.gov.hmrc.brm.TestFixture
 
-case object CheckExpiry extends CertificateExpiryMonitorJobCommand
-case object Terminate extends CertificateExpiryMonitorJobCommand
+import java.time.{Duration, LocalDateTime}
+
+class CertificateCheckScheduleSpec extends TestFixture {
+
+  "CertificateCheckSchedule" should {
+
+    "getTimeUntilCertExpiry" in {
+      val currentTime       = LocalDateTime.now()
+      val certificateExpiry = currentTime.plusHours(100)
+
+      val schedule = new CertificateCheckSchedule(testGroConfig, certificateExpiry)
+
+      schedule.getTimeUntilCertExpiry(currentTime) shouldBe Duration.ofHours(100)
+    }
+
+  }
+
+}

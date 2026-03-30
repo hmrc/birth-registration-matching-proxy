@@ -21,6 +21,7 @@ import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter._
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.brm.utils.BrmLogger._
@@ -28,10 +29,10 @@ import uk.gov.hmrc.brm.utils.BrmLogger._
 import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.cert.{Certificate, X509Certificate}
-import java.time.{LocalDateTime, ZoneId}
+import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 import scala.util.{Failure, Success, Try, Using}
 
@@ -40,26 +41,28 @@ class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
   lifecycle: ApplicationLifecycle,
   actorSystem: ActorSystem
-) extends CertificateProvider {
+)(implicit executionContext: ExecutionContext, certExpiryJobRepo: CertExpiryJobRepoMongo)
+    extends CertificateProvider {
 
   implicit val instanceId: UUID = UUID.randomUUID()
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
   implicit val logger: BrmLogger.type = BrmLogger
-
-  protected val CLASS_NAME: String = this.getClass.getSimpleName
-
-  val typedActorSystem = actorSystem.toTyped
-
-  val timeProvider = new TimeProvider
+  val typedActorSystem                = actorSystem.toTyped
+  val timeProvider                    = new TimeProvider
+  protected val CLASS_NAME: String    = this.getClass.getSimpleName
 
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>
       info(CLASS_NAME, "Registering CertificateExpiryMonitorJob actor")
 
       typedActorSystem.systemActorOf(
-        CertificateExpiryMonitorJob(expiryDate, timeProvider, groConfig),
+        CertificateExpiryMonitorJob(
+          certificateExpiry = expiryDate,
+          timeProvider = timeProvider,
+          config = groConfig
+        ),
         "certificate-expiry-monitor-job"
       )
     }
@@ -77,19 +80,6 @@ class CertificateStatus @Inject() (
     }
   )
 
-  override def loadCertificate(): Try[Certificate] = {
-    val keyStore = KeyStore.getInstance("PKCS12")
-    Using(new FileInputStream(groConfig.tlsPrivateCertificatePath)) { fis =>
-      keyStore.load(fis, groConfig.tlsPrivateKeystorePassword.toCharArray)
-      keyStore
-        .aliases()
-        .asScala
-        .map(alias => keyStore.getCertificate(alias))
-        .toList
-        .head
-    }
-  }
-
   def extractExpiryDateFromCertificate(): Option[LocalDateTime] = {
     info(CLASS_NAME, "extractExpiryDateFromCertificate", "start")
 
@@ -105,6 +95,19 @@ class CertificateStatus @Inject() (
       case Failure(exception)                    =>
         error(CLASS_NAME, "extractExpiryDateFromCertificate", s"Error loading cert $exception ")
         None
+    }
+  }
+
+  override def loadCertificate(): Try[Certificate] = {
+    val keyStore = KeyStore.getInstance("PKCS12")
+    Using(new FileInputStream(groConfig.tlsPrivateCertificatePath)) { fis =>
+      keyStore.load(fis, groConfig.tlsPrivateKeystorePassword.toCharArray)
+      keyStore
+        .aliases()
+        .asScala
+        .map(alias => keyStore.getCertificate(alias))
+        .toList
+        .head
     }
   }
 

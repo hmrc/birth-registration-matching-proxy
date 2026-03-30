@@ -19,24 +19,25 @@ package uk.gov.hmrc.brm.certificate
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.scaladsl.{Behaviors, TimerScheduler}
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.repositories.CertExpiryJobRepo
 import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger
 
 import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-// wraps startSingleTimer calls to Pekko's TimerScheduler to allow assertions in tests
 class PekkoTimer[T](scheduler: TimerScheduler[T]) {
   def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
 }
 
 object CertificateExpiryMonitorJob {
 
-  private val CLASS_NAME = getClass.getSimpleName.dropRight(1)
-
   val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")
+  private val CLASS_NAME            = getClass.getSimpleName.dropRight(1)
+  private val JOB_ID                = "certificate-expiry-monitor-job"
 
   def apply(
     certificateExpiry: LocalDateTime,
@@ -46,61 +47,105 @@ object CertificateExpiryMonitorJob {
       new PekkoTimer(_)
   )(implicit
     logger: BrmLogger,
-    instanceId: UUID
-  ): Behavior[CertificateExpiryMonitorJobCommand] =
-    Behaviors.withTimers { timerScheduler =>
-      val pekkoTimer               = timer(timerScheduler)
-      val certificateCheckSchedule = new CertificateCheckSchedule(config, certificateExpiry)
+    instanceId: UUID,
+    ec: ExecutionContext,
+    certExpiryJobRepo: CertExpiryJobRepo
+  ): Behavior[CertificateExpiryMonitorJobCommand] = Behaviors.withTimers { timerScheduler =>
+    val pekkoTimer = timer(timerScheduler)
+    val schedule   = new CertificateCheckSchedule(config, certificateExpiry)
 
-      logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
-      pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
-      running(certificateExpiry, pekkoTimer, timeProvider, certificateCheckSchedule)
-    }
+    logger.info(instanceId, CLASS_NAME, "apply", "Starting initial check")
+    pekkoTimer.startSingleTimer(CheckExpiry, 1.minutes)
+
+    running(certificateExpiry, pekkoTimer, timeProvider, schedule)
+  }
 
   private def running(
     certificateExpiry: LocalDateTime,
-    timerScheduler: PekkoTimer[CertificateExpiryMonitorJobCommand],
+    pekkoTimer: PekkoTimer[CertificateExpiryMonitorJobCommand],
     timeProvider: TimeProvider,
     certificateCheckSchedule: CertificateCheckSchedule
-  )(implicit logger: BrmLogger, instanceId: UUID): Behavior[CertificateExpiryMonitorJobCommand] =
-    Behaviors.receiveMessage {
-      case CheckExpiry =>
-        val now = timeProvider.now.toLocalDateTime
-
-        if (certificateCheckSchedule.isPastEarlyWarningWindow(now)) {
-          logCertificateExpiry(certificateCheckSchedule.getTimeUntilCertExpiry(now), certificateExpiry)
-        }
-
-        val nextCheckIntervalMinutes: FiniteDuration = certificateCheckSchedule.getNextCheckIntervalDurationMinutes(now)
-
-        val nextCheckTime = now.plusNanos(nextCheckIntervalMinutes.toNanos)
-
-        logger.info(
-          instanceId,
-          CLASS_NAME,
-          "running",
-          s"Setting next check interval to ${nextCheckIntervalMinutes.toHours} hours at ${nextCheckTime.format(timeFormat)} ${timeProvider.zoneId.toString}"
-        )
-
-        timerScheduler.startSingleTimer(CheckExpiry, nextCheckIntervalMinutes)
-
-        Behaviors.same
-      case Terminate   =>
-        logger.info(
-          instanceId,
-          CLASS_NAME,
-          "running",
-          "Received application lifecycle shutdown hook - Terminating certificate expiry monitoring"
-        )
-
-        Behaviors.stopped
+  )(implicit
+    logger: BrmLogger,
+    instanceId: UUID,
+    ec: ExecutionContext,
+    certExpiryJobRepo: CertExpiryJobRepo
+  ): Behavior[CertificateExpiryMonitorJobCommand] =
+    Behaviors.receive { (_, message) =>
+      message match {
+        case CheckExpiry => onCheckExpiry(pekkoTimer, timeProvider, certificateCheckSchedule, certificateExpiry)
+        case Terminate   => onTerminate()
+      }
     }
 
-  private def logCertificateExpiry(timeUntilCertExpiry: Duration, certificateExpiry: LocalDateTime)(implicit
+  private def onCheckExpiry(
+    pekkoTimer: PekkoTimer[CertificateExpiryMonitorJobCommand],
+    timeProvider: TimeProvider,
+    certificateCheckSchedule: CertificateCheckSchedule,
+    certificateExpiry: LocalDateTime
+  )(implicit
+    logger: BrmLogger,
+    instanceId: UUID,
+    ec: ExecutionContext,
+    certExpiryJobRepo: CertExpiryJobRepo
+  ): Behavior[CertificateExpiryMonitorJobCommand] = {
+    val zonedNow                          = timeProvider.now
+    val nowAsLocalDateTime: LocalDateTime = zonedNow.toLocalDateTime
+
+    certificateCheckSchedule.getCurrentCheckInterval(nowAsLocalDateTime) match {
+      case Some(checkInterval: Duration) =>
+        attemptCertExpiryCheck(
+          checkInterval = checkInterval,
+          now = zonedNow.toInstant,
+          timeLeft = certificateCheckSchedule.getTimeUntilCertExpiry(nowAsLocalDateTime),
+          certificateExpiry = certificateExpiry
+        )
+      case None                          =>
+        logger.info(
+          instanceId,
+          CLASS_NAME,
+          "onCheckExpiry",
+          s"before EarlyWarningThreshold, actualCertExpiryDate=${certificateExpiry.format(timeFormat)}"
+        )
+    }
+
+    pekkoTimer.startSingleTimer(CheckExpiry, 15.minutes)
+    Behaviors.same
+  }
+
+  private def attemptCertExpiryCheck(
+    checkInterval: Duration,
+    now: java.time.Instant,
+    timeLeft: Duration,
+    certificateExpiry: LocalDateTime
+  )(implicit ec: ExecutionContext, logger: BrmLogger, instanceId: UUID, certExpiryJobRepo: CertExpiryJobRepo): Unit =
+
+    certExpiryJobRepo
+      .instanceShouldPerformCertExpiryCheck(JOB_ID, checkInterval, now)
+      .collect { case true =>
+        logCertificateExpiry(timeLeft, certificateExpiry)
+      }
+      .recover { case e: Exception =>
+        logger.error(instanceId, CLASS_NAME, "attemptCertExpiryCheck", s"Error reading from mongo: $e")
+      }
+
+  private def onTerminate()(implicit
     logger: BrmLogger,
     instanceId: UUID
-  ): Unit = {
+  ): Behavior[CertificateExpiryMonitorJobCommand] = {
+    logger.info(
+      instanceId,
+      CLASS_NAME,
+      "onTerminate",
+      "Received application lifecycle shutdown hook - Terminating certificate expiry monitoring"
+    )
+    Behaviors.stopped
+  }
 
+  private def logCertificateExpiry(
+    timeUntilCertExpiry: Duration,
+    certificateExpiry: LocalDateTime
+  )(implicit logger: BrmLogger, instanceId: UUID): Unit = {
     val formattedExpiry = certificateExpiry.format(timeFormat)
 
     if (timeUntilCertExpiry.toDays > 0) {

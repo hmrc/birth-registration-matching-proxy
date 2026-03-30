@@ -23,6 +23,7 @@ import play.api.Configuration
 import play.api.inject.DefaultApplicationLifecycle
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.config.GroAppConfig
+import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.io.FileOutputStream
@@ -39,6 +40,8 @@ class CertificateStatusSpec extends TestFixture {
 
   private val testKit            = ActorTestKit("CertificateStatusSpec")
   private val untypedActorSystem = testKit.system.classicSystem
+
+  implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
 
   private val certificateStatus = spy(
     new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem)

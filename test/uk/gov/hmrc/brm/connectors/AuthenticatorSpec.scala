@@ -30,7 +30,6 @@ import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCar
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 

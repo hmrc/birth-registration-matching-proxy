@@ -21,6 +21,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.duration.{Duration, DurationInt}
 
 @Singleton
 class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
@@ -51,5 +52,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
 
   lazy val certificateTimes: CertificateCheckTimes =
     CertificateCheckTimes.load()(servicesConfig, tlsConfigPath, BrmLogger)
+
+  lazy val expireMongo: Duration = servicesConfig.getConfDuration("mongodb.expireMongo", 90.days)
 
 }

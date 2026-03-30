@@ -21,9 +21,11 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.test.Helpers
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BaseUnitSpec
 
+import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 
 trait TestFixture
@@ -36,8 +38,10 @@ trait TestFixture
     with GuiceOneAppPerSuite
     with BaseUnitSpec {
 
-  def real[T: ClassTag]: T = app.injector.instanceOf[T]
+  implicit val executionContext: ExecutionContext = Helpers.stubControllerComponents().executionContext
 
   val testGroConfig: GroAppConfig = real[GroAppConfig]
+
+  def real[T: ClassTag]: T = app.injector.instanceOf[T]
 
 }

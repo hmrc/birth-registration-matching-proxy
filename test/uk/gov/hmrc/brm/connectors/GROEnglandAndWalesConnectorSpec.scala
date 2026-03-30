@@ -34,7 +34,6 @@ import uk.gov.hmrc.play.audit.http.HttpAuditing
 
 import java.net.URL
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
