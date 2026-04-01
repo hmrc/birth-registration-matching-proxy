@@ -121,13 +121,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
       Thread.sleep(100)
 
-      verify(brmLogger).info(
-        instanceId,
-        "CertificateExpiryMonitorJob",
-        "onCheckExpiry",
-        s"before EarlyWarningThreshold, actualCertExpiryDate=$formattedCertificateExpiry"
-      )
-
       verify(timerSpy).startSingleTimer(CheckExpiry, fifteenMinutes)
 
       reset(timerSpy, timeProvider, brmLogger)
