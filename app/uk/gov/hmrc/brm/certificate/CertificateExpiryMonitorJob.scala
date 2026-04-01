@@ -26,7 +26,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class PekkoTimer[T](scheduler: TimerScheduler[T]) {
@@ -100,13 +100,8 @@ object CertificateExpiryMonitorJob {
           timeLeft = certificateCheckSchedule.getTimeUntilCertExpiry(nowAsLocalDateTime),
           certificateExpiry = certificateExpiry
         )
-//      case None                          =>
-//        logger.info(
-//          instanceId,
-//          CLASS_NAME,
-//          "onCheckExpiry",
-//          s"before EarlyWarningThreshold, actualCertExpiryDate=${certificateExpiry.format(timeFormat)}"
-//        )
+      case None                          =>
+        Future.successful(())
     }
 
     pekkoTimer.startSingleTimer(CheckExpiry, 15.minutes)
