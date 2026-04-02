@@ -117,8 +117,10 @@ object CertificateExpiryMonitorJob {
 
     certExpiryJobRepo
       .instanceShouldPerformCertExpiryCheck(JOB_ID, checkInterval, now)
-      .collect { case true =>
-        logCertificateExpiry(timeLeft, certificateExpiry)
+      .map {
+        case true  =>
+          logCertificateExpiry(timeLeft, certificateExpiry)
+        case false => ()
       }
       .recover { case e: Exception =>
         logger.error(instanceId, CLASS_NAME, "attemptCertExpiryCheck", s"Error reading from mongo: $e")
