@@ -17,6 +17,7 @@
 package uk.gov.hmrc.brm.repositories
 
 import com.google.inject.{Inject, Singleton}
+import com.mongodb.ErrorCategory
 import org.mongodb.scala.bson.BsonDateTime
 import org.mongodb.scala.model._
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -93,8 +94,11 @@ class CertExpiryJobRepoMongo @Inject() (groAppConfig: GroAppConfig, mongoCompone
         isFirstInsert || existingDocModified
       }
       .recover {
-        case _: com.mongodb.MongoWriteException =>
-          logger.info(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] lost upsert race for $jobId")
+        case e: com.mongodb.MongoWriteException =>
+          if (e.getError.getCategory != ErrorCategory.DUPLICATE_KEY){ // Avoid duplicate key logging
+            logger.info(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] encountered MongoWriteException " +
+              s"other then DUPLICATE_KEY Exception, exception: ${e.getMessage}")
+          }
           false
         case e                                  =>
           logger.error(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] failed: ${e.getMessage}")
