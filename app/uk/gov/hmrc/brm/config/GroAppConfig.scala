@@ -55,4 +55,7 @@ class GroAppConfig @Inject() (val servicesConfig: ServicesConfig) {
 
   lazy val expireMongo: Duration = servicesConfig.getConfDuration("mongodb.expireMongo", 90.days)
 
+  lazy val enableV1Version: Boolean =
+    servicesConfig.getBoolean("microservice.services.birth-registration-matching.v1.enabled")
+
 }

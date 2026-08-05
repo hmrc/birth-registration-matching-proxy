@@ -55,9 +55,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
       override val errorHandler: ErrorHandler        = mockErrorHandler
     }
 
+  val testGroConfigSpy     = spy(testGroConfig)
+
+  when(testGroConfigSpy.enableV1Version).thenReturn(false)
+
   val testConnector: GROEnglandAndWalesConnector =
     new GROEnglandAndWalesConnector(
-      testGroConfig,
+      testGroConfigSpy,
       mockHttpClient,
       mockAuthenticator
     )
@@ -100,6 +104,8 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
     when(mockRequestBuilderPost.withProxy).thenReturn(mockRequestBuilderPost)
 
     when(mockRequestBuilderPost.withBody(any())(any(), any(), any())).thenReturn(mockRequestBuilderPost)
+
+
 
   }
 
@@ -462,6 +468,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
           mockRequestBuilderGet
             .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
         ).thenReturn(Future.successful(eventResponse))
+
 
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
 

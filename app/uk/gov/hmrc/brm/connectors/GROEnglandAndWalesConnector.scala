@@ -21,10 +21,7 @@ import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger._
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps,
-  UpstreamErrorResponse
-}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -37,7 +34,13 @@ class GROEnglandAndWalesConnector @Inject() (
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  val endpoint: String                 = s"${groConfig.serviceUrl}/api/v0/events/birth"
+  val endpoint: String =
+    if (groConfig.enableV1Version) {
+      s"${groConfig.serviceUrl}/v1/registration/birth"
+    } else {
+      s"${groConfig.serviceUrl}/api/v0/events/birth"
+    }
+
   val username: String                 = groConfig.groUsername
   val encoder: Encoder                 = Encoder
   val responseHandler: ResponseHandler = new ResponseHandler
@@ -205,7 +208,12 @@ class GROEnglandAndWalesConnector @Inject() (
     val json = authenticator.token().flatMap {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getDetails", s"valid access token obtained")
-        val details = Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
+        val details =
+          if (groConfig.enableV1Version)
+            Map("forenames" -> forenames, "surname"  -> lastname, "dateOfBirth" -> dateofbirth)
+          else
+            Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
+
         request(details, token)
       case e @ BirthErrorResponse(_)       =>
         warn(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
