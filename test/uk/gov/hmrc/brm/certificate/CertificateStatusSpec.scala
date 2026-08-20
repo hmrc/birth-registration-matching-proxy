@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.certificate
 
 import com.typesafe.config.ConfigFactory
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
-import org.mockito.Mockito._
+import org.mockito.Mockito.*
 import play.api.Configuration
 import play.api.inject.DefaultApplicationLifecycle
 import uk.gov.hmrc.brm.TestFixture
@@ -41,7 +41,7 @@ class CertificateStatusSpec extends TestFixture {
   private val testKit            = ActorTestKit("CertificateStatusSpec")
   private val untypedActorSystem = testKit.system.classicSystem
 
-  implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+  given certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock(classOf[CertExpiryJobRepoMongo])
 
   private val certificateStatus = spy(
     new CertificateStatus(testGroConfigSpy, applicationLifecycle, untypedActorSystem)
@@ -100,7 +100,7 @@ class CertificateStatusSpec extends TestFixture {
     }
 
     "return None when keystore contains a certificate that is NOT an X509Certificate" in {
-      val fakeCertificate = mock[Certificate]
+      val fakeCertificate = mock(classOf[Certificate])
 
       when(testGroConfigSpy.tlsPrivateCertificatePath).thenReturn("dummyPath")
       when(testGroConfigSpy.tlsPrivateKeystorePassword).thenReturn("dummyPassword")

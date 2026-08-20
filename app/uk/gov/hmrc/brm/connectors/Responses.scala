@@ -17,7 +17,7 @@
 package uk.gov.hmrc.brm.connectors
 
 import play.api.libs.json.JsValue
-import uk.gov.hmrc.brm.connectors.ConnectorTypes._
+import uk.gov.hmrc.brm.connectors.ConnectorTypes.*
 
 trait BirthResponse
 

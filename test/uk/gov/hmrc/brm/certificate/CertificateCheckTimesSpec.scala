@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.certificate
 
-import org.mockito.Mockito._
+import org.mockito.Mockito.*
 import org.mockito.stubbing.OngoingStubbing
 import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
@@ -27,9 +27,9 @@ import java.time.Duration
 
 class CertificateCheckTimesSpec extends TestFixture {
 
-  implicit val servicesConfig: ServicesConfig = spy(app.injector.instanceOf[ServicesConfig])
-  implicit val brmLogger: BrmLogger           = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val tlsConfigPath: String          = "microservice.services.birth-registration-matching.gro.tls"
+  given servicesConfig: ServicesConfig = spy(app.injector.instanceOf[ServicesConfig])
+  given brmLogger: BrmLogger           = spy(new BrmLogger(Logger("BrmLogger").logger))
+  given tlsConfigPath: String          = "microservice.services.birth-registration-matching.gro.tls"
 
   private def ofHours(hours: Int): Duration = Duration.ofHours(hours)
 

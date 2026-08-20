@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJobCommand.*
+
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.scaladsl.{Behaviors, TimerScheduler}
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -27,7 +29,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class PekkoTimer[T](scheduler: TimerScheduler[T]) {
   def startSingleTimer(msg: T, delay: FiniteDuration): Unit = scheduler.startSingleTimer(msg, delay)
@@ -45,7 +47,7 @@ object CertificateExpiryMonitorJob {
     config: GroAppConfig,
     timer: TimerScheduler[CertificateExpiryMonitorJobCommand] => PekkoTimer[CertificateExpiryMonitorJobCommand] =
       new PekkoTimer(_)
-  )(implicit
+  )(using
     logger: BrmLogger,
     instanceId: UUID,
     ec: ExecutionContext,
@@ -65,7 +67,7 @@ object CertificateExpiryMonitorJob {
     pekkoTimer: PekkoTimer[CertificateExpiryMonitorJobCommand],
     timeProvider: TimeProvider,
     certificateCheckSchedule: CertificateCheckSchedule
-  )(implicit
+  )(using
     logger: BrmLogger,
     instanceId: UUID,
     ec: ExecutionContext,
@@ -83,7 +85,7 @@ object CertificateExpiryMonitorJob {
     timeProvider: TimeProvider,
     certificateCheckSchedule: CertificateCheckSchedule,
     certificateExpiry: LocalDateTime
-  )(implicit
+  )(using
     logger: BrmLogger,
     instanceId: UUID,
     ec: ExecutionContext,
@@ -113,7 +115,7 @@ object CertificateExpiryMonitorJob {
     now: java.time.Instant,
     timeLeft: Duration,
     certificateExpiry: LocalDateTime
-  )(implicit ec: ExecutionContext, logger: BrmLogger, instanceId: UUID, certExpiryJobRepo: CertExpiryJobRepo): Unit =
+  )(using ec: ExecutionContext, logger: BrmLogger, instanceId: UUID, certExpiryJobRepo: CertExpiryJobRepo): Unit =
 
     certExpiryJobRepo
       .instanceShouldPerformCertExpiryCheck(JOB_ID, checkInterval, now)
@@ -126,7 +128,7 @@ object CertificateExpiryMonitorJob {
         logger.error(instanceId, CLASS_NAME, "attemptCertExpiryCheck", s"Error reading from mongo: $e")
       }
 
-  private def onTerminate()(implicit
+  private def onTerminate()(using
     logger: BrmLogger,
     instanceId: UUID
   ): Behavior[CertificateExpiryMonitorJobCommand] = {
@@ -142,7 +144,7 @@ object CertificateExpiryMonitorJob {
   private def logCertificateExpiry(
     timeUntilCertExpiry: Duration,
     certificateExpiry: LocalDateTime
-  )(implicit logger: BrmLogger, instanceId: UUID): Unit = {
+  )(using logger: BrmLogger, instanceId: UUID): Unit = {
     val formattedExpiry = certificateExpiry.format(timeFormat)
 
     if (timeUntilCertExpiry.toDays > 0) {

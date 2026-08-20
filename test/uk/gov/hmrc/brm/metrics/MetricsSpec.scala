@@ -31,6 +31,12 @@ class MetricsSpec extends TestFixture {
         testMetrics.endTimer(startTimer, "authentication-timer")
         testMetrics.defaultRegistry.timer(s"${testMetrics.prefix}-authentication-timer").getCount should not be 0
       }
+
+      "record against the default timer when no key is supplied" in {
+        val startTimer = testMetrics.startTimer()
+        testMetrics.endTimer(startTimer)
+        testMetrics.defaultRegistry.timer(s"${testMetrics.prefix}-timer").getCount should not be 0
+      }
     }
 
     "making requests to reference" should {

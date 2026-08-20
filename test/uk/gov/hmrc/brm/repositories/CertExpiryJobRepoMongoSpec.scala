@@ -16,12 +16,14 @@
 
 package uk.gov.hmrc.brm.repositories
 
+import com.mongodb.{MongoWriteException, ServerAddress, WriteError}
+import org.bson.BsonDocument
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{spy, when}
+import org.mockito.Mockito.{mock, spy, when}
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.{Filters, ReplaceOptions}
 import org.mongodb.scala.result.UpdateResult
-import org.mongodb.scala.{MongoCollection, SingleObservable}
+import org.mongodb.scala.{MongoCollection, ObservableFuture, SingleObservable, SingleObservableFuture}
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
@@ -33,14 +35,15 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  implicit val ec: ExecutionContext = ExecutionContext.global
+  given ec: ExecutionContext = ExecutionContext.global
 
-  override lazy val repository = new CertExpiryJobRepoMongo(testGroConfig, mongoComponent)
+  override val repository: CertExpiryJobRepoMongo = new CertExpiryJobRepoMongo(testGroConfig, mongoComponent)
 
-  val jobId                               = "certificate-expiry-monitor-job-test"
+  val jobId: String                       = "certificate-expiry-monitor-job-test"
   val earlyWarningCheckInterval: Duration = Duration.ofHours(168)
   val warningCheckInterval: Duration      = Duration.ofHours(24)
   val criticalCheckInterval: Duration     = Duration.ofHours(1)
+  private val duplicateKeyErrorCode: Int  = 11000
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -113,10 +116,10 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
     }
 
     "return false when an error that is not a MongoWriteException occurs" in {
-      val mockCollection = mock[MongoCollection[CertExpiryJobDetails]]
+      val mockCollection = mock(classOf[MongoCollection[CertExpiryJobDetails]])
       val repo           = spy(new CertExpiryJobRepoMongo(testGroConfig, mongoComponent))
 
-      val singleObservableMock = mock[SingleObservable[UpdateResult]]
+      val singleObservableMock = mock(classOf[SingleObservable[UpdateResult]])
       when(singleObservableMock.toFuture()).thenReturn(Future.failed(new Exception("generic exception from Mongo")))
 
       when(repo.collection).thenReturn(mockCollection)
@@ -127,6 +130,39 @@ class CertExpiryJobRepoMongoSpec extends TestFixture with DefaultPlayMongoReposi
       result shouldBe false
     }
 
+    "return false when another instance won the race and Mongo rejects the write as a duplicate key" in {
+      val result = await(repoFailingWith(mongoWriteException(duplicateKeyErrorCode)))
+
+      result shouldBe false
+    }
+
+    "return false when Mongo rejects the write for a reason other than a duplicate key" in {
+      val result = await(repoFailingWith(mongoWriteException(code = 9)))
+
+      result shouldBe false
+    }
+
+  }
+
+  private def mongoWriteException(code: Int): MongoWriteException =
+    new MongoWriteException(
+      new WriteError(code, s"write failed with code $code", new BsonDocument()),
+      new ServerAddress(),
+      java.util.Collections.emptyList[String]
+    )
+
+  private def repoFailingWith(error: Throwable): Future[Boolean] = {
+    val mockCollection = mock(classOf[MongoCollection[CertExpiryJobDetails]])
+    val repo           = spy(new CertExpiryJobRepoMongo(testGroConfig, mongoComponent))
+
+    val singleObservableMock = mock(classOf[SingleObservable[UpdateResult]])
+    when(singleObservableMock.toFuture()).thenReturn(Future.failed(error))
+
+    when(repo.collection).thenReturn(mockCollection)
+    when(mockCollection.replaceOne(any[Bson], any[CertExpiryJobDetails], any[ReplaceOptions]))
+      .thenReturn(singleObservableMock)
+
+    repo.instanceShouldPerformCertExpiryCheck(jobId, criticalCheckInterval, now())
   }
 
 }

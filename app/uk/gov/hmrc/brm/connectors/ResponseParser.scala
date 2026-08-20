@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status
 import play.api.libs.json.Json
 import uk.gov.hmrc.brm.utils.BrmLogger
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.http.HttpResponse.unapply
 

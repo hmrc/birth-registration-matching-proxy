@@ -17,13 +17,13 @@
 package uk.gov.hmrc.brm.utils
 
 import org.mockito.ArgumentCaptor
-import org.mockito.Mockito._
+import org.mockito.Mockito.*
 import org.slf4j.Logger
 import uk.gov.hmrc.brm.TestFixture
 
 class BrmLoggerSpec extends TestFixture {
 
-  val mockLogger: Logger = mock[org.slf4j.Logger]
+  val mockLogger: Logger = mock(classOf[org.slf4j.Logger])
 
   object MockBRMLogger extends BrmLogger(mockLogger)
 

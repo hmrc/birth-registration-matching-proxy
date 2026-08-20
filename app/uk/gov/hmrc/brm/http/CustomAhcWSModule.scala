@@ -20,9 +20,9 @@ import org.apache.pekko.stream.Materializer
 import com.typesafe.sslconfig.ssl.SystemConfiguration
 import play.api.{Configuration, Environment, Logger}
 import play.api.inject.{ApplicationLifecycle, SimpleModule, bind}
-import play.api.libs.ws._
-import play.api.libs.ws.ahc._
-import play.api.libs.ws.ahc.cache._
+import play.api.libs.ws.*
+import play.api.libs.ws.ahc.*
+import play.api.libs.ws.ahc.cache.*
 import play.shaded.ahc.org.asynchttpclient.{AsyncHttpClient, DefaultAsyncHttpClient}
 import uk.gov.hmrc.brm.config.CustomWSConfigParser
 
@@ -30,7 +30,7 @@ import java.net.URI
 import javax.cache.configuration.FactoryBuilder.SingletonFactory
 import javax.cache.configuration.MutableConfiguration
 import javax.cache.expiry.EternalExpiryPolicy
-import javax.cache.{Cache => JCache, CacheManager, Caching}
+import javax.cache.{Cache as JCache, CacheManager, Caching}
 import javax.inject.{Inject, Provider, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -58,7 +58,7 @@ class AsyncHttpClientProvider @Inject() (
   environment: Environment,
   configuration: Configuration,
   applicationLifecycle: ApplicationLifecycle
-)(implicit executionContext: ExecutionContext)
+)(using executionContext: ExecutionContext)
     extends Provider[AsyncHttpClient] {
 
   lazy val get: AsyncHttpClient = {
@@ -106,7 +106,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
   environment: Environment,
   configuration: Configuration,
   applicationLifecycle: ApplicationLifecycle
-)(implicit executionContext: ExecutionContext)
+)(using executionContext: ExecutionContext)
     extends Provider[Option[AhcHttpCache]] {
 
   lazy val get: Option[AhcHttpCache] =
@@ -235,7 +235,7 @@ class OptionalAhcHttpCacheProvider @Inject() (
   * AHC provider for WSClient instance.
   */
 @Singleton
-class AhcWSClientProvider @Inject() (asyncHttpClient: AsyncHttpClient)(implicit materializer: Materializer)
+class AhcWSClientProvider @Inject() (asyncHttpClient: AsyncHttpClient)(using materializer: Materializer)
     extends Provider[WSClient] {
 
   lazy val get: WSClient =

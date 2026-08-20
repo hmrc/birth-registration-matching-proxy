@@ -18,7 +18,7 @@ package uk.gov.hmrc.brm.connectors
 
 import play.api.http.Status
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.HttpResponse
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +31,7 @@ class ResponseHandler {
 
   def handle(
     futureResponse: Future[HttpResponse]
-  )(f: HttpResponse => BirthResponse, metrics: BRMMetrics)(implicit ec: ExecutionContext): Future[BirthResponse] =
+  )(f: HttpResponse => BirthResponse, metrics: BRMMetrics)(using ec: ExecutionContext): Future[BirthResponse] =
     futureResponse.map { response =>
       info(CLASS_NAME, "handle", s"response received")
 

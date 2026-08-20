@@ -16,14 +16,15 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJobCommand.*
+
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
+import org.mockito.Mockito.*
 import play.api.Logger
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJob.timeFormat
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
@@ -32,7 +33,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger
 import java.time.{Duration, _}
 import java.util.UUID
 import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 // not using GuiceOneAppPerSuite as the app pops up and instantiates our actor class, which reads our actual test cert making testing impossible
 class CertificateExpiryMonitorJobSpec extends TestFixture {
@@ -44,11 +45,11 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
   val testKit: ActorTestKit = ActorTestKit("CertificateExpiryMonitorJobSpec", ManualTime.config)
 
-  implicit val manualTime: ManualTime = ManualTime()(testKit.system)
-  implicit val brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val instanceId: UUID       = UUID.randomUUID()
+  given manualTime: ManualTime = ManualTime()(testKit.system)
+  given brmLogger: BrmLogger   = spy(new BrmLogger(Logger("BrmLogger").logger))
+  given instanceId: UUID       = UUID.randomUUID()
 
-  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
+  given timeProvider: TimeProvider = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
 
   private val oneWeekInHours                           = 168
@@ -80,13 +81,13 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
 
       // add one minute to the cert expiry to align with expected intervals and durations for easier testing
       // - our actor waits one minute before checking certificate expiry
-      implicit val certificateExpiry: ZonedDateTime = zonedNow.plusHours(certExpiryHours).plusMinutes(1)
+      given certificateExpiry: ZonedDateTime = zonedNow.plusHours(certExpiryHours).plusMinutes(1)
 
       val formattedCertificateExpiryTime =
         certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 
       val config                                                   = createMockConfig()
-      implicit val certExpiryJobRepoMongo                          = mock[CertExpiryJobRepoMongo]
+      given certExpiryJobRepoMongo: CertExpiryJobRepoMongo         = mock(classOf[CertExpiryJobRepoMongo])
       var timerSpy: PekkoTimer[CertificateExpiryMonitorJobCommand] = null
 
       val timer = (scheduler: TimerScheduler[CertificateExpiryMonitorJobCommand]) => {
@@ -106,8 +107,6 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
           timer
         )
       )
-
-      val formattedCertificateExpiry = certificateExpiry.format(timeFormat)
 
       // initial check & before early warning window assertions
 
@@ -197,10 +196,10 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
 
     "stop when receiving Stop command" in {
-      val certificateExpiry                                       = LocalDateTime.now().plusDays(10)
-      val config                                                  = createMockConfig()
-      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
-      val mockTimeProvider                                        = spy(new TimeProvider)
+      val certificateExpiry                                = LocalDateTime.now().plusDays(10)
+      val config                                           = createMockConfig()
+      given certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock(classOf[CertExpiryJobRepoMongo])
+      val mockTimeProvider                                 = spy(new TimeProvider)
 
       val actor: ActorRef[CertificateExpiryMonitorJobCommand] =
         testKit.spawn(
@@ -228,9 +227,9 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     }
 
     "log an error if reading from Mongo fails" in {
-      val certificateExpiry                                       = LocalDateTime.now().plusDays(1)
-      val config                                                  = createMockConfig()
-      implicit val certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock[CertExpiryJobRepoMongo]
+      val certificateExpiry                                = LocalDateTime.now().plusDays(1)
+      val config                                           = createMockConfig()
+      given certExpiryJobRepoMongo: CertExpiryJobRepoMongo = mock(classOf[CertExpiryJobRepoMongo])
 
       when(certExpiryJobRepoMongo.instanceShouldPerformCertExpiryCheck(any, any, any))
         .thenReturn(Future.failed(new Exception("It is snowing in March")))
@@ -260,7 +259,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
   }
 
   private def createMockConfig(): GroAppConfig = {
-    val config = mock[GroAppConfig]
+    val config = mock(classOf[GroAppConfig])
 
     when(config.certificateTimes).thenReturn(
       CertificateCheckTimes(
@@ -281,7 +280,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
     timeToAdvanceInHours: Option[Int] = None,
     timeToAdvanceInMinutes: Option[Int] = None,
     previousNow: ZonedDateTime
-  )(implicit
+  )(using
     timeProvider: TimeProvider,
     manualTime: ManualTime
   ): ZonedDateTime = {
@@ -310,7 +309,7 @@ class CertificateExpiryMonitorJobSpec extends TestFixture {
   private def verifyWarningLog(
     daysTillExpiry: Option[Long] = None,
     hoursTillExpiry: Option[Long] = None
-  )(implicit certificateExpiry: ZonedDateTime): Unit = {
+  )(using certificateExpiry: ZonedDateTime): Unit = {
     val formattedCertificateExpiryTime =
       certificateExpiry.toLocalDateTime.format(CertificateExpiryMonitorJob.timeFormat)
 

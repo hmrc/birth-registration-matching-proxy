@@ -18,9 +18,9 @@ package uk.gov.hmrc.brm.controllers
 
 import play.api.libs.json.{JsArray, JsValue}
 import play.api.mvc.{Action, ControllerComponents, RequestHeader, Result}
-import uk.gov.hmrc.brm.connectors._
+import uk.gov.hmrc.brm.connectors.*
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.brm.utils.KeyHolder
 import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
@@ -33,13 +33,14 @@ import scala.concurrent.{ExecutionContext, Future}
 class MatchingController @Inject() (
   val groConnector: GROEnglandAndWalesConnector,
   cc: ControllerComponents,
-  implicit val metrics: BRMMetrics
+  val metrics: BRMMetrics
 ) extends BackendController(cc) {
 
-  val CLASS_NAME: String      = this.getClass.getSimpleName
-  val HEADER_X_CORRELATION_ID = "X-Correlation-Id"
+  val CLASS_NAME: String              = this.getClass.getSimpleName
+  private val HEADER_X_CORRELATION_ID = "X-Correlation-Id"
 
-  implicit val ec: ExecutionContext = cc.executionContext
+  given BRMMetrics           = metrics
+  given ec: ExecutionContext = cc.executionContext
 
   private def respond(response: Result): Future[Result] =
     Future.successful(
@@ -128,8 +129,8 @@ class MatchingController @Inject() (
     KeyHolder.setKey(brmKey)
   }
 
-  def reference: Action[JsValue] = Action.async(parse.json) { implicit request =>
-    implicit val hc: HeaderCarrier =
+  def reference(): Action[JsValue] = Action.async(parse.json) { implicit request =>
+    given hc: HeaderCarrier =
       HeaderCarrier().withExtraHeaders((HEADER_X_CORRELATION_ID, getOrCreateCorrelationID(request)))
     setKey(request)
 
@@ -151,7 +152,7 @@ class MatchingController @Inject() (
   }
 
   def details(): Action[JsValue] = Action.async(parse.json) { implicit request =>
-    implicit val hc: HeaderCarrier =
+    given hc: HeaderCarrier =
       HeaderCarrier().withExtraHeaders((HEADER_X_CORRELATION_ID, getOrCreateCorrelationID(request)))
     setKey(request)
 

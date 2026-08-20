@@ -42,7 +42,7 @@ object CertificateCheckTimes {
     certExpiryCriticalCheckIntervalHours = Duration.ofHours(1)
   )
 
-  def load()(implicit
+  def load()(using
     servicesConfig: ServicesConfig,
     tlsConfigPath: String,
     brmLogger: BrmLogger
@@ -95,7 +95,7 @@ object CertificateCheckTimes {
 
   }
 
-  private def loadHours(key: String)(implicit servicesConfig: ServicesConfig, tlsConfigPath: String): Try[Duration] =
+  private def loadHours(key: String)(using servicesConfig: ServicesConfig, tlsConfigPath: String): Try[Duration] =
     Try(Duration.ofHours(servicesConfig.getInt(s"$tlsConfigPath.$key")))
 
 }

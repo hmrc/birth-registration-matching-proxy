@@ -27,6 +27,6 @@ case class CertExpiryJobDetails(
 )
 
 object CertExpiryJobDetails {
-  implicit val instantFormat: Format[Instant]       = MongoJavatimeFormats.instantFormat
-  implicit val format: Format[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]
+  given instantFormat: Format[Instant]       = MongoJavatimeFormats.instantFormat
+  given format: Format[CertExpiryJobDetails] = Json.format[CertExpiryJobDetails]
 }

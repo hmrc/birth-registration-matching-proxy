@@ -16,9 +16,12 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJobCommand.*
+
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.Mockito.spy
 import org.mongodb.scala.model.Filters
+import org.mongodb.scala.SingleObservableFuture
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
@@ -29,8 +32,11 @@ import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 class CertificateExpiryMonitorJobMultipleInstancesSpec
     extends TestHelperUtil with TestFixture with DefaultPlayMongoRepositorySupport[CertExpiryJobDetails] {
 
-  implicit override lazy val repository: CertExpiryJobRepoMongo =
+  override val repository: CertExpiryJobRepoMongo =
     new CertExpiryJobRepoMongo(testGroConfig, mongoComponent)
+
+  // a given cannot also be an override, so the repository is exposed separately
+  given CertExpiryJobRepoMongo = repository
 
   val jobID = "certificate-expiry-monitor-job"
 
@@ -53,7 +59,7 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec
 
       val certificateExpiry = now.plusHours(10)
 
-      val actorLoop = (1 to 10).map { ele =>
+      val actorLoop = (1 to 10).map { _ =>
         testKit.spawn(
           CertificateExpiryMonitorJob(
             certificateExpiry = certificateExpiry,

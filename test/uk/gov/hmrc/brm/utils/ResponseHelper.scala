@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.utils
 
-import play.api.test.Helpers._
+import play.api.test.Helpers.*
 import uk.gov.hmrc.brm.connectors.{Birth404ErrorResponse, BirthErrorResponse, BirthResponse}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 

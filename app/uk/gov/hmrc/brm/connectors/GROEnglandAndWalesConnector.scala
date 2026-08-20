@@ -19,7 +19,7 @@ package uk.gov.hmrc.brm.connectors
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.metrics.BRMMetrics
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{
   BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps,
@@ -60,7 +60,7 @@ class GROEnglandAndWalesConnector @Inject() (
       "X-Auth-Downstream-Username" -> username
     )
 
-  private[GROEnglandAndWalesConnector] def getChildByReference(reference: String, token: AccessToken)(implicit
+  private[GROEnglandAndWalesConnector] def getChildByReference(reference: String, token: AccessToken)(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -77,14 +77,14 @@ class GROEnglandAndWalesConnector @Inject() (
     val response = http
       .get(url"$fullUrl")
       .withProxy
-      .setHeader(headers: _*)
+      .setHeader(headers*)
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
     metrics.endTimer(startTime, "reference-match-timer")
 
     responseHandler.handle(response)(extractJson, metrics)
   }
 
-  private[GROEnglandAndWalesConnector] def getChildByDetails(details: Map[String, String], token: AccessToken)(implicit
+  private[GROEnglandAndWalesConnector] def getChildByDetails(details: Map[String, String], token: AccessToken)(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -103,7 +103,7 @@ class GROEnglandAndWalesConnector @Inject() (
     val response = http
       .get(url"$url")
       .withProxy
-      .setHeader(headers: _*)
+      .setHeader(headers*)
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
 
     debug(CLASS_NAME, "getChildByDetails", s"HttpResponse: $response")
@@ -112,7 +112,7 @@ class GROEnglandAndWalesConnector @Inject() (
     responseHandler.handle(response)(extractJson, metrics)
   }
 
-  private def request(reference: String, token: AccessToken)(implicit
+  private def request(reference: String, token: AccessToken)(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -121,7 +121,7 @@ class GROEnglandAndWalesConnector @Inject() (
     info(CLASS_NAME, "request", s"[referenceHelper] attempting to find record by reference")
 
     getChildByReference(reference, token).map {
-      case child: BirthSuccessResponse[_]  =>
+      case child: BirthSuccessResponse[?]  =>
         info(CLASS_NAME, "request", s"[referenceHelper] found record by reference")
         child
       case notFound: Birth404ErrorResponse =>
@@ -153,7 +153,7 @@ class GROEnglandAndWalesConnector @Inject() (
     }
   }
 
-  private def request(details: Map[String, String], token: AccessToken)(implicit
+  private def request(details: Map[String, String], token: AccessToken)(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -161,7 +161,7 @@ class GROEnglandAndWalesConnector @Inject() (
     info(CLASS_NAME, "request", s"[detailsHelper] attempting to find record(s) by details")
 
     getChildByDetails(details, token).map {
-      case child: BirthSuccessResponse[_]  =>
+      case child: BirthSuccessResponse[?]  =>
         info(CLASS_NAME, "request", s"[detailsHelper] found record(s) by details")
         child
       case notFound: Birth404ErrorResponse =>
@@ -191,7 +191,7 @@ class GROEnglandAndWalesConnector @Inject() (
 
   def getReference(
     reference: String
-  )(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
+  )(using hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] = {
     val json = authenticator.token().flatMap {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getReference", s"valid access token obtained")
@@ -203,7 +203,7 @@ class GROEnglandAndWalesConnector @Inject() (
     json
   }
 
-  def getDetails(forenames: String, lastname: String, dateofbirth: String)(implicit
+  def getDetails(forenames: String, lastname: String, dateofbirth: String)(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
