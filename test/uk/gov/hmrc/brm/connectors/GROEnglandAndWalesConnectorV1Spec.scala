@@ -37,7 +37,7 @@ import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
+class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
 
   val mockTokenCache: AccessTokenRepository  = mock[AccessTokenRepository]
   val mockWsClient: WSClient                 = mock[WSClient]
@@ -57,7 +57,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   val testGroConfigSpy = spy(testGroConfig)
 
-  when(testGroConfigSpy.enableV1Version).thenReturn(false)
+  when(testGroConfigSpy.enableV1Version).thenReturn(true)
 
   val testConnector: GROEnglandAndWalesConnector =
     new GROEnglandAndWalesConnector(
@@ -81,11 +81,11 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
     "grant_type"    -> Seq("password")
   )
 
-  lazy val refNumber: String = "500035710"
+  lazy val refNumber: String = "123456789"
 
   lazy val testHeaders: Seq[(String, String)] = Seq.empty
 
-  lazy val path: String = "http://localhost:8099/api/v0/events/birth?"
+  lazy val path: String = "http://localhost:8099/v1/registration/birth?"
 
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
 
@@ -447,12 +447,12 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
       "BirthSuccessResponse when gro details responds with 200 with single record." in {
         implicit val metrics: BRMMetrics = new BRMMetrics
 
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = "2016-10-10"
+        val firstName   = "Joan Narcissus Ouroboros"
+        val lastName    = "SMITH"
+        val dateOfBirth = "2018-08-08"
 
         val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam"))
+        val eventResponse = eventSuccessResponse(groResponse("123456789-multiple"))
 
         val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
 
@@ -472,10 +472,16 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         verify(mockHttpClient).get(argumentCapture.capture())(any())
 
         result                                                                               shouldBe a[BirthSuccessResponse[_]]
-        result                                                                               shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
+        result                                                                               shouldBe BirthSuccessResponse(groResponse("123456789-multiple"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size                   shouldBe 2
         metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count").getCount shouldBe 1
-        argumentCapture.getValue.toString                                                    shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                                    shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
       }
 
       "BirthSuccessResponse when gro details responds with 200 with single record when request has special character." in {
@@ -486,7 +492,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val dateOfBirth = "2006-11-12"
 
         val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
+        val eventResponse = eventSuccessResponse(groResponse("123456789-multiple"))
 
         val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
 
@@ -504,9 +510,15 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
         verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                                             shouldBe a[BirthSuccessResponse[_]]
-        result                                                             shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
+        result                                                             shouldBe BirthSuccessResponse(groResponse("123456789-multiple"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
-        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
 
       }
 
@@ -538,7 +550,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         result                                                             shouldBe a[BirthSuccessResponse[_]]
         result                                                             shouldBe BirthSuccessResponse(groResponse("NoMatch"))
         result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
-        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
@@ -567,7 +585,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
@@ -598,7 +622,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
       }
 
       "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
@@ -629,7 +659,13 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
         verify(mockHttpClient).get(argumentCapture.capture())(any())
         result                                        shouldBe a[BirthErrorResponse]
         result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        argumentCapture.getValue.toString             shouldBe getEntireUrl(
+          path,
+          firstName,
+          lastName,
+          dateOfBirth,
+          isV1Version = true
+        )
       }
 
       "BirthErrorResponse when GRO returns 5xx" in {

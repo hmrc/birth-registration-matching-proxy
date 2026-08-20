@@ -40,16 +40,26 @@ trait BaseUnitSpec {
   def eventSuccessResponse(eventResponse: JsValue): HttpResponse =
     HttpResponse.apply(Status.OK, eventResponse.toString(), headers = headers)
 
-  def getUrlEncodeString(firstName: String, lastname: String, dateOfBirth: String): String = {
-    val details = Map(
-      "forenames"   -> firstName,
-      "lastname"    -> lastname,
-      "dateofbirth" -> dateOfBirth
-    )
+  def getUrlEncodeString(
+    firstName: String,
+    lastname: String,
+    dateOfBirth: String,
+    isV1Version: Boolean = false
+  ): String = {
+    val details =
+      if (isV1Version) Map("forenames" -> firstName, "surname"  -> lastname, "dateOfBirth" -> dateOfBirth)
+      else Map("forenames"             -> firstName, "lastname" -> lastname, "dateofbirth" -> dateOfBirth)
+
     Encoder.encode(details)
   }
 
-  def getEntireUrl(path: String, firstName: String, lastName: String, dateOfBirth: String): String =
-    path + getUrlEncodeString(firstName, lastName, dateOfBirth)
+  def getEntireUrl(
+    path: String,
+    firstName: String,
+    lastName: String,
+    dateOfBirth: String,
+    isV1Version: Boolean = false
+  ): String =
+    path + getUrlEncodeString(firstName, lastName, dateOfBirth, isV1Version)
 
 }

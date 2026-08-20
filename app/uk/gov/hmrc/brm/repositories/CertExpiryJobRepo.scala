@@ -95,9 +95,11 @@ class CertExpiryJobRepoMongo @Inject() (groAppConfig: GroAppConfig, mongoCompone
       }
       .recover {
         case e: com.mongodb.MongoWriteException =>
-          if (e.getError.getCategory != ErrorCategory.DUPLICATE_KEY){ // Avoid duplicate key logging
-            logger.info(s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] encountered MongoWriteException " +
-              s"other then DUPLICATE_KEY Exception, exception: ${e.getMessage}")
+          if (e.getError.getCategory != ErrorCategory.DUPLICATE_KEY) { // Avoid duplicate key logging
+            logger.info(
+              s"[CertExpiryJobRepoMongo][shouldPerformCertExpiryCheck] encountered MongoWriteException " +
+                s"other then DUPLICATE_KEY Exception, exception: ${e.getMessage}"
+            )
           }
           false
         case e                                  =>
