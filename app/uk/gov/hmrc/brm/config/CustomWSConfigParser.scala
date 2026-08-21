@@ -27,8 +27,6 @@ import javax.inject.{Inject, Singleton}
 class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environment)
     extends WSConfigParser(configuration.underlying, env.classLoader) {
 
-  lazy val className: String = this.getClass.getSimpleName
-
   override def parse(): WSClientConfig = {
 
     val internalParser = new WSConfigParser(configuration.underlying, env.classLoader)
@@ -52,7 +50,7 @@ class CustomWSConfigParser @Inject() (configuration: Configuration, env: Environ
 
 class CustomWSConfigParserModule extends Module {
 
-  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
+  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[?]] =
     Seq(
       bind[WSConfigParser].to[CustomWSConfigParser].eagerly()
     )

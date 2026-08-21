@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.utils
 
-import org.mockito.Mockito.when
+import org.mockito.Mockito.{mock, when}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.time.TimeProvider
 
@@ -63,7 +63,7 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return a new expiry time 4 minutes from now when actual expiry is 5 minutes from now." in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider      = mock(classOf[TimeProvider])
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
 
         val dateTime = ZonedDateTime.now()
@@ -85,7 +85,7 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return success with token when access token with expiry time" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider      = mock(classOf[TimeProvider])
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
 
         val dateTime = ZonedDateTime.now()
@@ -102,7 +102,7 @@ class AccessTokenRepositorySpec extends TestFixture {
 
     "expired" should {
       "return failure for expiry access token" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider      = mock(classOf[TimeProvider])
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
         val dateTime              = ZonedDateTime.now()
 
@@ -114,7 +114,7 @@ class AccessTokenRepositorySpec extends TestFixture {
       }
 
       "return failure for expiry access token when set using new expiry" in {
-        val mockTimeProvider      = mock[TimeProvider]
+        val mockTimeProvider      = mock(classOf[TimeProvider])
         val accessTokenRepository = new AccessTokenRepository(mockTimeProvider)
         val dateTime              = ZonedDateTime.now()
 

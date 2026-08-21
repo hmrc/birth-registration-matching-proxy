@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import play.api.http.Status._
+import play.api.http.Status.*
 import uk.gov.hmrc.http.{HttpResponse, UpstreamErrorResponse}
 
 class ErrorHandler {

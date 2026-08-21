@@ -19,8 +19,9 @@ package uk.gov.hmrc.brm
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.utils.BaseUnitSpec
@@ -32,13 +33,31 @@ trait TestFixture
     extends AnyWordSpecLike
     with Matchers
     with OptionValues
-    with MockitoSugar
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with GuiceOneAppPerSuite
     with BaseUnitSpec {
 
-  implicit val executionContext: ExecutionContext = Helpers.stubControllerComponents().executionContext
+  given executionContext: ExecutionContext = Helpers.stubControllerComponents().executionContext
+
+  /** Configuration applied to every test application.
+    *
+    * JVM metrics are off because they register process-wide gauges that clash once more than one suite starts
+    * an application in the same JVM. Note that `metrics.enabled` must stay on: the metrics module resets
+    * SharedMetricRegistries when an application starts, and BRMMetrics assertions rely on per-suite counts.
+    */
+  def baseApplicationConfig: Map[String, Any] = Map(
+    "metrics.jvm"      -> false,
+    "auditing.enabled" -> false
+  )
+
+  /** Override in a suite to add to, or replace, entries in [[baseApplicationConfig]]. */
+  def extraApplicationConfig: Map[String, Any] = Map.empty
+
+  def baseApplication: GuiceApplicationBuilder =
+    GuiceApplicationBuilder().configure(baseApplicationConfig ++ extraApplicationConfig)
+
+  override def fakeApplication(): Application = baseApplication.build()
 
   val testGroConfig: GroAppConfig = real[GroAppConfig]
 

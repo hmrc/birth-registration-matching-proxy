@@ -17,8 +17,7 @@
 package uk.gov.hmrc.brm.utils
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ManualTime}
-import org.mockito.Mockito.{spy, when}
-import org.scalatestplus.mockito.MockitoSugar.mock
+import org.mockito.Mockito.{mock, spy, when}
 import play.api.Logger
 import uk.gov.hmrc.brm.certificate.CertificateCheckTimes
 import uk.gov.hmrc.brm.config.GroAppConfig
@@ -33,10 +32,10 @@ class TestHelperUtil {
   val zonedNow: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC")).minusMinutes(1)
   val testKit: ActorTestKit   = ActorTestKit("CertificateExpiryLoggerSpec", ManualTime.config)
 
-  implicit val brmLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
-  implicit val instanceId: UUID     = UUID.randomUUID()
+  given brmLogger: BrmLogger = spy(new BrmLogger(Logger("BrmLogger").logger))
+  given instanceId: UUID     = UUID.randomUUID()
 
-  implicit val timeProvider: TimeProvider = spy(new TimeProvider)
+  given timeProvider: TimeProvider = spy(new TimeProvider)
   when(timeProvider.now).thenReturn(zonedNow)
 
   private val oneWeekInHours                   = 168
@@ -49,7 +48,7 @@ class TestHelperUtil {
   val certExpiryCriticalCheckIntervalHours     = Duration.ofHours(1)
 
   def createMockConfig(): GroAppConfig = {
-    val config = mock[GroAppConfig]
+    val config = mock(classOf[GroAppConfig])
 
     when(config.certificateTimes).thenReturn(
       CertificateCheckTimes(

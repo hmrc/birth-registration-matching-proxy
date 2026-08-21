@@ -16,15 +16,17 @@
 
 package uk.gov.hmrc.brm.certificate
 
+import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJobCommand.*
+
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.typed.ActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter._
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.repositories.CertExpiryJobRepoMongo
 import uk.gov.hmrc.brm.time.TimeProvider
 import uk.gov.hmrc.brm.utils.BrmLogger
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 
 import java.io.FileInputStream
 import java.security.KeyStore
@@ -41,17 +43,17 @@ class CertificateStatus @Inject() (
   val groConfig: GroAppConfig,
   lifecycle: ApplicationLifecycle,
   actorSystem: ActorSystem
-)(implicit executionContext: ExecutionContext, certExpiryJobRepo: CertExpiryJobRepoMongo)
+)(using executionContext: ExecutionContext, certExpiryJobRepo: CertExpiryJobRepoMongo)
     extends CertificateProvider {
 
-  implicit val instanceId: UUID = UUID.randomUUID()
+  given instanceId: UUID = UUID.randomUUID()
 
   lazy val getExpiryDate: Option[LocalDateTime] = extractExpiryDateFromCertificate()
 
-  implicit val logger: BrmLogger.type = BrmLogger
-  val typedActorSystem                = actorSystem.toTyped
-  val timeProvider                    = new TimeProvider
-  protected val CLASS_NAME: String    = this.getClass.getSimpleName
+  given logger: BrmLogger.type     = BrmLogger
+  val typedActorSystem             = actorSystem.toTyped
+  val timeProvider                 = new TimeProvider
+  protected val CLASS_NAME: String = this.getClass.getSimpleName
 
   private val certificateExpiryLoggerActorOpt: Option[ActorRef[CertificateExpiryMonitorJobCommand]] =
     getExpiryDate.map { expiryDate =>

@@ -16,14 +16,16 @@
 
 package uk.gov.hmrc.brm.utils
 
+import java.util.concurrent.atomic.AtomicReference
+
 object KeyHolder {
 
-  private var keyForRequest: String = ""
+  private val keyForRequest = new AtomicReference("")
 
   def getKey(): String =
-    keyForRequest
+    keyForRequest.get()
 
   def setKey(key: String): Unit =
-    keyForRequest = key
+    keyForRequest.set(key)
 
 }

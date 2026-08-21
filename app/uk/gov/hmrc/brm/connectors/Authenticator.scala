@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.brm.connectors
 
+import play.api.libs.ws.writeableOf_urlEncodedForm
 import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.BrmLogger._
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.brm.utils.AccessTokenRepository
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{
@@ -50,7 +51,7 @@ class Authenticator @Inject() (
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  private def authenticate()(implicit
+  private def authenticate()(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -73,7 +74,7 @@ class Authenticator @Inject() (
     val response: Future[HttpResponse] = http
       .post(url"$endpoint")(newHc)
       .withProxy
-      .withBody(credentials.map(cred => cred._1 -> Seq(cred._2)))
+      .withBody[Map[String, Seq[String]]](credentials.map(cred => cred._1 -> Seq(cred._2)))
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
 
     metrics.endTimer(startTime, "authentication-timer")
@@ -98,7 +99,7 @@ class Authenticator @Inject() (
     }
   }
 
-  private def requestNewToken()(implicit
+  private def requestNewToken()(using
     hc: HeaderCarrier,
     metrics: BRMMetrics,
     ec: ExecutionContext
@@ -120,13 +121,11 @@ class Authenticator @Inject() (
         authenticated
     }
 
-  def token()(implicit hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] =
-    // $COVERAGE-OFF$
+  def token()(using hc: HeaderCarrier, metrics: BRMMetrics, ec: ExecutionContext): Future[BirthResponse] =
     if (groConfig.tlsEnabled && !certificateStatus.certificateStatus()) {
       error(CLASS_NAME, "token", "TLS Certificate expired")
       Future.successful(errorHandler.error("TLS Certificate expired"))
     } else {
-      // $COVERAGE-ON$
       tokenCache.token match {
         case Success(cache)   =>
           debug(CLASS_NAME, "token", s"cached access_token: $cache")
