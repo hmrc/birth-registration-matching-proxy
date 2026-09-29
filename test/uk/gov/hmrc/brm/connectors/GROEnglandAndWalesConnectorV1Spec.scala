@@ -57,8 +57,6 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
 
   val testGroConfigSpy = spy(testGroConfig)
 
-  when(testGroConfigSpy.enableV1Version).thenReturn(true)
-
   val testConnector: GROEnglandAndWalesConnector =
     new GROEnglandAndWalesConnector(
       testGroConfigSpy,
@@ -476,8 +474,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
       }
 
@@ -513,8 +510,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
 
       }
@@ -551,8 +547,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
       }
 
@@ -586,8 +581,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
       }
 
@@ -623,8 +617,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
       }
 
@@ -660,8 +653,7 @@ class GROEnglandAndWalesConnectorV1Spec extends TestFixture with ScalaFutures {
           path,
           firstName,
           lastName,
-          dateOfBirth,
-          isV1Version = true
+          dateOfBirth
         )
       }
 

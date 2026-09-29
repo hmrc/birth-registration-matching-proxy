@@ -46,10 +46,7 @@ trait BaseUnitSpec {
     dateOfBirth: String,
     isV1Version: Boolean = false
   ): String = {
-    val details =
-      if (isV1Version) Map("forenames" -> firstName, "surname"  -> lastname, "dateOfBirth" -> dateOfBirth)
-      else Map("forenames"             -> firstName, "lastname" -> lastname, "dateofbirth" -> dateOfBirth)
-
+    val details = Map("forenames" -> firstName, "surname" -> lastname, "dateOfBirth" -> dateOfBirth)
     Encoder.encode(details)
   }
 
@@ -57,9 +54,8 @@ trait BaseUnitSpec {
     path: String,
     firstName: String,
     lastName: String,
-    dateOfBirth: String,
-    isV1Version: Boolean = false
+    dateOfBirth: String
   ): String =
-    path + getUrlEncodeString(firstName, lastName, dateOfBirth, isV1Version)
+    path + getUrlEncodeString(firstName, lastName, dateOfBirth)
 
 }
