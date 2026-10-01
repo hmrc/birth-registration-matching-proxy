@@ -43,8 +43,7 @@ trait BaseUnitSpec {
   def getUrlEncodeString(
     firstName: String,
     lastname: String,
-    dateOfBirth: String,
-    isV1Version: Boolean = false
+    dateOfBirth: String
   ): String = {
     val details = Map("forenames" -> firstName, "surname" -> lastname, "dateOfBirth" -> dateOfBirth)
     Encoder.encode(details)
