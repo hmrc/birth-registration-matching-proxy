@@ -21,7 +21,7 @@ import sbt.*
 object AppDependencies {
 
   private val bootstrapPlayVersion = "10.8.0"
-  private val mongoVersion         = "2.13.0"
+  private val mongoVersion         = "2.14.0"
 
   val compile: Seq[ModuleID] = Seq(
     ws,

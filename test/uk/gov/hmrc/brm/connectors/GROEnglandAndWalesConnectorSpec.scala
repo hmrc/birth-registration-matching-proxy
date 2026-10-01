@@ -59,8 +59,6 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   val testGroConfigSpy = spy(testGroConfig)
 
-  when(testGroConfigSpy.enableV1Version).thenReturn(false)
-
   val testConnector: GROEnglandAndWalesConnector =
     new GROEnglandAndWalesConnector(
       testGroConfigSpy,
@@ -121,7 +119,7 @@ class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
 
   lazy val testHeaders: Seq[(String, String)] = Seq.empty
 
-  lazy val path: String = "http://localhost:8099/api/v0/events/birth?"
+  lazy val path: String = "http://localhost:8099/v1/registration/birth?"
 
   def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
 
