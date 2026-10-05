@@ -37,12 +37,7 @@ class GROEnglandAndWalesConnector @Inject() (
 
   private val CLASS_NAME: String = this.getClass.getSimpleName
 
-  val endpoint: String =
-    if (groConfig.enableV1Version) {
-      s"${groConfig.serviceUrl}/v1/registration/birth"
-    } else {
-      s"${groConfig.serviceUrl}/api/v0/events/birth"
-    }
+  val endpoint: String = s"${groConfig.serviceUrl}/v1/registration/birth"
 
   val username: String                 = groConfig.groUsername
   val encoder: Encoder                 = Encoder
@@ -211,11 +206,7 @@ class GROEnglandAndWalesConnector @Inject() (
     val json = authenticator.token().flatMap {
       case BirthAccessTokenResponse(token) =>
         info(CLASS_NAME, "getDetails", s"valid access token obtained")
-        val details =
-          if (groConfig.enableV1Version)
-            Map("forenames" -> forenames, "surname"  -> lastname, "dateOfBirth" -> dateofbirth)
-          else
-            Map("forenames" -> forenames, "lastname" -> lastname, "dateofbirth" -> dateofbirth)
+        val details = Map("forenames" -> forenames, "surname" -> lastname, "dateOfBirth" -> dateofbirth)
 
         request(details, token)
       case e @ BirthErrorResponse(_)       =>
