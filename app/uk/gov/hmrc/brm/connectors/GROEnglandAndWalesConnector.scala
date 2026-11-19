@@ -155,12 +155,6 @@ class GROEnglandAndWalesConnector @Inject() (
         notFound
       case BirthErrorResponse(exception)   =>
         exception match {
-          case e: GatewayTimeoutException                                             =>
-            error(CLASS_NAME, "request", s"[detailsHelper] gateway timeout exception when loading record(s) by details")
-            ErrorHandler.error(e.getMessage)
-          case e: BadGatewayException                                                 =>
-            error(CLASS_NAME, "request", s"[detailsHelper] bad gateway exception when loading record(s) by details")
-            ErrorHandler.error(e.getMessage)
           case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
             error(
               CLASS_NAME,
@@ -186,6 +180,7 @@ class GROEnglandAndWalesConnector @Inject() (
         warn(CLASS_NAME, "getReference", s"Failed to obtain access token: $e")
         Future.successful(e)
     }
+
     json
   }
 
@@ -204,6 +199,7 @@ class GROEnglandAndWalesConnector @Inject() (
         warn(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
         Future.successful(e)
     }
+
     json
   }
 
