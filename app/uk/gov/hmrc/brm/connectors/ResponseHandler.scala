@@ -60,11 +60,11 @@ class ResponseHandler {
       }
       .recover {
         case e: GatewayTimeoutException =>
-          warn(CLASS_NAME, "handle", s"gateway timeout: ${e.getMessage}")
-          ErrorHandler.error(e.getMessage, Status.GATEWAY_TIMEOUT)
+          warn(CLASS_NAME, "handle", s"[504] request timed out: ${e.getMessage}")
+          ErrorHandler.error("request timed out", Status.GATEWAY_TIMEOUT)
         case e: BadGatewayException     =>
-          warn(CLASS_NAME, "handle", s"bad gateway: ${e.getMessage}")
-          ErrorHandler.error(e.getMessage, Status.BAD_GATEWAY)
+          warn(CLASS_NAME, "handle", s"[502] connection failed: ${e.getMessage}")
+          ErrorHandler.error("connection failed", Status.BAD_GATEWAY)
       }
 
 }
