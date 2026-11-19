@@ -74,6 +74,7 @@ class GROEnglandAndWalesConnector @Inject() (
       .withProxy
       .setHeader(headers*)
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
+
     metrics.endTimer(startTime, "reference-match-timer")
 
     responseHandler.handle(response)(extractJson, metrics)
@@ -124,16 +125,6 @@ class GROEnglandAndWalesConnector @Inject() (
         notFound
       case BirthErrorResponse(exception)   =>
         exception match {
-          case e: GatewayTimeoutException                                             =>
-            error(
-              CLASS_NAME,
-              "request",
-              s"[referenceHelper] gateway timeout exception when loading record by reference"
-            )
-            ErrorHandler.error(e.getMessage)
-          case e: BadGatewayException                                                 =>
-            error(CLASS_NAME, "request", s"[referenceHelper] bad gateway exception when loading record by reference")
-            ErrorHandler.error(e.getMessage)
           case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
             error(
               CLASS_NAME,

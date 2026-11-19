@@ -106,17 +106,8 @@ class Authenticator @Inject() (
   ): Future[BirthResponse] =
     authenticate().map {
       case BirthErrorResponse(exception) =>
-        exception match {
-          case e: GatewayTimeoutException =>
-            error(CLASS_NAME, "requestNewToken", "gateway timeout exception, stop obtaining a new token")
-            errorHandler.error(e.getMessage)
-          case e: BadGatewayException     =>
-            error(CLASS_NAME, "requestNewToken", "bad gateway exception, stop obtaining a new token")
-            errorHandler.error(e.getMessage)
-          case e: Exception               =>
-            error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $e")
-            errorHandler.error(e.getMessage)
-        }
+        error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $exception")
+        errorHandler.error(exception.getMessage)
       case authenticated                 =>
         authenticated
     }
