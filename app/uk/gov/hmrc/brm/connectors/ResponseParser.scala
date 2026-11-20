@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
 
 class ResponseParser(errorHandler: ErrorHandler) {
 
-  private val CLASS_NAME: String = this.getClass.getSimpleName
+  private val CLASS_NAME: String = "ResponseParser"
 
   def parse(response: HttpResponse): BirthResponse = {
     info(CLASS_NAME, "parse", "parsing json")
