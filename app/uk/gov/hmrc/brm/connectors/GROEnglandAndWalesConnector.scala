@@ -21,10 +21,7 @@ import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps,
-  UpstreamErrorResponse
-}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -132,6 +129,13 @@ class GROEnglandAndWalesConnector @Inject() (
               s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
+          case e: UpstreamErrorResponse                                               =>
+            error(
+              CLASS_NAME,
+              "request",
+              s"[referenceHelper] failed to load record by reference: upstream ${e.statusCode} response: $e"
+            )
+            ErrorHandler.error(e.getMessage)
           case e: Exception                                                           =>
             error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
             ErrorHandler.error(e.getMessage)
@@ -159,11 +163,18 @@ class GROEnglandAndWalesConnector @Inject() (
             error(
               CLASS_NAME,
               "request",
-              s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e"
+              s"[detailsHelper] failed to load record(s) by details: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
+          case e: UpstreamErrorResponse                                               =>
+            error(
+              CLASS_NAME,
+              "request",
+              s"[detailsHelper] failed to load record(s) by details: upstream ${e.statusCode} response: $e"
+            )
+            ErrorHandler.error(e.getMessage)
           case e: Exception                                                           =>
-            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record by details: unknown exception: $e")
+            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record(s) by details: unknown exception: $e")
             ErrorHandler.error(e.getMessage)
         }
     }

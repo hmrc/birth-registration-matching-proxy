@@ -16,814 +16,461 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.*
-import org.scalatest.concurrent.ScalaFutures
-import play.api.http.Status
-import play.api.libs.json.{JsArray, JsValue}
-import play.api.libs.ws.WSClient
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.spi.ILoggingEvent
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import play.api.Configuration
+import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.certificate.CertificateStatus
+import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.{AccessTokenRepository, JsonUtils}
-import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, UpstreamErrorResponse
-}
-import uk.gov.hmrc.play.audit.http.HttpAuditing
+import uk.gov.hmrc.brm.utils.{BrmLogger, JsonUtils, KeyHolder, WireMockHelper}
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.play.bootstrap.tools.LogCapturing
 
-import java.net.URL
-import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+class GROEnglandAndWalesConnectorSpec
+    extends TestFixture with WireMockHelper with ScalaFutures with IntegrationPatience with LogCapturing {
 
-class GROEnglandAndWalesConnectorSpec extends TestFixture with ScalaFutures {
+  override def extraApplicationConfig: Map[String, Any] = Map("play.ws.timeout.request" -> "1 second")
 
-  val mockTokenCache: AccessTokenRepository  = mock(classOf[AccessTokenRepository])
-  val mockWsClient: WSClient                 = mock(classOf[WSClient])
-  val mockAuditing: HttpAuditing             = mock(classOf[HttpAuditing])
-  val mockHttpClient: HttpClientV2           = mock(classOf[HttpClientV2])
-  val mockResponseHandler: ResponseHandler   = mock(classOf[ResponseHandler])
-  val mockErrorHandler: ErrorHandler         = mock(classOf[ErrorHandler])
-  val mockRequestBuilderGet: RequestBuilder  = mock(classOf[RequestBuilder])
-  val mockRequestBuilderPost: RequestBuilder = mock(classOf[RequestBuilder])
+  given hc: HeaderCarrier   = HeaderCarrier()
+  given metrics: BRMMetrics = new BRMMetrics
 
-  val mockAuthenticator: Authenticator =
-    new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
-      override val tokenCache: AccessTokenRepository = mockTokenCache
-      override val responseHandler: ResponseHandler  = mockResponseHandler
-      override val errorHandler: ErrorHandler        = mockErrorHandler
-    }
+  private val authPath    = "/auth/token"
+  private val groPath     = "/v1/registration/birth"
+  private val accessToken = "gro-access-token"
+  private val reference   = "500035710"
 
-  val testGroConfigSpy = spy(testGroConfig)
-
-  val testConnector: GROEnglandAndWalesConnector =
-    new GROEnglandAndWalesConnector(
-      testGroConfigSpy,
-      mockHttpClient,
-      mockAuthenticator
-    )
-
-  when(mockResponseHandler.handle(any())(any(), any())(using any[ExecutionContext]))
-    .thenReturn(Future(BirthAccessTokenResponse("some token")))
-
-  val mockFailedAuthResponseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-
-  // an authenticator whose downstream authentication call fails, so token() yields a BirthErrorResponse
-  val failedAuthenticator: Authenticator =
-    new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, new TimeProvider) {
-      override val tokenCache: AccessTokenRepository = mockTokenCache
-      override val responseHandler: ResponseHandler  = mockFailedAuthResponseHandler
-    }
-
-  val failedAuthConnector: GROEnglandAndWalesConnector =
-    new GROEnglandAndWalesConnector(
-      testGroConfig,
-      mockHttpClient,
-      failedAuthenticator
-    )
-
-  when(mockFailedAuthResponseHandler.handle(any())(any(), any())(using any[ExecutionContext]))
-    .thenReturn(Future.successful(BirthErrorResponse(new Exception("unable to authenticate"))))
-
-  /** A connector whose ResponseHandler is stubbed to surface `exception`, so the error branches of the connector's own
-    * request handling can be exercised.
-    */
-  def connectorFailingWith(exception: Exception): GROEnglandAndWalesConnector = {
-    val connector = new GROEnglandAndWalesConnector(testGroConfig, mockHttpClient, mockAuthenticator) {
-      override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-    }
-
-    when(
-      connector.responseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(using any[ExecutionContext])
-    ).thenReturn(Future.successful(BirthErrorResponse(exception)))
-
-    connector
-  }
-
-  given hc: HeaderCarrier = HeaderCarrier()
-
-  val authRecord: JsValue = JsonUtils.getJsonFromFile("gro/auth")
-
-  lazy val testCredentials: Map[String, Seq[String]] = Map(
-    "username"      -> Seq("username"),
-    "password"      -> Seq("key"),
-    "client_id"     -> Seq("clientID"),
-    "client_secret" -> Seq("clientSecret"),
-    "grant_type"    -> Seq("password")
-  )
-
-  lazy val refNumber: String = "500035710"
-
-  lazy val testHeaders: Seq[(String, String)] = Seq.empty
-
-  lazy val path: String = "http://localhost:8099/v1/registration/birth?"
-
-  def groResponse(reference: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$reference")
+  private val brmKey = "gro-connector-spec"
+  KeyHolder.setKey(brmKey)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-
-    reset(mockHttpClient, mockRequestBuilderGet, mockRequestBuilderPost)
-
-    when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilderPost)
-    when(mockHttpClient.get(any())(any())).thenReturn(mockRequestBuilderGet)
-
-    when(mockRequestBuilderPost.setHeader(any())).thenReturn(mockRequestBuilderPost)
-    when(mockRequestBuilderGet.setHeader(any())).thenReturn(mockRequestBuilderGet)
-
-    when(mockRequestBuilderGet.withProxy).thenReturn(mockRequestBuilderGet)
-    when(mockRequestBuilderPost.withProxy).thenReturn(mockRequestBuilderPost)
-
-    when(mockRequestBuilderPost.withBody(any())(any(), any(), any())).thenReturn(mockRequestBuilderPost)
-
+    server.stubFor(post(urlEqualTo(authPath)).willReturn(tokenResponse()))
   }
 
-  trait AuthenticationFixture {
-
-    given metrics: BRMMetrics = mock(classOf[BRMMetrics])
-
-    when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-
-    def buildResponse(status: Int): HttpResponse =
-      HttpResponse(
-        status,
-        authRecord.toString()
-      )
-
-    def result: BirthResponse =
-      testConnector.getReference(refNumber).futureValue
-
+  private def configFor(groPort: Int, authPort: Int): GroAppConfig = {
+    val services  = "microservice.services.birth-registration-matching"
+    val overrides = Configuration(
+      s"$services.host"                       -> "127.0.0.1",
+      s"$services.port"                       -> groPort,
+      s"$services.gro.authentication.v2.host" -> "127.0.0.1",
+      s"$services.gro.authentication.v2.port" -> authPort,
+      s"$services.gro.tls.tlsEnabled"         -> false
+    )
+    new GroAppConfig(new ServicesConfig(overrides.withFallback(real[Configuration])))
   }
 
-  "BirthConnector" when {
+  private def connector(groPort: Int = server.port()): GROEnglandAndWalesConnector = {
+    val config        = configFor(groPort, authPort = server.port())
+    val http          = real[HttpClientV2]
+    val authenticator = new Authenticator(config, real[CertificateStatus], http, new TimeProvider())
+    new GROEnglandAndWalesConnector(config, http, authenticator)
+  }
 
-    "parsing json" should {
+  private def tokenResponse(): ResponseDefinitionBuilder =
+    okJson(Json.obj("access_token" -> accessToken, "expires_in" -> 300).toString())
 
-      "throw Upstream5xxResponse for invalid json" in new AuthenticationFixture {
-        val authResponse: HttpResponse  = authSuccessResponse(authRecord)
-        val eventResponse: HttpResponse = eventResponseWithStatus(Status.OK, "[something]")
+  private def groRecord(name: String): JsValue = JsonUtils.getJsonFromFile(s"gro/$name")
 
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+  private def stubReference(response: ResponseDefinitionBuilder): Unit =
+    server.stubFor(get(urlEqualTo(s"$groPath/$reference")).willReturn(response))
 
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
+  private def stubDetails(response: ResponseDefinitionBuilder): Unit =
+    server.stubFor(get(urlPathEqualTo(groPath)).willReturn(response))
 
-        val birthErrorResponse: BirthErrorResponse = result.asInstanceOf[BirthErrorResponse]
-        birthErrorResponse.cause.isInstanceOf[UpstreamErrorResponse] shouldBe true
+  private def connectorLogs(logs: List[ILoggingEvent], level: Level): List[String] =
+    logs
+      .filter(_.getLevel == level)
+      .map(_.getFormattedMessage)
+      .filter(_.contains("[GROEnglandAndWalesConnector]"))
+
+  private def groUrl: String = s"http://127.0.0.1:${server.port()}$groPath"
+
+  "GROEnglandAndWalesConnector.getReference" when {
+
+    "GRO finds the record" should {
+
+      "return the record from a 200 response" in {
+        stubReference(okJson(groRecord(reference).toString()))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
+
+          result shouldBe BirthSuccessResponse(groRecord(reference))
+
+          connectorLogs(logs, Level.INFO) shouldBe List(
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getReference] : valid access token obtained",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
+              "[referenceHelper] attempting to find record by reference",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByReference] : " +
+              s"requesting child's details $groUrl",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [referenceHelper] found record by reference"
+          )
+
+          connectorLogs(logs, Level.WARN) shouldBe Nil
+        }
+      }
+
+      "send the access token and the GRO headers" in {
+        stubReference(okJson(groRecord(reference).toString()))
+
+        connector().getReference(reference).futureValue
+
+        server.verify(
+          getRequestedFor(urlEqualTo(s"$groPath/$reference"))
+            .withHeader("Authorization", equalTo(s"Bearer $accessToken"))
+            .withHeader("X-Auth-Downstream-Username", equalTo("test"))
+            .withHeader("Accept-Encoding", containing("gzip"))
+            .withHeader("Accept-Charset", equalTo("UTF-8,*;q=.1"))
+        )
+      }
+
+      "count the request in the reference request metric" in {
+        stubReference(okJson(groRecord(reference).toString()))
+        val counter = metrics.defaultRegistry.counter(s"${metrics.prefix}-request-count")
+        val before  = counter.getCount
+
+        connector().getReference(reference).futureValue
+
+        counter.getCount shouldBe before + 1
+      }
+
+      "use the cached token and only call the auth service once" in {
+        stubReference(okJson(groRecord(reference).toString()))
+        val groConnector = connector()
+
+        groConnector.getReference(reference).futureValue
+        groConnector.getReference(reference).futureValue
+
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
+        server.verify(2, getRequestedFor(urlEqualTo(s"$groPath/$reference")))
       }
     }
 
-    "authentication" should {
+    "GRO does not find the record" should {
 
-      "return 4xx when authentication returns BadRequest" in new AuthenticationFixture {
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-          }
+      "return a Birth404ErrorResponse from a 404 response" in {
+        stubReference(aResponse().withStatus(404).withBody(groRecord("NoMatch").toString()))
 
-        val authResponse: HttpResponse = buildResponse(Status.BAD_REQUEST)
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
 
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+          result shouldBe Birth404ErrorResponse(UpstreamErrorResponse("[ErrorHandler][404]", 404, 404))
 
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.NOT_FOUND))))
-
-        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
-        testConnector
-          .getReference(refNumber)
-          .futureValue
-          .asInstanceOf[BirthErrorResponse]
-          .cause                                          shouldBe a[UpstreamErrorResponse]
-      }
-
-      "return 5xx when authentication returns 5xx" in new AuthenticationFixture {
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-          }
-
-        val authResponse: HttpResponse = buildResponse(Status.BAD_REQUEST)
-
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(
-            Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
+          connectorLogs(logs, Level.INFO) shouldBe List(
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getReference] : valid access token obtained",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
+              "[referenceHelper] attempting to find record by reference",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByReference] : " +
+              s"requesting child's details $groUrl",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
+              "[referenceHelper] not found record by reference"
           )
-
-        testConnector.getReference(refNumber).futureValue shouldBe a[BirthErrorResponse]
-
-        testConnector
-          .getReference(refNumber)
-          .futureValue
-          .asInstanceOf[BirthErrorResponse]
-          .cause shouldBe a[UpstreamErrorResponse]
+        }
       }
-
-      "return exception when certificate has expired" in new AuthenticationFixture {
-
-        val mockTimeProvider: TimeProvider   = mock(classOf[TimeProvider])
-        val mockAuthenticator: Authenticator =
-          new Authenticator(testGroConfig, real[CertificateStatus], mockHttpClient, mockTimeProvider) {
-            override val tokenCache: AccessTokenRepository = mockTokenCache
-            override val responseHandler: ResponseHandler  = mockResponseHandler
-            override val errorHandler: ErrorHandler        = mockErrorHandler
-          }
-
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-          }
-
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(
-            Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
-          )
-
-        // Force LocalDate to the past so cert is expired
-        val date: ZonedDateTime = ZonedDateTime.of(2000, 9, 15, 5, 10, 10, 0, ZoneId.of("GMT"))
-
-        when(mockTimeProvider.now) thenReturn date
-
-        testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
-        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe an[Exception]
-      }
-
-      "return exception when authentication cache has no access token" in new AuthenticationFixture {
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-          }
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(
-            Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
-          )
-
-        val authResponse: HttpResponse = buildResponse(Status.OK)
-
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
-        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
-      }
-
-      "return exception when authentication returns exception" in new AuthenticationFixture {
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-          }
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(
-            Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
-          )
-
-        val json: String                =
-          """
-            |"reference": "something"
-          """.stripMargin
-        val eventResponse: HttpResponse = eventResponseWithStatus(Status.OK, json)
-
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        testConnector.getReference(refNumber).futureValue                                        shouldBe a[BirthErrorResponse]
-        testConnector.getReference(refNumber).futureValue.asInstanceOf[BirthErrorResponse].cause shouldBe a[Exception]
-      }
-
-      "BirthSuccessResponse when authenticator has valid token" in new AuthenticationFixture {
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        val eventResponse: HttpResponse = eventSuccessResponse(groResponse(refNumber))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val response: BirthResponse = testConnector.getReference(refNumber).futureValue
-        response shouldBe a[BirthSuccessResponse[?]]
-      }
-
     }
 
-    "get reference" should {
+    "GRO fails" should {
 
-      "BirthSuccessResponse when gro responds with 200 for reference" in {
-        given metrics: BRMMetrics = new BRMMetrics
+      "keep the status of a 4xx response" in {
+        stubReference(aResponse().withStatus(400))
 
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse(refNumber))
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
 
-        when(mockTokenCache.token).thenReturn(Success("token"))
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][400] [ErrorHandler][400]", 400, 400)
+          )
 
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+          val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getReference(refNumber).futureValue
-        result                                                                       shouldBe a[BirthSuccessResponse[?]]
-        metrics.defaultRegistry.counter(s"${metrics.prefix}-request-count").getCount shouldBe 1
+          errorLogs shouldBe List(
+            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load record " +
+              "by reference: upstream 4xx response: uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][400]"
+          )
+        }
       }
 
-      "BirthErrorResponse 4xx when gro returns 404" in {
-        given metrics: BRMMetrics = new BRMMetrics
+      Seq(500, 502, 503, 504).foreach { status =>
+        s"return a 500 error when GRO returns $status" in {
+          stubReference(aResponse().withStatus(status))
 
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventResponseWithStatus(Status.NOT_FOUND, groResponse("NoMatch").toString())
+          withCaptureOfLoggingFrom(BrmLogger) { logs =>
+            val result = connector().getReference(reference).futureValue
 
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+            result shouldBe BirthErrorResponse(
+              UpstreamErrorResponse(s"[ErrorHandler][500] [ErrorHandler][$status]", 500, 500)
+            )
 
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
+            val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
-        val result = testConnector.getReference("500037654675710").futureValue
-        result                                           shouldBe a[Birth404ErrorResponse]
-        result.asInstanceOf[Birth404ErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse 4xx when gro returns BadRequest" in {
-        given metrics: BRMMetrics = new BRMMetrics
-        val authResponse          = authSuccessResponse(authRecord)
-        val eventResponse         = eventResponseWithStatus(Status.BAD_REQUEST, "")
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getReference(refNumber).futureValue
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse 5xx when gro returns InternalServerError" in {
-        given metrics: BRMMetrics = new BRMMetrics
-        val authResponse          = authSuccessResponse(authRecord)
-        val eventResponse         = eventResponseWithStatus(Status.INTERNAL_SERVER_ERROR, "")
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getReference(refNumber).futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse 5xx when gro throws" in {
-
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
+            errorLogs shouldBe List(
+              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load " +
+                s"record by reference: upstream $status response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
+                s"[ErrorHandler][$status]"
+            )
           }
+        }
+      }
 
-        given metrics: BRMMetrics = new BRMMetrics
-        val authResponse          = authSuccessResponse(authRecord)
-        val eventResponse         = eventResponseWithStatus(Status.INTERNAL_SERVER_ERROR, "")
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+      "return a 500 error when a 200 response is not valid json" in {
+        stubReference(ok("this is not json"))
 
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
+        val result = connector().getReference(reference).futureValue
 
-        when(
-          testConnector.responseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(using
-            any[ExecutionContext]
+        result shouldBe BirthErrorResponse(
+          UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500]", 500, 500)
+        )
+      }
+
+      "return a 500 error when GRO times out" in {
+        stubReference(okJson(groRecord(reference).toString()).withFixedDelay(3000))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][504] request timed out", 500, 500)
+          )
+
+          val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
+
+          errorLogs shouldBe List(
+            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load record " +
+              "by reference: upstream 504 response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
+              "[ErrorHandler][504] request timed out"
+          )
+        }
+      }
+
+      "return a 500 error when GRO refuses the connection" in {
+        val unusedPort = 19999
+
+        val result = connector(groPort = unusedPort).getReference(reference).futureValue
+
+        result shouldBe BirthErrorResponse(
+          UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][502] connection failed", 500, 500)
+        )
+      }
+    }
+
+    "the auth service fails" should {
+
+      "return the auth error and not call GRO" in {
+        server.stubFor(post(urlEqualTo(authPath)).willReturn(aResponse().withStatus(503)))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][503]", 500, 500)
+          )
+
+          connectorLogs(logs, Level.WARN) shouldBe List(
+            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][getReference] : Failed to obtain access token: " +
+              "BirthErrorResponse(uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] [ErrorHandler][503])"
+          )
+
+          connectorLogs(logs, Level.INFO) shouldBe Nil
+        }
+
+        server.verify(0, getRequestedFor(urlPathMatching(s"$groPath.*")))
+      }
+    }
+  }
+
+  "GROEnglandAndWalesConnector.getDetails" when {
+
+    "GRO finds records" should {
+
+      "send the details as an encoded query and return the records" in {
+        stubDetails(okJson(groRecord("2006-11-12_smith_adam").toString()))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getDetails("adam", "smith", "2016-10-10").futureValue
+
+          result shouldBe BirthSuccessResponse(groRecord("2006-11-12_smith_adam"))
+
+          connectorLogs(logs, Level.INFO) shouldBe List(
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getDetails] : valid access token obtained",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
+              "[detailsHelper] attempting to find record(s) by details",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByDetails] : " +
+              s"requesting child's details $groUrl",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [detailsHelper] found record(s) by details"
+          )
+
+          connectorLogs(logs, Level.WARN) shouldBe Nil
+        }
+
+        server.verify(
+          getRequestedFor(urlEqualTo(s"$groPath?forenames=adam&surname=smith&dateOfBirth=2016-10-10"))
+            .withHeader("Authorization", equalTo(s"Bearer $accessToken"))
+        )
+      }
+
+      "encode special characters in the query as UTF-8" in {
+        stubDetails(okJson(groRecord("2006-11-12_smith_adam-utf-8").toString()))
+
+        val result = connector().getDetails("Adàm TËST", "SMÏTH", "2006-11-12").futureValue
+
+        result shouldBe BirthSuccessResponse(groRecord("2006-11-12_smith_adam-utf-8"))
+
+        server.verify(
+          getRequestedFor(
+            urlEqualTo(s"$groPath?forenames=Ad%C3%A0m+T%C3%8BST&surname=SM%C3%8FTH&dateOfBirth=2006-11-12")
           )
         )
-          .thenReturn(Future(BirthErrorResponse(new GatewayTimeoutException("some exception"))))
-
-        val result = testConnector.getReference(refNumber).futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
       }
 
-      "BirthErrorResponse when gro returns a bad gateway exception for reference" in {
-        given metrics: BRMMetrics = new BRMMetrics
+      "count the request in the details request metric" in {
+        stubDetails(okJson(groRecord("2006-11-12_smith_adam").toString()))
+        val counter = metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count")
+        val before  = counter.getCount
 
-        val badGatewayConnector = connectorFailingWith(new BadGatewayException("bad gateway"))
+        connector().getDetails("adam", "smith", "2016-10-10").futureValue
 
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponseWithStatus(Status.BAD_GATEWAY, "")))
-
-        val result = badGatewayConnector.getReference(refNumber).futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse when a reference request cannot obtain an access token" in {
-        given metrics: BRMMetrics = mock(classOf[BRMMetrics])
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-
-        val result = failedAuthConnector.getReference(refNumber).futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-
-        verify(mockRequestBuilderGet, never())
-          .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
+        counter.getCount shouldBe before + 1
       }
     }
 
-    "get details" should {
+    "GRO finds no records" should {
 
-      "BirthSuccessResponse when gro details responds with 200 with single record." in {
-        given metrics: BRMMetrics = new BRMMetrics
+      "return the empty list from a 200 response" in {
+        stubDetails(okJson(groRecord("NoMatch").toString()))
 
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = "2016-10-10"
+        val result = connector().getDetails("adam", "smith", "2016-10-10").futureValue
 
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam"))
-
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-
-        result                                                                               shouldBe a[BirthSuccessResponse[?]]
-        result                                                                               shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam"))
-        result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size                   shouldBe 2
-        metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count").getCount shouldBe 1
-        argumentCapture.getValue.toString                                                    shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
+        result shouldBe BirthSuccessResponse(groRecord("NoMatch"))
       }
 
-      "BirthSuccessResponse when gro details responds with 200 with single record when request has special character." in {
-        given metrics: BRMMetrics = new BRMMetrics
+      "return a Birth404ErrorResponse from a 404 response" in {
+        stubDetails(aResponse().withStatus(404).withBody(groRecord("NoMatch").toString()))
 
-        val firstName   = "Adàm TËST"
-        val lastName    = "SMÏTH"
-        val dateOfBirth = "2006-11-12"
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getDetails("adam", "smith", "2010-10-06").futureValue
 
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
+          result shouldBe Birth404ErrorResponse(UpstreamErrorResponse("[ErrorHandler][404]", 404, 404))
 
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-        result                                                             shouldBe a[BirthSuccessResponse[?]]
-        result                                                             shouldBe BirthSuccessResponse(groResponse("2006-11-12_smith_adam-utf-8"))
-        result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 2
-        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
-
+          connectorLogs(logs, Level.INFO) shouldBe List(
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getDetails] : valid access token obtained",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
+              "[detailsHelper] attempting to find record(s) by details",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByDetails] : " +
+              s"requesting child's details $groUrl",
+            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [detailsHelper] not found record by details"
+          )
+        }
       }
+    }
 
-      "BirthSuccessResponse with [] empty response for no records found" in {
-        given metrics: BRMMetrics = new BRMMetrics
+    "a detail is missing" should
+      Seq(
+        ("forenames", "", "smith", "2016-10-10"),
+        ("lastname", "adam", "", "2016-10-10"),
+        ("dateofbirth", "adam", "smith", "")
+      ).foreach { case (missing, forenames, lastname, dateOfBirth) =>
+        s"send the empty $missing and keep the status of the 400 response" in {
+          stubDetails(aResponse().withStatus(400))
 
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = "2016-10-10"
+          withCaptureOfLoggingFrom(BrmLogger) { logs =>
+            val result = connector().getDetails(forenames, lastname, dateOfBirth).futureValue
 
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventSuccessResponse(groResponse("NoMatch"))
+            result shouldBe BirthErrorResponse(
+              UpstreamErrorResponse("[ErrorHandler][400] [ErrorHandler][400]", 400, 400)
+            )
 
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
+            server.verify(
+              getRequestedFor(
+                urlEqualTo(s"$groPath?forenames=$forenames&surname=$lastname&dateOfBirth=$dateOfBirth")
+              )
+            )
 
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
+            val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-        result                                                             shouldBe a[BirthSuccessResponse[?]]
-        result                                                             shouldBe BirthSuccessResponse(groResponse("NoMatch"))
-        result.asInstanceOf[BirthSuccessResponse[JsArray]].json.value.size shouldBe 0
-        argumentCapture.getValue.toString                                  shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
-      }
-
-      "BirthErrorResponse 4xx with BadRequest for missing forenames parameter" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val firstName   = ""
-        val lastName    = "smith"
-        val dateOfBirth = "2016-10-10"
-
-        val authResponse = authSuccessResponse(authRecord)
-
-        val eventResponse                        = HttpResponse.apply(Status.BAD_REQUEST, "forenames or forename1 is required")
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
-      }
-
-      "BirthErrorResponse 4xx with BadRequest for missing lastname parameter" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val firstName   = "adam"
-        val lastName    = ""
-        val dateOfBirth = "2016-10-10"
-
-        val authResponse = authSuccessResponse(authRecord)
-
-        val eventResponse                        = HttpResponse.apply(Status.BAD_REQUEST, "Must provide lastname parameter")
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
-      }
-
-      "BirthErrorResponse 4xx with BadRequest for missing dateofbirth parameter" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = ""
-
-        val authResponse                         = authSuccessResponse(authRecord)
-        val eventResponse                        =
-          Future.successful(HttpResponse.apply(Status.BAD_REQUEST, "Must provide date of birth parameter"))
-        val argumentCapture: ArgumentCaptor[URL] = ArgumentCaptor.forClass(classOf[URL])
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(eventResponse)
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-        verify(mockHttpClient).get(argumentCapture.capture())(any())
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-        argumentCapture.getValue.toString             shouldBe getEntireUrl(path, firstName, lastName, dateOfBirth)
-      }
-
-      "BirthErrorResponse when GRO returns 5xx" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = "2010-10-06"
-
-        val authResponse  = authSuccessResponse(authRecord)
-        val eventResponse = eventResponseWithStatus(Status.INTERNAL_SERVER_ERROR, "")
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
-        verify(mockRequestBuilderGet, times(1))
-          .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "return a BirthErrorResponse when token has expired and unable to obtain a new token" in {
-        val testConnector: GROEnglandAndWalesConnector =
-          new GROEnglandAndWalesConnector(
-            testGroConfig,
-            mockHttpClient,
-            mockAuthenticator
-          ) {
-            override val responseHandler: ResponseHandler = mock(classOf[ResponseHandler])
+            errorLogs shouldBe List(
+              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [detailsHelper] failed to load " +
+                "record(s) by details: upstream 4xx response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
+                "[ErrorHandler][400]"
+            )
           }
+        }
+      }
 
-        when(testConnector.responseHandler.handle(any())(any(), any())(using any()))
-          .thenReturn(
-            Future.successful(BirthErrorResponse(UpstreamErrorResponse("message", Status.INTERNAL_SERVER_ERROR)))
+    "GRO fails" should {
+
+      Seq(500, 502, 503, 504).foreach { status =>
+        s"return a 500 error when GRO returns $status" in {
+          stubDetails(aResponse().withStatus(status))
+
+          withCaptureOfLoggingFrom(BrmLogger) { logs =>
+            val result = connector().getDetails("adam", "smith", "2010-10-06").futureValue
+
+            result shouldBe BirthErrorResponse(
+              UpstreamErrorResponse(s"[ErrorHandler][500] [ErrorHandler][$status]", 500, 500)
+            )
+
+            val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
+
+            errorLogs shouldBe List(
+              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [detailsHelper] failed to load " +
+                s"record(s) by details: upstream $status response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
+                s"[ErrorHandler][$status]"
+            )
+          }
+        }
+      }
+
+      "return a 500 error when GRO times out" in {
+        stubDetails(okJson(groRecord("2006-11-12_smith_adam").toString()).withFixedDelay(3000))
+
+        val result = connector().getDetails("adam", "smith", "2010-10-06").futureValue
+
+        result shouldBe BirthErrorResponse(
+          UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][504] request timed out", 500, 500)
+        )
+      }
+
+      "return a 500 error when GRO refuses the connection" in {
+        val unusedPort = 19999
+
+        val result = connector(groPort = unusedPort).getDetails("adam", "smith", "2010-10-06").futureValue
+
+        result shouldBe BirthErrorResponse(
+          UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][502] connection failed", 500, 500)
+        )
+      }
+    }
+
+    "the auth service fails" should {
+
+      "return the auth error and not call GRO" in {
+        server.stubFor(post(urlEqualTo(authPath)).willReturn(aResponse().withStatus(500)))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getDetails("adam", "smith", "2010-10-06").futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500]", 500, 500)
           )
 
-        given metrics: BRMMetrics = mock(classOf[BRMMetrics])
+          connectorLogs(logs, Level.WARN) shouldBe List(
+            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][getDetails] : Failed to obtain access token: " +
+              "BirthErrorResponse(uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] [ErrorHandler][500])"
+          )
 
-        val firstName   = "adam"
-        val lastName    = "smith"
-        val dateOfBirth = "2010-10-06"
+          connectorLogs(logs, Level.INFO) shouldBe Nil
+        }
 
-        val authResponse = HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, "")
-
-        when(testConnector.authenticator.tokenCache.token).thenReturn(Failure(new RuntimeException))
-        when(
-          mockRequestBuilderPost
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(authResponse))
-
-        val result = testConnector.getDetails(firstName, lastName, dateOfBirth).futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
+        server.verify(0, getRequestedFor(urlPathMatching(s"$groPath.*")))
       }
-
-      "Birth404ErrorResponse when gro returns 404 for details" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(
-          Future.successful(eventResponseWithStatus(Status.NOT_FOUND, groResponse("NoMatch").toString()))
-        )
-
-        val result = testConnector.getDetails("adam", "smith", "2010-10-06").futureValue
-
-        result                                           shouldBe a[Birth404ErrorResponse]
-        result.asInstanceOf[Birth404ErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse when gro returns a gateway timeout exception for details" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val gatewayTimeoutConnector = connectorFailingWith(new GatewayTimeoutException("gateway timeout"))
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponseWithStatus(Status.GATEWAY_TIMEOUT, "")))
-
-        val result = gatewayTimeoutConnector.getDetails("adam", "smith", "2010-10-06").futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse when gro returns a bad gateway exception for details" in {
-        given metrics: BRMMetrics = new BRMMetrics
-
-        val badGatewayConnector = connectorFailingWith(new BadGatewayException("bad gateway"))
-
-        when(mockTokenCache.token).thenReturn(Success("token"))
-        when(
-          mockRequestBuilderGet
-            .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-        ).thenReturn(Future.successful(eventResponseWithStatus(Status.BAD_GATEWAY, "")))
-
-        val result = badGatewayConnector.getDetails("adam", "smith", "2010-10-06").futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-      }
-
-      "BirthErrorResponse when a details request cannot obtain an access token" in {
-        given metrics: BRMMetrics = mock(classOf[BRMMetrics])
-
-        when(mockTokenCache.token).thenReturn(Failure(new RuntimeException))
-
-        val result = failedAuthConnector.getDetails("adam", "smith", "2010-10-06").futureValue
-
-        result                                        shouldBe a[BirthErrorResponse]
-        result.asInstanceOf[BirthErrorResponse].cause shouldBe a[UpstreamErrorResponse]
-
-        verify(mockRequestBuilderGet, never())
-          .execute[HttpResponse](any[HttpReads[HttpResponse]], any[ExecutionContext])
-      }
-
     }
   }
 
