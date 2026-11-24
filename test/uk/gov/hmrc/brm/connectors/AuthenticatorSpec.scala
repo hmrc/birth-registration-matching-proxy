@@ -46,11 +46,7 @@ class AuthenticatorSpec
   private val authPath = "/auth/token"
 
   private val brmKey = "authenticator-spec"
-
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    KeyHolder.setKey(brmKey)
-  }
+  KeyHolder.setKey(brmKey)
 
   private def configFor(port: Int, tlsEnabled: Boolean): GroAppConfig = {
     val prefix    = "microservice.services.birth-registration-matching.gro"
