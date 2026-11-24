@@ -129,15 +129,8 @@ class GROEnglandAndWalesConnector @Inject() (
               s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
-          case e: UpstreamErrorResponse                                               =>
-            error(
-              CLASS_NAME,
-              "request",
-              s"[referenceHelper] failed to load record by reference: upstream ${e.statusCode} response: $e"
-            )
-            ErrorHandler.error(e.getMessage)
-          case e: Exception                                                           =>
-            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
+          case e                                                                      =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: $e")
             ErrorHandler.error(e.getMessage)
         }
     }
@@ -166,15 +159,8 @@ class GROEnglandAndWalesConnector @Inject() (
               s"[detailsHelper] failed to load record(s) by details: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
-          case e: UpstreamErrorResponse                                               =>
-            error(
-              CLASS_NAME,
-              "request",
-              s"[detailsHelper] failed to load record(s) by details: upstream ${e.statusCode} response: $e"
-            )
-            ErrorHandler.error(e.getMessage)
-          case e: Exception                                                           =>
-            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record(s) by details: unknown exception: $e")
+          case e                                                                      =>
+            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record(s) by details: $e")
             ErrorHandler.error(e.getMessage)
         }
     }

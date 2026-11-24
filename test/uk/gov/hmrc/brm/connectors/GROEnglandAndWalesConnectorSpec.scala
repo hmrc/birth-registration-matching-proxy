@@ -86,12 +86,56 @@ class GROEnglandAndWalesConnectorSpec
     server.stubFor(get(urlPathEqualTo(groPath)).willReturn(response))
 
   private def connectorLogs(logs: List[ILoggingEvent], level: Level): List[String] =
-    logs
-      .filter(_.getLevel == level)
-      .map(_.getFormattedMessage)
-      .filter(_.contains("[GROEnglandAndWalesConnector]"))
+    logs.collect {
+      case event if event.getLevel == level && event.getFormattedMessage.contains("[GROEnglandAndWalesConnector]") =>
+        event.getFormattedMessage
+    }
 
   private def groUrl: String = s"http://127.0.0.1:${server.port()}$groPath"
+
+  private val upstreamError = "uk.gov.hmrc.http.UpstreamErrorResponse"
+
+  private def infoLine(method: String, message: String): String =
+    s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][$method] : $message"
+
+  private def warnOrErrorLine(method: String, message: String): String =
+    s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][$method] : $message"
+
+  private def referenceLogs(found: Boolean): List[String] = {
+    val foundOrNotFound = if (found) "found" else "not found"
+    val requestMessage  = s"[referenceHelper] $foundOrNotFound record by reference"
+
+    List(
+      infoLine("getReference", "valid access token obtained"),
+      infoLine("request", "[referenceHelper] attempting to find record by reference"),
+      infoLine("getChildByReference", s"requesting child's details $groUrl"),
+      infoLine("request", requestMessage)
+    )
+  }
+
+  private def detailsLogs(found: Boolean): List[String] = {
+    val requestMessage =
+      if (found) "[detailsHelper] found record(s) by details" else "[detailsHelper] not found record by details"
+
+    List(
+      infoLine("getDetails", "valid access token obtained"),
+      infoLine("request", "[detailsHelper] attempting to find record(s) by details"),
+      infoLine("getChildByDetails", s"requesting child's details $groUrl"),
+      infoLine(
+        "request",
+        requestMessage
+      )
+    )
+  }
+
+  private def referenceFailure(detail: String): String =
+    warnOrErrorLine("request", s"[referenceHelper] failed to load record by reference: $detail")
+
+  private def detailsFailure(detail: String): String =
+    warnOrErrorLine("request", s"[detailsHelper] failed to load record(s) by details: $detail")
+
+  private def tokenFailure(method: String, upstreamMessage: String): String =
+    warnOrErrorLine(method, s"Failed to obtain access token: BirthErrorResponse($upstreamError: $upstreamMessage)")
 
   "GROEnglandAndWalesConnector.getReference" when {
 
@@ -105,14 +149,7 @@ class GROEnglandAndWalesConnectorSpec
 
           result shouldBe BirthSuccessResponse(groRecord(reference))
 
-          connectorLogs(logs, Level.INFO) shouldBe List(
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getReference] : valid access token obtained",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
-              "[referenceHelper] attempting to find record by reference",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByReference] : " +
-              s"requesting child's details $groUrl",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [referenceHelper] found record by reference"
-          )
+          connectorLogs(logs, Level.INFO) shouldBe referenceLogs(found = true)
 
           connectorLogs(logs, Level.WARN) shouldBe Nil
         }
@@ -164,15 +201,7 @@ class GROEnglandAndWalesConnectorSpec
 
           result shouldBe Birth404ErrorResponse(UpstreamErrorResponse("[ErrorHandler][404]", 404, 404))
 
-          connectorLogs(logs, Level.INFO) shouldBe List(
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getReference] : valid access token obtained",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
-              "[referenceHelper] attempting to find record by reference",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByReference] : " +
-              s"requesting child's details $groUrl",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
-              "[referenceHelper] not found record by reference"
-          )
+          connectorLogs(logs, Level.INFO) shouldBe referenceLogs(found = false)
         }
       }
     }
@@ -192,8 +221,7 @@ class GROEnglandAndWalesConnectorSpec
           val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
           errorLogs shouldBe List(
-            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load record " +
-              "by reference: upstream 4xx response: uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][400]"
+            referenceFailure(s"upstream 4xx response: $upstreamError: [ErrorHandler][400]")
           )
         }
       }
@@ -212,9 +240,7 @@ class GROEnglandAndWalesConnectorSpec
             val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
             errorLogs shouldBe List(
-              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load " +
-                s"record by reference: upstream $status response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
-                s"[ErrorHandler][$status]"
+              referenceFailure(s"$upstreamError: [ErrorHandler][$status]")
             )
           }
         }
@@ -243,9 +269,7 @@ class GROEnglandAndWalesConnectorSpec
           val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
           errorLogs shouldBe List(
-            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [referenceHelper] failed to load record " +
-              "by reference: upstream 504 response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
-              "[ErrorHandler][504] request timed out"
+            referenceFailure(s"$upstreamError: [ErrorHandler][504] request timed out")
           )
         }
       }
@@ -274,8 +298,7 @@ class GROEnglandAndWalesConnectorSpec
           )
 
           connectorLogs(logs, Level.WARN) shouldBe List(
-            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][getReference] : Failed to obtain access token: " +
-              "BirthErrorResponse(uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] [ErrorHandler][503])"
+            tokenFailure("getReference", "[ErrorHandler][500] [ErrorHandler][503]")
           )
 
           connectorLogs(logs, Level.INFO) shouldBe Nil
@@ -294,24 +317,17 @@ class GROEnglandAndWalesConnectorSpec
         stubDetails(okJson(groRecord("2006-11-12_smith_adam").toString()))
 
         withCaptureOfLoggingFrom(BrmLogger) { logs =>
-          val result = connector().getDetails("adam", "smith", "2016-10-10").futureValue
+          val result = connector().getDetails("Adam TEST", "SMITH", "2006-11-12").futureValue
 
           result shouldBe BirthSuccessResponse(groRecord("2006-11-12_smith_adam"))
 
-          connectorLogs(logs, Level.INFO) shouldBe List(
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getDetails] : valid access token obtained",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
-              "[detailsHelper] attempting to find record(s) by details",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByDetails] : " +
-              s"requesting child's details $groUrl",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [detailsHelper] found record(s) by details"
-          )
+          connectorLogs(logs, Level.INFO) shouldBe detailsLogs(found = true)
 
           connectorLogs(logs, Level.WARN) shouldBe Nil
         }
 
         server.verify(
-          getRequestedFor(urlEqualTo(s"$groPath?forenames=adam&surname=smith&dateOfBirth=2016-10-10"))
+          getRequestedFor(urlEqualTo(s"$groPath?forenames=Adam+TEST&surname=SMITH&dateOfBirth=2006-11-12"))
             .withHeader("Authorization", equalTo(s"Bearer $accessToken"))
         )
       }
@@ -335,7 +351,7 @@ class GROEnglandAndWalesConnectorSpec
         val counter = metrics.defaultRegistry.counter(s"${metrics.prefix}-details-request-count")
         val before  = counter.getCount
 
-        connector().getDetails("adam", "smith", "2016-10-10").futureValue
+        connector().getDetails("Adam TEST", "SMITH", "2006-11-12").futureValue
 
         counter.getCount shouldBe before + 1
       }
@@ -359,14 +375,7 @@ class GROEnglandAndWalesConnectorSpec
 
           result shouldBe Birth404ErrorResponse(UpstreamErrorResponse("[ErrorHandler][404]", 404, 404))
 
-          connectorLogs(logs, Level.INFO) shouldBe List(
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getDetails] : valid access token obtained",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : " +
-              "[detailsHelper] attempting to find record(s) by details",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][getChildByDetails] : " +
-              s"requesting child's details $groUrl",
-            s"[BRM-Key:$brmKey], [GROEnglandAndWalesConnector][request] : [detailsHelper] not found record by details"
-          )
+          connectorLogs(logs, Level.INFO) shouldBe detailsLogs(found = false)
         }
       }
     }
@@ -396,9 +405,7 @@ class GROEnglandAndWalesConnectorSpec
             val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
             errorLogs shouldBe List(
-              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [detailsHelper] failed to load " +
-                "record(s) by details: upstream 4xx response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
-                "[ErrorHandler][400]"
+              detailsFailure(s"upstream 4xx response: $upstreamError: [ErrorHandler][400]")
             )
           }
         }
@@ -420,9 +427,7 @@ class GROEnglandAndWalesConnectorSpec
             val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
             errorLogs shouldBe List(
-              s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][request] : [detailsHelper] failed to load " +
-                s"record(s) by details: upstream $status response: uk.gov.hmrc.http.UpstreamErrorResponse: " +
-                s"[ErrorHandler][$status]"
+              detailsFailure(s"$upstreamError: [ErrorHandler][$status]")
             )
           }
         }
@@ -462,14 +467,74 @@ class GROEnglandAndWalesConnectorSpec
           )
 
           connectorLogs(logs, Level.WARN) shouldBe List(
-            s"[BRM-Key:$brmKey],[GROEnglandAndWalesConnector][getDetails] : Failed to obtain access token: " +
-              "BirthErrorResponse(uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] [ErrorHandler][500])"
+            tokenFailure("getDetails", "[ErrorHandler][500] [ErrorHandler][500]")
           )
 
           connectorLogs(logs, Level.INFO) shouldBe Nil
         }
 
         server.verify(0, getRequestedFor(urlPathMatching(s"$groPath.*")))
+      }
+    }
+  }
+
+  "GROEnglandAndWalesConnector" when {
+
+    "GRO returns its sample V1 record" should {
+
+      "return the record for its reference" in {
+        server.stubFor(get(urlEqualTo(s"$groPath/123456789")).willReturn(okJson(groRecord("123456789").toString())))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference("123456789").futureValue
+
+          result shouldBe BirthSuccessResponse(groRecord("123456789"))
+
+          connectorLogs(logs, Level.INFO) shouldBe referenceLogs(found = true)
+          connectorLogs(logs, Level.WARN) shouldBe Nil
+        }
+
+        server.verify(
+          getRequestedFor(urlEqualTo(s"$groPath/123456789"))
+            .withHeader("Authorization", equalTo(s"Bearer $accessToken"))
+        )
+      }
+
+      "return the record for a search by its child's details" in {
+        server.stubFor(
+          get(urlPathEqualTo(groPath)).willReturn(okJson(Json.arr(groRecord("123456789")).toString()))
+        )
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getDetails("Joan Narcissus Ouroboros", "SMITH", "2018-08-08").futureValue
+
+          result shouldBe BirthSuccessResponse(Json.arr(groRecord("123456789")))
+
+          connectorLogs(logs, Level.INFO) shouldBe detailsLogs(found = true)
+          connectorLogs(logs, Level.WARN) shouldBe Nil
+        }
+
+        server.verify(
+          getRequestedFor(
+            urlEqualTo(s"$groPath?forenames=Joan+Narcissus+Ouroboros&surname=SMITH&dateOfBirth=2018-08-08")
+          )
+        )
+      }
+
+      "return a Birth404ErrorResponse for a reference that is too long" in {
+        server.stubFor(
+          get(urlEqualTo(s"$groPath/500037654675710"))
+            .willReturn(aResponse().withStatus(404).withBody(groRecord("NoMatch").toString()))
+        )
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference("500037654675710").futureValue
+
+          result shouldBe Birth404ErrorResponse(UpstreamErrorResponse("[ErrorHandler][404]", 404, 404))
+
+          connectorLogs(logs, Level.INFO) shouldBe referenceLogs(found = false)
+          connectorLogs(logs, Level.WARN) shouldBe Nil
+        }
       }
     }
   }
