@@ -22,6 +22,7 @@ import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HttpResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 object ResponseHandler extends ResponseHandler
 
@@ -35,9 +36,7 @@ class ResponseHandler {
     futureResponse
       .map { response =>
         info(CLASS_NAME, "handle", s"response received")
-
         debug("BirthConnector", "getChildByReference", s"HttpResponse: $response, BODY: ${response.body}")
-
         metrics.httpResponseCodeStatus(response.status)
 
         response.status match {
@@ -65,6 +64,9 @@ class ResponseHandler {
         case e: BadGatewayException     =>
           warn(CLASS_NAME, "handle", s"[502] connection failed: ${e.getMessage}")
           ErrorHandler.error("connection failed", Status.BAD_GATEWAY)
+        case NonFatal(e)                =>
+          error(CLASS_NAME, "handle", s"[500] request failed: $e")
+          ErrorHandler.error("request failed")
       }
 
 }

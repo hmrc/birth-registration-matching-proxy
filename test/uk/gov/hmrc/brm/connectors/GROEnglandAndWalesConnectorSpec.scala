@@ -20,6 +20,7 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.ILoggingEvent
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.http.Fault
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.Configuration
 import play.api.libs.json.{JsValue, Json}
@@ -283,6 +284,22 @@ class GROEnglandAndWalesConnectorSpec
           UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][502] connection failed", 500, 500)
         )
       }
+
+      "return a 500 error when GRO resets the connection" in {
+        stubReference(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER))
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = connector().getReference(reference).futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500] request failed", 500, 500)
+          )
+
+          connectorLogs(logs, Level.ERROR) shouldBe List(
+            referenceFailure(s"$upstreamError: [ErrorHandler][500] request failed")
+          )
+        }
+      }
     }
 
     "the auth service fails" should {
@@ -491,6 +508,7 @@ class GROEnglandAndWalesConnectorSpec
           result shouldBe BirthSuccessResponse(groRecord("123456789"))
 
           connectorLogs(logs, Level.INFO) shouldBe referenceLogs(found = true)
+
           connectorLogs(logs, Level.WARN) shouldBe Nil
         }
 

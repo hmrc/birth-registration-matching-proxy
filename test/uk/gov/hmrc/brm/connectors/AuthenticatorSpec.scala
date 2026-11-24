@@ -123,6 +123,31 @@ class AuthenticatorSpec
         )
         auth.tokenCache.hasToken shouldBe false
       }
+
+      "return a 500 error when a 200 response has no access_token" in {
+        stubAuth(okJson(Json.obj("expires_in" -> 300).toString()))
+        val auth = authenticator()
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = auth.token().futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500] request failed", 500, 500)
+          )
+
+          val authenticatorErrors = logs.collect {
+            case event if event.getLevel == Level.ERROR && event.getFormattedMessage.contains("[Authenticator]") =>
+              event.getFormattedMessage
+          }
+
+          authenticatorErrors shouldBe List(
+            s"[BRM-Key:$brmKey],[Authenticator][requestNewToken] : unable to obtain new access token: " +
+              "unexpected exception: uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] request failed"
+          )
+        }
+
+        auth.tokenCache.hasToken shouldBe false
+      }
     }
 
     "there is a cached token" should {
@@ -172,6 +197,7 @@ class AuthenticatorSpec
 
           val port     = server.port()
           val warnings = logs.filter(_.getLevel == Level.WARN).map(_.getFormattedMessage)
+
           warnings shouldBe List(
             s"[BRM-Key:$brmKey],[ResponseHandler][handle] : [504] request timed out: " +
               s"POST of 'http://127.0.0.1:$port$authPath' timed out with message " +
@@ -191,6 +217,7 @@ class AuthenticatorSpec
           )
 
           val warnings = logs.filter(_.getLevel == Level.WARN).map(_.getFormattedMessage)
+
           warnings shouldBe List(
             s"[BRM-Key:$brmKey],[ResponseHandler][handle] : [502] connection failed: " +
               s"POST of 'http://127.0.0.1:$unusedPort$authPath' failed. " +
