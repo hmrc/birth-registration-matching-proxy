@@ -21,12 +21,10 @@ import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.brm.utils.AccessTokenRepository
+import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps
-}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -106,17 +104,8 @@ class Authenticator @Inject() (
   ): Future[BirthResponse] =
     authenticate().map {
       case BirthErrorResponse(exception) =>
-        exception match {
-          case e: GatewayTimeoutException =>
-            error(CLASS_NAME, "requestNewToken", "gateway timeout exception, stop obtaining a new token")
-            errorHandler.error(e.getMessage)
-          case e: BadGatewayException     =>
-            error(CLASS_NAME, "requestNewToken", "bad gateway exception, stop obtaining a new token")
-            errorHandler.error(e.getMessage)
-          case e: Exception               =>
-            error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $e")
-            errorHandler.error(e.getMessage)
-        }
+        error(CLASS_NAME, "requestNewToken", s"unable to obtain new access token: unexpected exception: $exception")
+        errorHandler.error(exception.getMessage)
       case authenticated                 =>
         authenticated
     }

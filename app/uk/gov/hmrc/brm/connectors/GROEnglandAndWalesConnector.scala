@@ -21,10 +21,7 @@ import uk.gov.hmrc.brm.connectors.ConnectorTypes.AccessToken
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpReads, HttpResponse, StringContextOps,
-  UpstreamErrorResponse
-}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -74,6 +71,7 @@ class GROEnglandAndWalesConnector @Inject() (
       .withProxy
       .setHeader(headers*)
       .execute[HttpResponse](HttpReads.Implicits.readRaw, ec)
+
     metrics.endTimer(startTime, "reference-match-timer")
 
     responseHandler.handle(response)(extractJson, metrics)
@@ -124,16 +122,6 @@ class GROEnglandAndWalesConnector @Inject() (
         notFound
       case BirthErrorResponse(exception)   =>
         exception match {
-          case e: GatewayTimeoutException                                             =>
-            error(
-              CLASS_NAME,
-              "request",
-              s"[referenceHelper] gateway timeout exception when loading record by reference"
-            )
-            ErrorHandler.error(e.getMessage)
-          case e: BadGatewayException                                                 =>
-            error(CLASS_NAME, "request", s"[referenceHelper] bad gateway exception when loading record by reference")
-            ErrorHandler.error(e.getMessage)
           case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
             error(
               CLASS_NAME,
@@ -141,8 +129,8 @@ class GROEnglandAndWalesConnector @Inject() (
               s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
-          case e: Exception                                                           =>
-            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: unknown exception: $e")
+          case e                                                                      =>
+            error(CLASS_NAME, "request", s"[referenceHelper] failed to load record by reference: $e")
             ErrorHandler.error(e.getMessage)
         }
     }
@@ -164,21 +152,15 @@ class GROEnglandAndWalesConnector @Inject() (
         notFound
       case BirthErrorResponse(exception)   =>
         exception match {
-          case e: GatewayTimeoutException                                             =>
-            error(CLASS_NAME, "request", s"[detailsHelper] gateway timeout exception when loading record(s) by details")
-            ErrorHandler.error(e.getMessage)
-          case e: BadGatewayException                                                 =>
-            error(CLASS_NAME, "request", s"[detailsHelper] bad gateway exception when loading record(s) by details")
-            ErrorHandler.error(e.getMessage)
           case e: UpstreamErrorResponse if e.statusCode >= 400 && e.statusCode <= 499 =>
             error(
               CLASS_NAME,
               "request",
-              s"[referenceHelper] failed to load record by reference: upstream 4xx response: $e"
+              s"[detailsHelper] failed to load record(s) by details: upstream 4xx response: $e"
             )
             ErrorHandler.error(e.getMessage, e.statusCode)
-          case e: Exception                                                           =>
-            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record by details: unknown exception: $e")
+          case e                                                                      =>
+            error(CLASS_NAME, "request", s"[detailsHelper] failed to load record(s) by details: $e")
             ErrorHandler.error(e.getMessage)
         }
     }
@@ -195,6 +177,7 @@ class GROEnglandAndWalesConnector @Inject() (
         warn(CLASS_NAME, "getReference", s"Failed to obtain access token: $e")
         Future.successful(e)
     }
+
     json
   }
 
@@ -213,6 +196,7 @@ class GROEnglandAndWalesConnector @Inject() (
         warn(CLASS_NAME, "getDetails", s"Failed to obtain access token: $e")
         Future.successful(e)
     }
+
     json
   }
 

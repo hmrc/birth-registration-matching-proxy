@@ -16,212 +16,283 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.mockito.ArgumentMatchers.{any, anyInt, anyString}
-import org.mockito.Mockito.*
-import org.scalatest.concurrent.ScalaFutures
-import play.api.http.Status
-import play.api.libs.json.{JsObject, Json}
+import ch.qos.logback.classic.Level
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.matching.StringValuePattern
+import com.github.tomakehurst.wiremock.stubbing.Scenario
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import play.api.Configuration
+import play.api.libs.json.Json
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.certificate.CertificateStatus
 import uk.gov.hmrc.brm.config.GroAppConfig
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.time.TimeProvider
-import uk.gov.hmrc.brm.utils.AccessTokenRepository
-import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
-import uk.gov.hmrc.http.{
-  BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, UpstreamErrorResponse
-}
+import uk.gov.hmrc.brm.utils.{BrmLogger, KeyHolder, WireMockHelper}
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.play.bootstrap.tools.LogCapturing
 
-import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit.SECONDS
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import java.net.ServerSocket
+import scala.util.Using
 
-class AuthenticatorSpec extends TestFixture with ScalaFutures {
+import java.time.{ZoneOffset, ZonedDateTime}
 
-  val mockHttpClient: HttpClientV2       = mock(classOf[HttpClientV2])
-  val mockRequestBuilder: RequestBuilder = mock(classOf[RequestBuilder])
+class AuthenticatorSpec
+    extends TestFixture with WireMockHelper with ScalaFutures with IntegrationPatience with LogCapturing {
 
-  val testAuthenticator =
-    new Authenticator(testGroConfig, mock(classOf[CertificateStatus]), mockHttpClient, new TimeProvider())
+  override def extraApplicationConfig: Map[String, Any] = Map("play.ws.timeout.request" -> "1 second")
 
-  val mockResponseHandler: ResponseHandler = mock(classOf[ResponseHandler])
-  val mockErrorHandler: ErrorHandler       = mock(classOf[ErrorHandler])
-  given hc: HeaderCarrier                  = HeaderCarrier()
-  given metrics: BRMMetrics                = mock(classOf[BRMMetrics])
+  given hc: HeaderCarrier   = HeaderCarrier()
+  given metrics: BRMMetrics = new BRMMetrics
 
-  val testAuthenticatorMockResponseHandler: Authenticator =
-    new Authenticator(testGroConfig, mock(classOf[CertificateStatus]), mockHttpClient, new TimeProvider()) {
-      override val responseHandler: ResponseHandler  = mockResponseHandler
-      override val errorHandler: ErrorHandler        = mockErrorHandler
-      override val tokenCache: AccessTokenRepository = mock(classOf[AccessTokenRepository])
+  private val authPath = "/auth/token"
+
+  private val brmKey = "authenticator-spec"
+  KeyHolder.setKey(brmKey)
+
+  private def configFor(port: Int, tlsEnabled: Boolean): GroAppConfig = {
+    val prefix    = "microservice.services.birth-registration-matching.gro"
+    val overrides = Configuration(
+      s"$prefix.authentication.v2.host" -> "127.0.0.1",
+      s"$prefix.authentication.v2.port" -> port,
+      s"$prefix.tls.tlsEnabled"         -> tlsEnabled
+    )
+    new GroAppConfig(new ServicesConfig(overrides.withFallback(real[Configuration])))
+  }
+
+  private def authenticator(
+    port: Int = server.port(),
+    tlsEnabled: Boolean = false,
+    certificateValid: Boolean = true,
+    timeProvider: TimeProvider = new TimeProvider()
+  ): Authenticator = {
+    val certificateStatus = mock(classOf[CertificateStatus])
+    when(certificateStatus.certificateStatus()).thenReturn(certificateValid)
+    new Authenticator(configFor(port, tlsEnabled), certificateStatus, real[HttpClientV2], timeProvider)
+  }
+
+  private class FixedTimeProvider(var current: ZonedDateTime) extends TimeProvider {
+    override def now: ZonedDateTime = current
+  }
+
+  private def stubAuth(response: ResponseDefinitionBuilder): Unit =
+    server.stubFor(post(urlEqualTo(authPath)).willReturn(response))
+
+  private def tokenResponse(token: String = "a-new-access-token", expiresIn: Int = 300): ResponseDefinitionBuilder =
+    okJson(Json.obj("access_token" -> token, "expires_in" -> expiresIn).toString())
+
+  // wiremock is pinned to a version that doesn't have withFormParam by http-verbs-test
+  // so we use matching instead
+  private def formField(name: String, value: String): StringValuePattern =
+    // match "name=value" as a complete field anywhere in the form body
+    matching(s"(^|.*&)$name=$value(&.*|$$)")
+
+  "Authenticator.token" when {
+
+    "there is no cached token" should {
+
+      "post the credentials to the auth service as a form" in {
+        stubAuth(tokenResponse())
+
+        authenticator().token().futureValue
+
+        server.verify(
+          postRequestedFor(urlEqualTo(authPath))
+            .withHeader("Content-Type", containing("application/x-www-form-urlencoded"))
+            .withRequestBody(formField("username", "test"))
+            .withRequestBody(formField("password", "test"))
+            .withRequestBody(formField("client_id", "test"))
+            .withRequestBody(formField("client_secret", "test"))
+            .withRequestBody(formField("grant_type", "password"))
+        )
+      }
+
+      "return and cache the access token from a 200 response" in {
+        stubAuth(tokenResponse("a-new-access-token"))
+        val auth = authenticator()
+
+        auth.token().futureValue       shouldBe BirthAccessTokenResponse("a-new-access-token")
+        auth.tokenCache.token.toOption shouldBe Some("a-new-access-token")
+      }
+
+      "return a 500 error when a 200 response is not valid json" in {
+        stubAuth(ok("this is not json"))
+        val auth = authenticator()
+
+        val result = auth.token().futureValue
+
+        result                   shouldBe BirthErrorResponse(
+          UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500]", 500, 500)
+        )
+        auth.tokenCache.hasToken shouldBe false
+      }
+
+      "return a 500 error when a 200 response has no access_token" in {
+        stubAuth(okJson(Json.obj("expires_in" -> 300).toString()))
+        val auth = authenticator()
+
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = auth.token().futureValue
+
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][500] request failed", 500, 500)
+          )
+
+          val authenticatorErrors = logs.collect {
+            case event if event.getLevel == Level.ERROR && event.getFormattedMessage.contains("[Authenticator]") =>
+              event.getFormattedMessage
+          }
+
+          authenticatorErrors shouldBe List(
+            s"[BRM-Key:$brmKey],[Authenticator][requestNewToken] : unable to obtain new access token: " +
+              "unexpected exception: uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][500] request failed"
+          )
+        }
+
+        auth.tokenCache.hasToken shouldBe false
+      }
     }
 
-  when(mockHttpClient.post(any())(any())).thenReturn(mockRequestBuilder)
-  when(mockRequestBuilder.withBody(any[JsObject])(any(), any(), any())).thenReturn(mockRequestBuilder)
-  when(mockRequestBuilder.withProxy).thenReturn(mockRequestBuilder)
+    "there is a cached token" should {
 
-  when(mockRequestBuilder.execute[HttpResponse](any(), any()))
-    .thenReturn(Future.successful(HttpResponse.apply(Status.OK, "a response")))
+      "use the cache and not call the auth service again" in {
+        stubAuth(tokenResponse("cached-token"))
+        val auth = authenticator()
 
-  doNothing().when(metrics).requestCount(any())
-  when(metrics.startTimer()).thenReturn(1L)
-  doNothing().when(metrics).endTimer(any(), any())
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("cached-token")
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("cached-token")
 
-  "Authenticator" when {
-
-    "creating an instance of cache" should {
-
-      "return false for having a token" in {
-        testAuthenticator.tokenCache.hasToken   shouldBe false
-        testAuthenticator.tokenCache.hasExpired shouldBe true
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
       }
 
+      "fetch a new token when less than 60 seconds remain before expires_in" in {
+        server.stubFor(
+          post(urlEqualTo(authPath))
+            .inScenario("token refresh")
+            .whenScenarioStateIs(Scenario.STARTED)
+            .willReturn(tokenResponse("first-token", expiresIn = 300))
+            .willSetStateTo("requesting-new-token")
+        )
+        server.stubFor(
+          post(urlEqualTo(authPath))
+            .inScenario("token refresh")
+            .whenScenarioStateIs("requesting-new-token")
+            .willReturn(tokenResponse("second-token", expiresIn = 300))
+        )
+
+        // expires_in from post response is 300 seconds, minus _expireSecondsDiff (60) means we re-request after 240 seconds
+        val start = ZonedDateTime.of(2026, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC)
+        val clock = new FixedTimeProvider(start)
+        val auth  = authenticator(timeProvider = clock)
+
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("first-token")
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
+
+        // 1 second before expiry - use the cached token and verify we've only made one call for the token
+        clock.current = start.plusSeconds(239)
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("first-token")
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
+
+        // 1 second after expiry - will make a new token request
+        clock.current = start.plusSeconds(241)
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("second-token")
+        server.verify(2, postRequestedFor(urlEqualTo(authPath)))
+      }
     }
 
-    "saving a new token" should {
+    "the auth service fails" should {
 
-      "insert a token" in {
-        testAuthenticator.tokenCache.saveToken("new token", ZonedDateTime.now.plusDays(2))
-        testAuthenticator.tokenCache.hasToken   shouldBe true
-        testAuthenticator.tokenCache.hasExpired shouldBe false
-        testAuthenticator.tokenCache.token      shouldBe Success("new token")
+      Seq(401, 500, 502, 503, 504).foreach { status =>
+        s"return a 500 error when the auth service returns $status" in {
+          stubAuth(aResponse().withStatus(status))
+
+          withCaptureOfLoggingFrom(BrmLogger) { logs =>
+            val result = authenticator().token().futureValue
+
+            result shouldBe BirthErrorResponse(
+              UpstreamErrorResponse(s"[ErrorHandler][500] [ErrorHandler][$status]", 500, 500)
+            )
+
+            val errors = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
+            errors shouldBe List(
+              s"[BRM-Key:$brmKey],[Authenticator][requestNewToken] : unable to obtain new access token: " +
+                s"unexpected exception: uk.gov.hmrc.http.UpstreamErrorResponse: [ErrorHandler][$status]"
+            )
+          }
+        }
       }
 
-      "generate new expiry" in {
-        val mockTimeProvider = mock(classOf[TimeProvider])
+      "return a 500 error when the auth service times out" in {
+        stubAuth(tokenResponse().withFixedDelay(3000))
 
-        val testAuthenticator =
-          new Authenticator(testGroConfig, mock(classOf[CertificateStatus]), mockHttpClient, mockTimeProvider)
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = authenticator().token().futureValue
 
-        val dateTime = ZonedDateTime.now()
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][504] request timed out", 500, 500)
+          )
 
-        when(mockTimeProvider.now) thenReturn dateTime
+          val port     = server.port()
+          val warnings = logs.filter(_.getLevel == Level.WARN).map(_.getFormattedMessage)
 
-        val expiryTime = testAuthenticator.tokenCache.newExpiry(100)
-        // expiry time shd be less by 60 sec.
-        SECONDS.between(dateTime, expiryTime) shouldBe 40
+          warnings shouldBe List(
+            s"[BRM-Key:$brmKey],[ResponseHandler][handle] : [504] request timed out: " +
+              s"POST of 'http://127.0.0.1:$port$authPath' timed out with message " +
+              s"'Request timeout to 127.0.0.1/127.0.0.1:$port after 1000 ms'"
+          )
+        }
       }
 
-      "fail if a GatewayTimeoutException is returned by the post" in {
+      "return a 500 error when the auth service refuses the connection" in {
 
-        val toReturn: BirthErrorResponse = BirthErrorResponse(new GatewayTimeoutException("gateway timeout returned"))
+        val unallocatedPort = Using.resource(new ServerSocket(0))(_.getLocalPort)
 
-        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(using any[ExecutionContext]))
-          .thenReturn(Future.successful(BirthErrorResponse(new GatewayTimeoutException("gateway timeout message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token)
-          .thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = authenticator(port = unallocatedPort).token().futureValue
 
-        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][502] connection failed", 500, 500)
+          )
 
+          val warnings = logs.filter(_.getLevel == Level.WARN).map(_.getFormattedMessage)
+
+          warnings shouldBe List(
+            s"[BRM-Key:$brmKey],[ResponseHandler][handle] : [502] connection failed: " +
+              s"POST of 'http://127.0.0.1:$unallocatedPort$authPath' failed. " +
+              s"Caused by: 'Connection refused (connect failed): /127.0.0.1:$unallocatedPort'"
+          )
+        }
       }
-
-      "fail if a BadGatewayException is returned by the post" in {
-
-        val toReturn: BirthErrorResponse = BirthErrorResponse(new BadGatewayException("bad gateway returned"))
-
-        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(using any[ExecutionContext]))
-          .thenReturn(Future.successful(BirthErrorResponse(new BadGatewayException("bad gateway message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token)
-          .thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
-
-        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
-
-      }
-
-      "fail if an unexpected exception is returned by the post" in {
-
-        val toReturn: BirthErrorResponse = BirthErrorResponse(new Exception("unknown exception returned"))
-
-        when(mockResponseHandler.handle(any[Future[HttpResponse]])(any(), any[BRMMetrics])(using any[ExecutionContext]))
-          .thenReturn(Future.successful(BirthErrorResponse(new Exception("unknown exception message"))))
-        when(testAuthenticatorMockResponseHandler.tokenCache.token)
-          .thenReturn(Failure(new Exception("exception message")))
-        when(mockErrorHandler.error(anyString(), anyInt())).thenReturn(toReturn)
-
-        testAuthenticatorMockResponseHandler.token().map(birthResponse => birthResponse shouldBe toReturn)
-
-      }
-
     }
 
-    "handling the authentication response" should {
+    "TLS is enabled" should {
 
-      def authenticatorWithRealResponseHandler(): Authenticator =
-        new Authenticator(testGroConfig, mock(classOf[CertificateStatus]), mockHttpClient, new TimeProvider())
+      "not call the auth service when the certificate has expired" in {
+        withCaptureOfLoggingFrom(BrmLogger) { logs =>
+          val result = authenticator(tlsEnabled = true, certificateValid = false).token().futureValue
 
-      "parse the access token from a successful response and cache it" in {
-        val authenticator = authenticatorWithRealResponseHandler()
+          result shouldBe BirthErrorResponse(
+            UpstreamErrorResponse("[ErrorHandler][500] TLS Certificate expired", 500, 500)
+          )
 
-        val authRecord = Json.obj("access_token" -> "a-new-access-token", "expires_in" -> 300)
-
-        when(mockRequestBuilder.execute[HttpResponse](any(), any()))
-          .thenReturn(Future.successful(HttpResponse.apply(Status.OK, authRecord.toString())))
-
-        authenticator.token().futureValue shouldBe BirthAccessTokenResponse("a-new-access-token")
-
-        authenticator.tokenCache.hasToken   shouldBe true
-        authenticator.tokenCache.hasExpired shouldBe false
-        authenticator.tokenCache.token      shouldBe Success("a-new-access-token")
+          val errors = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
+          errors shouldBe List(s"[BRM-Key:$brmKey],[Authenticator][token] : TLS Certificate expired")
+        }
+        server.verify(0, postRequestedFor(anyUrl()))
       }
 
-      "return the parse failure when a successful response does not contain valid json" in {
-        val authenticator = authenticatorWithRealResponseHandler()
+      "call the auth service when the certificate is valid" in {
+        stubAuth(tokenResponse())
 
-        when(mockRequestBuilder.execute[HttpResponse](any(), any()))
-          .thenReturn(Future.successful(HttpResponse.apply(Status.OK, "this is not json")))
+        authenticator(tlsEnabled = true, certificateValid = true).token().futureValue
 
-        val result = authenticator.token().futureValue
-
-        result shouldBe a[BirthErrorResponse]
-
-        authenticator.tokenCache.hasToken shouldBe false
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
       }
-
     }
-
-    "checking the TLS certificate" should {
-
-      def authenticatorWith(tlsEnabled: Boolean, certificateValid: Boolean, http: HttpClientV2): Authenticator = {
-        val config = mock(classOf[GroAppConfig])
-        when(config.tlsEnabled).thenReturn(tlsEnabled)
-        when(config.authenticationServiceUrl).thenReturn("http://localhost:8099")
-        when(config.authenticationUri).thenReturn("/auth/token")
-
-        val certificateStatus = mock(classOf[CertificateStatus])
-        when(certificateStatus.certificateStatus()).thenReturn(certificateValid)
-
-        new Authenticator(config, certificateStatus, http, new TimeProvider())
-      }
-
-      "refuse to authenticate when TLS is enabled and the certificate has expired" in {
-        val unusedHttpClient = mock(classOf[HttpClientV2])
-
-        val result =
-          authenticatorWith(tlsEnabled = true, certificateValid = false, unusedHttpClient).token().futureValue
-
-        result shouldBe a[BirthErrorResponse]
-
-        val cause = result.asInstanceOf[BirthErrorResponse].cause
-        cause          shouldBe a[UpstreamErrorResponse]
-        cause.getMessage should include("TLS Certificate expired")
-
-        verify(unusedHttpClient, never()).post(any())(any())
-      }
-
-      "request a token when TLS is enabled and the certificate is still valid" in {
-        val validCertHttpClient = mock(classOf[HttpClientV2])
-        when(validCertHttpClient.post(any())(any())).thenReturn(mockRequestBuilder)
-
-        authenticatorWith(tlsEnabled = true, certificateValid = true, validCertHttpClient).token().futureValue
-
-        verify(validCertHttpClient).post(any())(any())
-      }
-
-    }
-
   }
 
 }

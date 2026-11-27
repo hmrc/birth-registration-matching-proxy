@@ -19,9 +19,10 @@ package uk.gov.hmrc.brm.connectors
 import play.api.http.Status
 import uk.gov.hmrc.brm.metrics.BRMMetrics
 import uk.gov.hmrc.brm.utils.BrmLogger.*
-import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HttpResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 object ResponseHandler extends ResponseHandler
 
@@ -32,30 +33,40 @@ class ResponseHandler {
   def handle(
     futureResponse: Future[HttpResponse]
   )(f: HttpResponse => BirthResponse, metrics: BRMMetrics)(using ec: ExecutionContext): Future[BirthResponse] =
-    futureResponse.map { response =>
-      info(CLASS_NAME, "handle", s"response received")
+    futureResponse
+      .map { response =>
+        info(CLASS_NAME, "handle", s"response received")
+        debug("BirthConnector", "getChildByReference", s"HttpResponse: $response, BODY: ${response.body}")
+        metrics.httpResponseCodeStatus(response.status)
 
-      debug("BirthConnector", "getChildByReference", s"HttpResponse: $response, BODY: ${response.body}")
-
-      metrics.httpResponseCodeStatus(response.status)
-
-      response.status match {
-        case Status.OK                                         =>
-          info(CLASS_NAME, "handle", s"[200] Success")
-          f(response)
-        case Status.NOT_FOUND                                  =>
-          info(CLASS_NAME, "handle", s"[404] 404 status response from LEV, no match")
-          ErrorHandler.errorWithNotFound(response)
-        case status4xx if status4xx >= 400 && status4xx <= 499 =>
-          info(CLASS_NAME, "handle", s"[$status4xx] 4xx status response found")
-          ErrorHandler.error(response)
-        case status5xx if status5xx >= 500 && status5xx <= 599 =>
-          warn(CLASS_NAME, "handle", s"[$status5xx] 5xx status response found,  InternalServerError")
-          ErrorHandler.error(response)
-        case status                                            =>
-          error(CLASS_NAME, "handle", s"[$status] Unexpected response found")
-          ErrorHandler.error(response)
+        response.status match {
+          case Status.OK                                         =>
+            info(CLASS_NAME, "handle", s"[200] Success")
+            f(response)
+          case Status.NOT_FOUND                                  =>
+            info(CLASS_NAME, "handle", s"[404] 404 status response from LEV, no match")
+            ErrorHandler.errorWithNotFound(response)
+          case status4xx if status4xx >= 400 && status4xx <= 499 =>
+            info(CLASS_NAME, "handle", s"[$status4xx] 4xx status response found")
+            ErrorHandler.error(response)
+          case status5xx if status5xx >= 500 && status5xx <= 599 =>
+            warn(CLASS_NAME, "handle", s"[$status5xx] 5xx status response found,  InternalServerError")
+            ErrorHandler.error(response)
+          case status                                            =>
+            error(CLASS_NAME, "handle", s"[$status] Unexpected response found")
+            ErrorHandler.error(response)
+        }
       }
-    }
+      .recover {
+        case e: GatewayTimeoutException =>
+          warn(CLASS_NAME, "handle", s"[504] request timed out: ${e.getMessage}")
+          ErrorHandler.error("request timed out", Status.GATEWAY_TIMEOUT)
+        case e: BadGatewayException     =>
+          warn(CLASS_NAME, "handle", s"[502] connection failed: ${e.getMessage}")
+          ErrorHandler.error("connection failed", Status.BAD_GATEWAY)
+        case NonFatal(e)                =>
+          error(CLASS_NAME, "handle", s"[500] request failed: $e")
+          ErrorHandler.error("request failed")
+      }
 
 }

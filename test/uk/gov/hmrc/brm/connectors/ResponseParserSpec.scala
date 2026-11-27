@@ -16,47 +16,54 @@
 
 package uk.gov.hmrc.brm.connectors
 
-import org.mockito.Mockito.*
-import org.mockito.ArgumentMatchers.{any, anyInt, anyString, refEq}
+import ch.qos.logback.classic.Level
 import play.api.http.Status
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.Json
 import uk.gov.hmrc.brm.TestFixture
-import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.brm.utils.{BrmLogger, KeyHolder}
+import uk.gov.hmrc.http.{HttpResponse, UpstreamErrorResponse}
+import uk.gov.hmrc.play.bootstrap.tools.LogCapturing
 
-class ResponseParserSpec extends TestFixture {
+class ResponseParserSpec extends TestFixture with LogCapturing {
 
-  val mockHandler: ErrorHandler = mock(classOf[ErrorHandler])
+  private val responseParser = ResponseParser
 
-  val responseParser: ResponseParser = new ResponseParser(mockHandler)
+  private val brmKey = "response-parser-spec"
+  KeyHolder.setKey(brmKey)
 
-  "ResponseParser" must {
-    "parse correctly when the body is valid Json" in {
-      val response: HttpResponse = HttpResponse.apply(
-        Status.OK,
-        """
-          |{"this": "isJson"}
-          |""".stripMargin
-      )
+  "ResponseParser.parse" must {
 
-      val parsed: JsValue = Json.obj("this" -> "isJson")
-      val success         = responseParser.parse(response)
+    "return a BirthSuccessResponse when the body is valid json" in
+      withCaptureOfLoggingFrom(BrmLogger) { logs =>
+        val result = responseParser.parse(HttpResponse(Status.OK, """{"this": "isJson"}"""))
 
-      success shouldBe BirthSuccessResponse(parsed)
-      verify(mockHandler, never()).error(anyString(), anyInt())
-      verify(mockHandler, never()).error(any[HttpResponse])
-    }
+        result shouldBe BirthSuccessResponse(Json.obj("this" -> "isJson"))
 
-    "return a BirthErrorResponse when the body is not valid Json" in {
-      val response: HttpResponse              = HttpResponse.apply(Status.OK, "thisIsNotJson")
-      val returnException: BirthErrorResponse = BirthErrorResponse(new Exception)
+        val infoLogs  = logs.filter(_.getLevel == Level.INFO).map(_.getFormattedMessage)
+        val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
 
-      when(mockHandler.error(any[HttpResponse])).thenReturn(returnException)
+        infoLogs  shouldBe List(s"[BRM-Key:$brmKey], [ResponseParser][parse] : parsing json")
+        errorLogs shouldBe Nil
+      }
 
-      responseParser.parse(response) shouldBe returnException
-      verify(mockHandler, times(1))
-        .error(refEq(HttpResponse.apply(Status.INTERNAL_SERVER_ERROR, "thisIsNotJson", Map.empty[String, Seq[String]])))
-    }
+    "return a 500 BirthErrorResponse when the body is not valid json" in
+      withCaptureOfLoggingFrom(BrmLogger) { logs =>
+        val result = responseParser.parse(HttpResponse(Status.OK, "thisIsNotJson"))
 
+        result shouldBe BirthErrorResponse(UpstreamErrorResponse("[ErrorHandler][500]", 500, 500))
+
+        val infoLogs  = logs.filter(_.getLevel == Level.INFO).map(_.getFormattedMessage)
+        val errorLogs = logs.filter(_.getLevel == Level.ERROR).map(_.getFormattedMessage)
+
+        infoLogs shouldBe List(s"[BRM-Key:$brmKey], [ResponseParser][parse] : parsing json")
+
+        errorLogs should have size 1
+
+        errorLogs.head should startWith(
+          s"[BRM-Key:$brmKey],[ResponseParser][parse] : unable to parse json: " +
+            "com.fasterxml.jackson.core.JsonParseException: Unrecognized token 'thisIsNotJson'"
+        )
+      }
   }
 
 }

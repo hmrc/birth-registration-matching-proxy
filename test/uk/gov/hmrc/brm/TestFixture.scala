@@ -24,7 +24,6 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers
 import uk.gov.hmrc.brm.config.GroAppConfig
-import uk.gov.hmrc.brm.utils.BaseUnitSpec
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -35,8 +34,7 @@ trait TestFixture
     with OptionValues
     with BeforeAndAfterEach
     with BeforeAndAfterAll
-    with GuiceOneAppPerSuite
-    with BaseUnitSpec {
+    with GuiceOneAppPerSuite {
 
   given executionContext: ExecutionContext = Helpers.stubControllerComponents().executionContext
 
