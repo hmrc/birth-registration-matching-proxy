@@ -20,6 +20,7 @@ import ch.qos.logback.classic.Level
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.matching.StringValuePattern
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.mockito.Mockito.{mock, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.Configuration
@@ -34,6 +35,11 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.tools.LogCapturing
+
+import java.net.ServerSocket
+import scala.util.Using
+
+import java.time.{ZoneOffset, ZonedDateTime}
 
 class AuthenticatorSpec
     extends TestFixture with WireMockHelper with ScalaFutures with IntegrationPatience with LogCapturing {
@@ -61,11 +67,16 @@ class AuthenticatorSpec
   private def authenticator(
     port: Int = server.port(),
     tlsEnabled: Boolean = false,
-    certificateValid: Boolean = true
+    certificateValid: Boolean = true,
+    timeProvider: TimeProvider = new TimeProvider()
   ): Authenticator = {
     val certificateStatus = mock(classOf[CertificateStatus])
     when(certificateStatus.certificateStatus()).thenReturn(certificateValid)
-    new Authenticator(configFor(port, tlsEnabled), certificateStatus, real[HttpClientV2], new TimeProvider())
+    new Authenticator(configFor(port, tlsEnabled), certificateStatus, real[HttpClientV2], timeProvider)
+  }
+
+  private class FixedTimeProvider(var current: ZonedDateTime) extends TimeProvider {
+    override def now: ZonedDateTime = current
   }
 
   private def stubAuth(response: ResponseDefinitionBuilder): Unit =
@@ -157,6 +168,40 @@ class AuthenticatorSpec
 
         server.verify(1, postRequestedFor(urlEqualTo(authPath)))
       }
+
+      "fetch a new token when less than 60 seconds remain before expires_in" in {
+        server.stubFor(
+          post(urlEqualTo(authPath))
+            .inScenario("token refresh")
+            .whenScenarioStateIs(Scenario.STARTED)
+            .willReturn(tokenResponse("first-token", expiresIn = 300))
+            .willSetStateTo("requesting-new-token")
+        )
+        server.stubFor(
+          post(urlEqualTo(authPath))
+            .inScenario("token refresh")
+            .whenScenarioStateIs("requesting-new-token")
+            .willReturn(tokenResponse("second-token", expiresIn = 300))
+        )
+
+        // expires_in from post response is 300 seconds, minus _expireSecondsDiff (60) means we re-request after 240 seconds
+        val start = ZonedDateTime.of(2026, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC)
+        val clock = new FixedTimeProvider(start)
+        val auth  = authenticator(timeProvider = clock)
+
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("first-token")
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
+
+        // 1 second before expiry - use the cached token and verify we've only made one call for the token
+        clock.current = start.plusSeconds(239)
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("first-token")
+        server.verify(1, postRequestedFor(urlEqualTo(authPath)))
+
+        // 1 second after expiry - will make a new token request
+        clock.current = start.plusSeconds(241)
+        auth.token().futureValue shouldBe BirthAccessTokenResponse("second-token")
+        server.verify(2, postRequestedFor(urlEqualTo(authPath)))
+      }
     }
 
     "the auth service fails" should {
@@ -203,10 +248,11 @@ class AuthenticatorSpec
       }
 
       "return a 500 error when the auth service refuses the connection" in {
-        val unusedPort = 19999
+
+        val unallocatedPort = Using.resource(new ServerSocket(0))(_.getLocalPort)
 
         withCaptureOfLoggingFrom(BrmLogger) { logs =>
-          val result = authenticator(port = unusedPort).token().futureValue
+          val result = authenticator(port = unallocatedPort).token().futureValue
 
           result shouldBe BirthErrorResponse(
             UpstreamErrorResponse("[ErrorHandler][500] [ErrorHandler][502] connection failed", 500, 500)
@@ -216,8 +262,8 @@ class AuthenticatorSpec
 
           warnings shouldBe List(
             s"[BRM-Key:$brmKey],[ResponseHandler][handle] : [502] connection failed: " +
-              s"POST of 'http://127.0.0.1:$unusedPort$authPath' failed. " +
-              s"Caused by: 'Connection refused (connect failed): /127.0.0.1:$unusedPort'"
+              s"POST of 'http://127.0.0.1:$unallocatedPort$authPath' failed. " +
+              s"Caused by: 'Connection refused (connect failed): /127.0.0.1:$unallocatedPort'"
           )
         }
       }
