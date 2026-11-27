@@ -17,11 +17,11 @@
 package uk.gov.hmrc.brm.certificate
 
 import uk.gov.hmrc.brm.certificate.CertificateExpiryMonitorJobCommand.*
-
 import org.apache.pekko.actor.typed.scaladsl.TimerScheduler
 import org.mockito.Mockito.spy
 import org.mongodb.scala.model.Filters
 import org.mongodb.scala.SingleObservableFuture
+import org.scalatest.concurrent.Eventually.eventually
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
 import uk.gov.hmrc.brm.TestFixture
 import uk.gov.hmrc.brm.models.CertExpiryJobDetails
@@ -72,15 +72,11 @@ class CertificateExpiryMonitorJobMultipleInstancesSpec
 
       actorLoop.foreach(eachActor => eachActor ! CheckExpiry)
 
-      val count = await(
-        repository.collection
-          .countDocuments(
-            Filters.equal("jobId", jobID)
-          )
-          .toFuture()
-      )
-
-      count shouldBe 1L
+      eventually {
+        await(
+          repository.collection.countDocuments(Filters.equal("jobId", jobID)).toFuture()
+        ) shouldBe 1L
+      }
     }
   }
 
